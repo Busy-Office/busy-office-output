@@ -19,8 +19,18 @@
 | 5 ms/doc (p50 warm) | | PASS — cold-process p50=100ms min=98ms max=106ms (n=15, 3 pages); note DejaVu Sans font warning, see Authoring notes | PASS — p50=12.1ms p95=14.5ms mean=12.3ms (n=30, 3 pages, 25KB) |
 
 ## Bursting math
-target window is still undecided (GATE-BURST-WINDOW, open). Parametrized
-against 8,000 docs so the decision doesn't block the math:
+**Target window: 30 minutes for 8,000 docs (GATE-BURST-WINDOW, closed
+2026-08-27, maintainer decision).** Chosen because it's the point where
+both candidate renderers clear the window on a single process, with no
+worker-pool fan-out needed yet: pdf-direct at 18.6x margin, Typst
+(cold, single-process) at ~2.25x margin. Under ADR-001, Typst now owns
+pagination for multi-page/carry-forward/non-Latin documents — exactly the
+shape of a real 8,000-doc batch (month-end invoices, payslips), not just
+pdf-direct's simple fast-path cases — so Typst's own margin, not just
+pdf-direct's, was the deciding constraint. Defers worker-pool/fan-out
+investment (Stage 3+ territory) until a real customer SLA demands a
+tighter window than 30 minutes. Parametrized against all four candidate
+windows below for the record:
 
 | Window | Required ms/doc (single-threaded budget) | pdf-direct p50=12.1ms — margin |
 |---|---|---|
@@ -39,11 +49,21 @@ not the bottleneck at any plausible window** — carbone still needed
 
 Typst measured (cold-process p50=100ms — `run.sh` spawns a fresh `typst
 compile` per doc; a warm/watch-mode server would be faster but wasn't
-measured): 8,000 docs ≈ 800s (13.3 min) single-process, cold. Clears the
-5/15-min windows at 3x/9x margin, roughly matches the 30-min window (2.25x),
-would need parallelism or a warm-process mode to comfortably clear a 5-min
-window with margin the way pdf-direct does.
-achieved: carbone ______ / typst 100ms p50 (cold) / pdf-direct 12.1ms p50 (see table above)
+measured): 8,000 docs ≈ 800s (13.3 min) single-process, cold. Against the
+required-ms/doc table above: does **not** clear the 5-min window
+single-process (100ms actual > 37.5ms required); clears 15-min with a
+thin ~1.1x margin (100ms vs 112.5ms required); clears 30-min comfortably
+at 2.25x margin (100ms vs 225ms required). *(Correction 2026-08-27: the
+prior text here claimed Typst clears 5/15-min windows at "3x/9x margin" —
+that doesn't reconcile with the required-ms/doc table and was likely a
+copy error from pdf-direct's row; recomputed directly above. Not
+load-bearing for the 30-min decision either way, since 30-min is the
+window actually chosen.)* Would need parallelism or a warm-process mode
+to clear tighter windows than 30 min the way pdf-direct does.
+
+**achieved (30-min target): typst 100ms p50 cold — 2.25x margin (clears) /
+pdf-direct 12.1ms p50 — 18.6x margin (clears) / carbone not applicable —
+reserved, not adopted, per ADR-000.**
 
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):

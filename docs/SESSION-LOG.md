@@ -11,6 +11,31 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 0 (GATE-BURST-WINDOW closed)
+- Did: maintainer decided the bursting window: **30 minutes** for 8,000
+  docs. Chosen as the point where both renderers clear single-process
+  with no worker-pool fan-out: pdf-direct 18.6x margin, Typst (cold,
+  single-process) 2.25x margin — and Typst's margin was the deciding
+  constraint given ADR-001 routes multi-page/carry-forward/non-Latin
+  documents (a real batch's likely shape) to Typst, not just pdf-direct's
+  fast path. Applied: docs/HUMAN-GATES-LOG.md GATE-BURST-WINDOW closed;
+  spike/RESULTS.md bursting section filled with the decided window +
+  achieved line; ROADMAP.md bursting-math checkbox ticked. While filling
+  this in, caught and corrected a pre-existing arithmetic error in
+  RESULTS.md: prose claimed Typst "clears the 5/15-min windows at 3x/9x
+  margin," which doesn't reconcile with the required-ms/doc table
+  (recomputed: Typst does NOT clear 5-min single-process, clears 15-min
+  at only ~1.1x, clears 30-min at 2.25x — matches only the 30-min figure
+  the original prose already had right). Corrected inline with a note;
+  not load-bearing for the 30-min decision since that number was already
+  right. `npm run verify` green.
+- Open: GATE-S1-PREWORK still open. `spike/` deletion still blocked —
+  need to re-check the Stage 0 exit gate (`/gate-check 0`) now that
+  ADR-000, ADR-001, and GATE-BURST-WINDOW are all closed.
+- Next: run `/gate-check 0` to see what (if anything) still blocks Stage
+  0's exit; if clean, `spike/` deletion + RESULTS.md → docs/ move is the
+  last Stage 0 task.
+
 ## 2026-08-27 — Stage 0/1 (ADR-001 decided)
 - Did: ran a deep-research workflow surveying the FOSS document-templating
   landscape (Carbone, Typst, pdf-lib, and alternatives) to inform ADR-001.
