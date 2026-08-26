@@ -11,6 +11,14 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — build-loop tick 20 (dispatcher, noop)
+- Did: dispatcher tick — checked docs/INBOX.md Open section: empty, nothing
+  to process. Stage 0 remains closed; Stage 1 remains blocked —
+  GATE-S1-PREWORK still `open`, default NO.
+- Open: GATE-S1-PREWORK (needs maintainer answer in docs/INBOX.md).
+- Next: same — human answers GATE-S1-PREWORK, or drops an item in
+  docs/INBOX.md for the next dispatcher tick (tick 24).
+
 ## 2026-08-27 — build-loop tick 19 (noop)
 - Did: read ROADMAP.md, docs/HUMAN-GATES-LOG.md, docs/INBOX.md. INBOX Open
   section empty (nothing for dispatcher). Stage 0 remains closed; Stage 1
