@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://busy-office.dev/schema/contracts/purchase-order.schema.json",
+  "title": "Purchase order data contract",
+  "description": "Data contract envelope for documentType \"purchase-order\". Header/lines/totals shape below; the envelope fields (schemaVersion, documentType) are DataContractEnvelope in packages/schema/src/contract/data-contract.ts.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "documentType": { "const": "purchase-order" },
+    "header": {
+      "type": "object",
+      "properties": {
+        "poNumber": { "type": "string" },
+        "poDate": { "$ref": "common.schema.json#/$defs/date" },
+        "currency": { "$ref": "common.schema.json#/$defs/currencyCode" },
+        "buyer": { "$ref": "common.schema.json#/$defs/party" },
+        "vendor": { "$ref": "common.schema.json#/$defs/party" }
+      },
+      "required": ["poNumber", "poDate", "currency", "buyer", "vendor"],
+      "additionalProperties": false
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "materialId": { "type": "string" },
+          "description": { "type": "string" },
+          "quantity": { "type": "number" },
+          "unitOfMeasure": { "$ref": "common.schema.json#/$defs/unitOfMeasure" },
+          "unitPrice": { "$ref": "common.schema.json#/$defs/money" },
+          "netAmount": { "$ref": "common.schema.json#/$defs/money" }
+        },
+        "required": ["lineNumber", "materialId", "description", "quantity", "unitOfMeasure", "unitPrice", "netAmount"],
+        "additionalProperties": false
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "netTotal": { "$ref": "common.schema.json#/$defs/money" },
+        "taxTotal": { "$ref": "common.schema.json#/$defs/money" },
+        "grandTotal": { "$ref": "common.schema.json#/$defs/money" }
+      },
+      "required": ["netTotal", "taxTotal", "grandTotal"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schemaVersion", "documentType", "header", "lines", "totals"],
+  "additionalProperties": false
+}

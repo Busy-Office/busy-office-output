@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://busy-office.dev/schema/contracts/payslip.schema.json",
+  "title": "Payslip data contract",
+  "x-pii": true,
+  "description": "Data contract envelope for documentType \"payslip\". x-pii is a tooling marker, not a JSON Schema keyword: this payload must never be logged (CLAUDE.md) — hashes and rule traces only, everywhere in the runtime, not just here.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "documentType": { "const": "payslip" },
+    "header": {
+      "type": "object",
+      "properties": {
+        "payslipNumber": { "type": "string" },
+        "payPeriodStart": { "$ref": "common.schema.json#/$defs/date" },
+        "payPeriodEnd": { "$ref": "common.schema.json#/$defs/date" },
+        "payDate": { "$ref": "common.schema.json#/$defs/date" },
+        "currency": { "$ref": "common.schema.json#/$defs/currencyCode" },
+        "employer": { "$ref": "common.schema.json#/$defs/party" },
+        "employeeId": { "type": "string", "description": "Opaque internal identifier, not a national ID — never a data element the runtime logs." },
+        "employeeName": { "type": "string" }
+      },
+      "required": ["payslipNumber", "payPeriodStart", "payPeriodEnd", "payDate", "currency", "employer", "employeeId", "employeeName"],
+      "additionalProperties": false
+    },
+    "lines": {
+      "type": "array",
+      "description": "Earnings and deductions, one line per pay component.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "code": { "type": "string", "description": "Pay component code, e.g. BASIC, OT, CPF." },
+          "description": { "type": "string" },
+          "type": { "enum": ["earning", "deduction"] },
+          "amount": { "$ref": "common.schema.json#/$defs/money" }
+        },
+        "required": ["lineNumber", "code", "description", "type", "amount"],
+        "additionalProperties": false
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "grossPay": { "$ref": "common.schema.json#/$defs/money" },
+        "totalDeductions": { "$ref": "common.schema.json#/$defs/money" },
+        "netPay": { "$ref": "common.schema.json#/$defs/money" }
+      },
+      "required": ["grossPay", "totalDeductions", "netPay"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schemaVersion", "documentType", "header", "lines", "totals"],
+  "additionalProperties": false
+}

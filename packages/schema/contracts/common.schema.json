@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://busy-office.dev/schema/contracts/common.schema.json",
+  "title": "Common contract definitions (Tier 1 standards, ADR-006 / docs/STANDARDS.md)",
+  "$defs": {
+    "currencyCode": {
+      "type": "string",
+      "description": "ISO 4217 alphabetic currency code. Amounts are numbers; formatting is the renderer's job.",
+      "pattern": "^[A-Z]{3}$"
+    },
+    "countryCode": {
+      "type": "string",
+      "description": "ISO 3166-1 alpha-2 country code.",
+      "pattern": "^[A-Z]{2}$"
+    },
+    "localeTag": {
+      "type": "string",
+      "description": "BCP 47 locale tag (already used by VariantKey.locale).",
+      "pattern": "^[a-z]{2,3}(-[A-Za-z0-9]{2,8})*$"
+    },
+    "dateTime": {
+      "type": "string",
+      "description": "RFC 3339 / ISO 8601 timestamp.",
+      "format": "date-time"
+    },
+    "date": {
+      "type": "string",
+      "description": "RFC 3339 / ISO 8601 calendar date.",
+      "format": "date"
+    },
+    "money": {
+      "type": "object",
+      "description": "Integer cents or round-at-boundary decimal; formatting is the renderer's job (CLAUDE.md).",
+      "properties": {
+        "currency": { "$ref": "#/$defs/currencyCode" },
+        "amount": {
+          "type": "integer",
+          "description": "Minor units (cents). Never a floating-point major-unit amount."
+        }
+      },
+      "required": ["currency", "amount"],
+      "additionalProperties": false
+    },
+    "unitOfMeasure": {
+      "type": "string",
+      "description": "UNECE Recommendation 20 unit-of-measure code. Our own reference data previously used pcs/jar/sht — those are display names, not codes; this Stage 1 task fixes the contract side. There is no in-repo reference-data generator to fix (spike/ was deleted at Stage 0 close, see docs/RESULTS.md) — any future seeded reference data must emit codes from this enum, not the old ad hoc strings.",
+        "enum": ["EA", "H87", "KGM", "GRM", "LTR", "MTR", "MTK", "MTQ", "PR", "SET", "DZN", "BX", "PK", "C62"]
+    },
+    "partyIdentification": {
+      "type": "object",
+      "description": "Reserved ISO 6523 / Peppol EAS party-identification fields (ADR-006 Tier 1: reserved now so Tier 3 e-invoicing doesn't reshape the contract). Optional until a Tier 3 trigger fires.",
+      "properties": {
+        "scheme": {
+          "type": "string",
+          "description": "ISO 6523 ICD or Peppol EAS scheme identifier, e.g. \"0195\" (UEN) or \"0088\" (GLN)."
+        },
+        "id": { "type": "string" }
+      },
+      "required": ["scheme", "id"],
+      "additionalProperties": false
+    },
+    "address": {
+      "type": "object",
+      "properties": {
+        "line1": { "type": "string" },
+        "line2": { "type": "string" },
+        "city": { "type": "string" },
+        "postalCode": { "type": "string" },
+        "country": { "$ref": "#/$defs/countryCode" }
+      },
+      "required": ["line1", "city", "country"],
+      "additionalProperties": false
+    },
+    "party": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "address": { "$ref": "#/$defs/address" },
+        "partyId": { "$ref": "#/$defs/partyIdentification" }
+      },
+      "required": ["name", "address"],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://busy-office.dev/schema/contracts/invoice.schema.json",
+  "title": "Invoice data contract",
+  "description": "Data contract envelope for documentType \"invoice\". Multi-page layout and carry-forward totals route this documentType to Typst per ADR-001.",
+  "type": "object",
+  "properties": {
+    "schemaVersion": { "const": "1.0.0" },
+    "documentType": { "const": "invoice" },
+    "header": {
+      "type": "object",
+      "properties": {
+        "invoiceNumber": { "type": "string" },
+        "invoiceDate": { "$ref": "common.schema.json#/$defs/date" },
+        "dueDate": { "$ref": "common.schema.json#/$defs/date" },
+        "currency": { "$ref": "common.schema.json#/$defs/currencyCode" },
+        "seller": { "$ref": "common.schema.json#/$defs/party" },
+        "buyer": { "$ref": "common.schema.json#/$defs/party" },
+        "poReference": { "type": "string" }
+      },
+      "required": ["invoiceNumber", "invoiceDate", "dueDate", "currency", "seller", "buyer"],
+      "additionalProperties": false
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "description": { "type": "string" },
+          "quantity": { "type": "number" },
+          "unitOfMeasure": { "$ref": "common.schema.json#/$defs/unitOfMeasure" },
+          "unitPrice": { "$ref": "common.schema.json#/$defs/money" },
+          "taxRate": { "type": "number", "minimum": 0, "maximum": 1 },
+          "netAmount": { "$ref": "common.schema.json#/$defs/money" }
+        },
+        "required": ["lineNumber", "description", "quantity", "unitOfMeasure", "unitPrice", "taxRate", "netAmount"],
+        "additionalProperties": false
+      }
+    },
+    "totals": {
+      "type": "object",
+      "properties": {
+        "netTotal": { "$ref": "common.schema.json#/$defs/money" },
+        "taxTotal": { "$ref": "common.schema.json#/$defs/money" },
+        "grandTotal": { "$ref": "common.schema.json#/$defs/money" }
+      },
+      "required": ["netTotal", "taxTotal", "grandTotal"],
+      "additionalProperties": false
+    }
+  },
+  "required": ["schemaVersion", "documentType", "header", "lines", "totals"],
+  "additionalProperties": false
+}
