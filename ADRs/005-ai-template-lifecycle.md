@@ -9,7 +9,7 @@ Stages 2 and 4 proceed regardless; they are cheap and self-verifying).
 Two AI-native capabilities were proposed:
 
 1. **Generate from sample / shadow template** — given an existing document
-   (a PDF of the current invoice, a legacy SAP Smart Forms output, a scan),
+   (a PDF of the current invoice, a legacy forms-engine output, a scan),
    produce a working template.
 2. **Assist adjustment on screen** — conversational edits against a live
    preview: "move the totals right", "add a GST column", "shrink the header".

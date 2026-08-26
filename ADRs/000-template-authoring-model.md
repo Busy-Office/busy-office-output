@@ -34,8 +34,9 @@ JSON document schema → composition → Layout IR → renderer (Typst or pdf-di
 LibreOffice PDF conversion.
 
 - **Pro:** no layout engine, no component library, no builder — ever. Business
-  users author in the tool they know; this is how SAP output has always worked.
-  Pagination, repeating headers, keep-with-next come from the file format.
+  users author in the tool they know; this is the long-standing pattern for
+  enterprise output authoring. Pagination, repeating headers, keep-with-next
+  come from the file format.
   Worker pool, crash restart, retry already built. ~60% less product code.
 - **Con:** templates are binary zips — no meaningful diff, no structural test;
   review means opening the file. LibreOffice becomes a pinned production

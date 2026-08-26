@@ -201,7 +201,7 @@ through the Stage 5 lifecycle.
 | Digital signatures | pulled forward immediately if e-documents land | **PAdES B-LT** (ETSI EN 319 142); mandatory in most e-invoicing regimes |
 | Accessibility (PDF/UA-1) | EAA / procurement requirement | route /UA documents to a capable renderer per-template (Typst exports ua-1) |
 | Excel / reports | a real reporting user | separate dataset abstraction, separate product |
-| ERP adapters (SAP/Odoo/…) | a user of that ERP exists | not a hypothesis about one |
+| ERP adapters (per-ERP connectors) | a user of that ERP exists | not a hypothesis about one |
 | Template marketplace | never | an outcome of adoption, not a feature |
 
 ---

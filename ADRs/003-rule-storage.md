@@ -5,8 +5,8 @@
 ## Context
 Rules resolve (event, payload) → (template, locale, channel, recipients).
 Git-versioned config files are diffable, reviewable, and match the
-developer-first positioning; DB tables allow runtime editing by business users
-(the NAST/BRF+ experience) but need their own change governance.
+developer-first positioning; DB tables allow runtime editing by business
+users but need their own change governance.
 
 ## Options
 1. Files first; table-backed adapter later if a real user demands runtime edits

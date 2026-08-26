@@ -94,8 +94,7 @@ Same packages, three shapes:
   the host (busy-office-erp): one process, shared Postgres (`bo_output.*`),
   FS archive, in-process worker. Enables the **transactional outbox**: the
   output event is written in the same DB transaction as the business posting —
-  rollback leaves no orphaned artifact. (SAP's NAST table is this pattern,
-  forty years early.)
+  rollback leaves no orphaned artifact.
 - **T2 split worker** — host process + `bo-output worker` on the same
   database; heavyweight renderers (LibreOffice) isolated here.
 - **T3 standalone** — `bo-output serve`, multiple hosts/tenants; the

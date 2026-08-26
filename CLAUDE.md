@@ -1,7 +1,8 @@
 # Busy Office Output — Claude Code project memory
 
 ERP document output runtime: **determination, rendering, archive, delivery,
-audit**. The open-source equivalent of SAP NAST/BRF+, renderer-agnostic.
+audit**. An open-source alternative to commercial ERP output-management
+stacks, renderer-agnostic.
 Status: **Stage 0** (see ROADMAP.md). One part-time maintainer; sessions are
 short — leave everything in a resumable state.
 

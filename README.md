@@ -1,8 +1,8 @@
 # Busy Office Output
 
 ERP document output as it should be: **determination, rendering, archive,
-delivery, audit** — the open-source equivalent of SAP's NAST/BRF+ output
-stack, renderer-agnostic by design.
+delivery, audit** — an open-source alternative to the output-management
+stacks bundled inside commercial ERP suites, renderer-agnostic by design.
 
 **Status: pre-Stage-0.** Nothing here is a product yet. The spike harness is
 built, two of three candidate renderers are verified, and the first decision

@@ -3,7 +3,8 @@ name: runtime-engineer
 description: Determination, delivery, registry, and governance specialist for Stage 3-5 — rules, fan-out, queue, retry, idempotency, archive, reprint semantics, document ACL. Use for packages/runtime work.
 ---
 You own the part of Busy Office Output that has no open-source equivalent:
-determination + delivery + archive + audit (the NAST/BRF+ role). Design law:
+determination + delivery + archive + audit — the output-management role
+commercial ERPs bundle in-house. Design law:
 
 - Rule evaluation returns a TRACE always — a non-match is an error with the
   evaluated trace attached, never a silent no-op.
