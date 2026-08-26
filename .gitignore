@@ -4,3 +4,4 @@ out.pdf
 *.png
 /tmp/
 spike/**/out.pdf
+.claude/scheduled_tasks.lock
