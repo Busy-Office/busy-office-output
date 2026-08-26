@@ -11,6 +11,40 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 10, dispatcher + Q6)
+- Did: dispatcher pass (interactive — maintainer answered GATE-CARBONE
+  in-session, processed immediately rather than waiting for tick%4).
+  Maintainer decided "skip carbone": LibreOffice-as-production-dependency
+  conflicts with "never gold-plate a renderer"; CCL license left unread as
+  moot. GATE-CARBONE closed (not benchmarked, skipped by decision) —
+  docs/HUMAN-GATES-LOG.md. ROADMAP.md carbone-author + CCL-read [HUMAN]
+  tasks annotated SKIPPED (left unchecked, no DoD ran). docs/INBOX.md item
+  moved to Processed. Then Q6: arb-chair drafted the ADR-000 recommendation
+  (Option A / schema-first recommended, renderer choice deferred to
+  ADR-002) into ADRs/000-template-authoring-model.md, all 5 decision
+  drivers filled with RESULTS.md citations (drivers 2-4 explicitly marked
+  unanswered/unanswered-by-choice, not fabricated). Two independent
+  skeptics ran the verify stage: both passed 4-5 checks but both
+  independently caught the same real defect — the draft called ADR-005
+  "accepted"/"accepted-in-principle" three times, but ADRs/README.md:10
+  lists it as "Proposed — skill tasks proceed." Corrected all three
+  instances and added the missing RESULTS/README citation to driver 5.
+  `npm run verify` green after the fix.
+- Open: ROADMAP.md:40 (`/adr 000 round-table draft` checkbox) left
+  **unticked** — both skeptics flagged a wording tension between the
+  roadmap's literal DoD ("decision drivers all evidenced") and the draft
+  legitimately marking 2-3 drivers "unanswered by choice," and recommended
+  a human/arb-chair ruling rather than the loop self-approving. ADR-000
+  Status remains Proposed; Decision line remains "Pending — human decides"
+  per CLAUDE.md (only a human closes an ADR). Q6 is otherwise complete.
+- Next: either the maintainer rules directly on whether ROADMAP.md:40 can
+  be ticked given the "unanswered by choice" drivers, or the next
+  dispatcher tick gets an arb-chair ruling on it. After that, Stage 0's
+  remaining tasks are the human-only ones: decide ADR-000 itself, and (if
+  Path A is chosen) ADR-001. Loop queue (docs/LOOP-PLAN.md Q1-Q6) is now
+  fully exhausted — Stage 0 is human-blocked by design from here, not a
+  loop failure.
+
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
 - tick 9, 2026-08-26: noop — unchanged, GATE-CARBONE still open.

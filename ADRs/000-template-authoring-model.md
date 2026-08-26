@@ -62,13 +62,116 @@ Git-native review (payslips, high-volume bursting via pdf-direct). The
 
 ## Decision drivers (fill from spike/RESULTS.md)
 
-1. Is carried-forward-at-page-break a hard requirement for any Stage 3–4 document?
-2. Who authors templates at the target organisation — developers or business users?
-3. Does Carbone pass gates 1, 3, 4 on the reference PO, and at what ms/doc on real hardware?
-4. Is the CCL compatible with the intended distribution of Busy Office Output?
-5. How much of the authoring burden should AI carry? (ADR-005 — strongly
-   favors text templates; weakens Path B's Word-as-builder advantage)
+1. **Is carried-forward-at-page-break a hard requirement for any Stage 3–4 document?**
+   Yes for payslips and multi-page invoices/POs with running subtotals — this
+   is the reference PO's own gate 2. Both schema-first renderers pass it
+   (pdf-direct and Typst, gate matrix, `spike/RESULTS.md` §Gate matrix).
+   Carbone's mechanism for this was never confirmed (see driver 3) — Option
+   B's own text flags "no native office-format mechanism" as unverified.
+
+2. **Who authors templates at the target organisation — developers or
+   business users?**
+   Unanswered in `RESULTS.md` — the "Who will actually author templates at
+   the target org?" line under Authoring experience notes was never filled
+   in. No named business-user template author exists yet for this project
+   (single part-time maintainer, Stage 0). This driver currently has no
+   evidence either way and should not be used to justify Option B until a
+   real user is named.
+
+3. **Does Carbone pass gates 1, 3, 4 on the reference PO, and at what ms/doc
+   on real hardware?**
+   **Unanswered by choice, not by evidence.** GATE-CARBONE was explicitly
+   skipped by maintainer decision (`docs/INBOX.md`; `ROADMAP.md` line 35)
+   because LibreOffice-as-production-dependency conflicts with the
+   "never gold-plate a renderer" golden rule, not because Carbone was run
+   and failed. Carbone has zero rows filled in the gate matrix, the
+   bursting table, or the authoring notes. Any future re-evaluation must
+   re-open GATE-CARBONE and actually run `npm run spike:carbone`, not infer
+   a result from the vendor's published ~50ms/doc figure.
+
+4. **Is the CCL compatible with the intended distribution of Busy Office
+   Output?**
+   **Unanswered by choice, not by evidence.** The licence-check line in
+   `RESULTS.md` is blank; `LICENSE.md` was explicitly not read
+   (`ROADMAP.md` line 38, skipped 2026-08-26, "moot: Carbone not adopted
+   for Stage 0"). The known constraint from the ADR's own Option B text
+   stands unverified in depth: CCL permits embedding but prohibits
+   hosted-DGaaS use, which is a real risk for a project offering delivery
+   as part of its runtime — this needs a full read before Path B or C is
+   revisited, not a summary judgment.
+
+5. **How much of the authoring burden should AI carry?**
+   Favors Option A, though the supporting ADR is not yet closed. ADR-005
+   (status per `ADRs/README.md`: **"Proposed — skill tasks proceed"**, not
+   accepted) establishes text-diffable templates as the AI-leverage path:
+   generation-from-sample plus a render-diff verification loop. Binary
+   office templates (Option B) are AI-hostile — poor XML-in-zip patching,
+   unreadable diffs — and the "Word is the builder" advantage Option B
+   claims matters less once the AI is the builder. This driver is
+   evidenced by a proposed-but-in-motion ADR (`ADRs/README.md` row for 005;
+   its skill tasks already proceed) rather than by `spike/RESULTS.md` data
+   — the one driver here not sourced from a Stage 0 spike, which is weaker
+   support than a closed decision. The direction is right, but ADR-005
+   itself is not yet a settled precedent, and this gap should be named
+   explicitly rather than folded into the same "evidenced" bucket as
+   drivers 1–4.
 
 ## Decision
 
-_Pending Stage 0._
+**This is a draft recommendation only. Decision remains with the maintainer.**
+
+**Recommended: Option A (schema-first), with renderer selection deferred
+to ADR-002.** Reasoning tied to the drivers above:
+
+- Driver 1 (carry-forward) is satisfied by both schema-first renderers
+  today, on measured evidence — pdf-direct (p50=12.1ms, p95=14.5ms, n=30,
+  target hardware) and Typst (cold-process p50=100ms) both pass gates 1–4
+  on the reference PO. Option A's text already accommodates both renderers
+  under one authoring model (`JSON schema → IR → Typst or pdf-direct`), so
+  choosing A does not force a premature pdf-direct-vs-Typst call — that
+  split is real (RTL/CJK below) but belongs to ADR-002, not ADR-000.
+- Driver 5 (AI leverage) points the same direction, though its supporting
+  ADR-005 is only "Proposed — skill tasks proceed," not accepted:
+  text-diffable templates are the only authoring model that lets
+  generation + render-diff verification substitute for a builder. This is
+  the single largest structural advantage Option A has over B, but it
+  rests on an in-motion proposal, not a closed decision — weight it
+  accordingly until ADR-005 itself closes.
+- Drivers 3 and 4, which would be Option B's strongest supporting evidence,
+  are **unanswered by choice** — GATE-CARBONE was closed by maintainer
+  decision to skip, not by a benchmark. Recommending Option A does **not**
+  rest on Carbone having failed; it rests on Option A's demonstrated gate
+  passes plus ADR-005's AI-leverage case being sufficient on their own,
+  with the Carbone comparison simply absent from the record.
+- The RTL/CJK smoke test (`spike/RESULTS.md`, tick-5-corrected) shows a
+  real, quantified cost inside Option A itself: pdf-direct has no
+  font-fallback chain (Arabic+digit invoices fail with `.notdef` boxes
+  unless hand-assembled complete font sets are used) and a TrueType
+  subsetter bug on large composite-glyph CJK fonts (workaround: disable
+  subsetting, ~5.7MB/font cost). Typst has neither gap and produces PDF/A +
+  UA-1-tagged output by default where pdf-direct does not. Because Option A
+  already permits both renderers behind one schema, this is an argument for
+  a two-renderer split *inside* Option A (fast path / conformance-and-script
+  path), not an argument against Option A itself — but it should be named
+  now so ADR-002 doesn't reopen this ground.
+
+**Strongest counter-argument to this recommendation (not hidden):**
+Driver 2 is genuinely unanswered — no named business user requiring
+office-tool template authoring exists yet, but if one does exist or
+appears soon, Option A permanently forecloses non-technical authoring
+until the Stage 7 builder is built (conditional, expensive, explicitly the
+thing Option A's own "Con" line warns about). A maintainer who expects a
+business-authoring requirement to surface soon should weight this higher
+than the evidence above does, since nothing in Stage 0 rules it out — it
+was simply never asked.
+
+**Carbone / Option B / Option C status:** explicitly undemonstrated by
+choice, not by evidence, and not rejected on the merits. GATE-CARBONE and
+the CCL licence read remain open commitments, to be revisited only if a
+named user needs `.odt`/`.docx` template authoring (per `docs/INBOX.md`
+and the GATE-CARBONE closure note in `ROADMAP.md`). Reopening either
+requires actually running `npm run spike:carbone` and reading `LICENSE.md`
+in full — this ADR draft must not be cited later as if that evaluation
+happened.
+
+**Decision:** Pending — draft recommendation above, human decides.
