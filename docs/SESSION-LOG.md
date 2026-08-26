@@ -11,6 +11,33 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 5)
+- Did: Q5 typst bench + RTL/CJK column. GATE-TYPST-INSTALL answered (typst
+  0.15.1 found on PATH — installed outside the loop). Cold-process
+  p50=100ms (n=15, 3 pages), vs container 459ms. Wrote
+  spike/typst/rtl-cjk-smoke.typ mirroring the pdf-direct smoke test.
+  **Caught and corrected my own tick-3 mistake**: the ar-SA verdict
+  ("pdf-lib does no bidi/shaping") was a snap judgment from a small
+  thumbnail, not rigorously checked. Redid it with isolated renders +
+  explicit-codepoint order test + pixel-cluster analysis: pdf-lib's bidi
+  and Arabic joining are actually correct, matching Typst almost exactly
+  on pure Arabic text. The real defect is narrower: SFArabic.ttf has zero
+  Latin/digit glyphs (a macOS OS-fallback-only font), and pdf-lib has no
+  font-fallback chain, so Arabic+numbers — the normal shape of a real
+  invoice — renders missing-glyph boxes for the numbers. Typst has
+  automatic fallback and passes. Also found Typst's combined 3-script PDF
+  is 21KB vs pdf-lib's 5.8MB CJK workaround. Corrected RESULTS.md and
+  GATE-RTL-SHAPING (marked superseded, not silently rewritten) to reflect
+  this.
+- Open: GATE-CARBONE still blocks Q6 (the /adr 000 draft needs the
+  carbone row filled, or an explicit "skip carbone" in docs/INBOX.md).
+- Next: Q6 is the last queued item and it's gated. If GATE-CARBONE is
+  still unanswered next tick, the loop goes fully human-blocked — nothing
+  left in the queue that isn't waiting on you. Worth checking
+  docs/INBOX.md; five gates are open, most consequential is now resolved
+  (GATE-RTL-SHAPING, corrected) and GATE-BURST-WINDOW (no longer
+  load-bearing per Q4's margin).
+
 ## 2026-08-26 — Stage 0 (loop tick 4, dispatcher)
 - Did: dispatcher pass (tick % 4 == 0) — docs/INBOX.md Open section empty,
   no gate answered, nothing to rule on; no arb-chair spawn needed
