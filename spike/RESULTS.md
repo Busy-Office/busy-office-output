@@ -5,8 +5,8 @@
 > All numbers below must be re-measured on the target hardware.
 
 ## Hardware / environment
-- Machine:
-- Node / Typst / LibreOffice versions:
+- Machine: MacBook Air, Apple M4, 24 GB RAM, macOS 26.5.2 (25F84)
+- Node / Typst / LibreOffice versions: Node v26.3.0; typst not installed (GATE-TYPST-INSTALL); LibreOffice not installed (GATE-CARBONE)
 
 ## Gate matrix (pass / fail / notes)
 
@@ -16,11 +16,12 @@
 | 2 carry-forward subtotal | | PASS (container) | PASS (container) |
 | 3 totals never split | | PASS (container) | PASS (container) |
 | 4 wrap, no silent clip | | PASS (container) | PASS (container) |
-| 5 ms/doc (p50 warm) | | | |
+| 5 ms/doc (p50 warm) | | | PASS — p50=12.1ms p95=14.5ms mean=12.3ms (n=30, 3 pages, 25KB) |
 
 ## Bursting math
-target window: ______ min for 8,000 docs → required ≤ ______ ms/doc
-achieved: carbone ______ / typst ______ / pdf-direct ______
+target window: ______ min for 8,000 docs (GATE-BURST-WINDOW, open) → required ≤ ______ ms/doc
+achieved: carbone ______ / typst ______ / pdf-direct 12.1ms p50 → 8,000 docs ≈ 97s single-threaded on
+this machine (Apple M4), before parallelism
 
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):
