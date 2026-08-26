@@ -6,7 +6,7 @@
 
 ## Hardware / environment
 - Machine: MacBook Air, Apple M4, 24 GB RAM, macOS 26.5.2 (25F84)
-- Node / Typst / LibreOffice versions: Node v26.3.0; typst not installed (GATE-TYPST-INSTALL); LibreOffice not installed (GATE-CARBONE)
+- Node / Typst / LibreOffice versions: Node v26.3.0; Typst 0.15.1 (GATE-TYPST-INSTALL answered — installed via brew); LibreOffice not installed (GATE-CARBONE)
 
 ## Gate matrix (pass / fail / notes)
 
@@ -16,7 +16,7 @@
 | 2 carry-forward subtotal | | PASS (container) | PASS (container) |
 | 3 totals never split | | PASS (container) | PASS (container) |
 | 4 wrap, no silent clip | | PASS (container) | PASS (container) |
-| 5 ms/doc (p50 warm) | | | PASS — p50=12.1ms p95=14.5ms mean=12.3ms (n=30, 3 pages, 25KB) |
+| 5 ms/doc (p50 warm) | | PASS — cold-process p50=100ms min=98ms max=106ms (n=15, 3 pages); note DejaVu Sans font warning, see Authoring notes | PASS — p50=12.1ms p95=14.5ms mean=12.3ms (n=30, 3 pages, 25KB) |
 
 ## Bursting math
 target window is still undecided (GATE-BURST-WINDOW, open). Parametrized
@@ -34,44 +34,75 @@ pdf-direct alone, single-threaded, renders 8,000 docs in ≈97s (8,000 ×
 process*, no fan-out required. This machine has 10 cores (4P + 6E,
 `sysctl hw.perflevel0/1.physicalcpu`); worker-pool fan-out across even 4
 processes would put 8,000 docs at ≈24s. **pdf-direct's raw throughput is
-not the bottleneck at any plausible window** — carbone/typst numbers still
-needed (GATE-CARBONE, GATE-TYPST-INSTALL) before this table is complete,
-but pdf-direct already clears the Stage-0 exit-gate-3 bursting condition on
-its own. The open question that remains is GATE-RTL-SHAPING, not throughput.
-achieved: carbone ______ / typst ______ / pdf-direct 12.1ms p50 (see table above)
+not the bottleneck at any plausible window** — carbone still needed
+(GATE-CARBONE) before this table is complete.
+
+Typst measured (cold-process p50=100ms — `run.sh` spawns a fresh `typst
+compile` per doc; a warm/watch-mode server would be faster but wasn't
+measured): 8,000 docs ≈ 800s (13.3 min) single-process, cold. Clears the
+5/15-min windows at 3x/9x margin, roughly matches the 30-min window (2.25x),
+would need parallelism or a warm-process mode to comfortably clear a 5-min
+window with margin the way pdf-direct does.
+achieved: carbone ______ / typst 100ms p50 (cold) / pdf-direct 12.1ms p50 (see table above)
 
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):
-- Typst (markup):
+- Typst (markup): `po.typ` requests `font: "DejaVu Sans"`, not installed on
+  this Mac — typst silently substitutes a fallback and warns on every
+  compile ("unknown font family: dejavu sans"); ms/doc unaffected, but the
+  reference PO isn't rendering in its intended font here. Same font-fallback
+  behavior that made the RTL/CJK Arabic+digit case pass (see below) — a
+  double-edged trait: convenient, but a missing font is a silent warning,
+  not a build failure, so a typo'd font name in production wouldn't be
+  caught without a lint step.
 - Who will actually author templates at the target org?
 
 ## Licence check
 - Carbone CCL read in full? Compatible with intended distribution? Y/N + notes:
 
 ## RTL / CJK smoke test (do NOT defer to Stage 6)
-Candidate: pdf-direct (pdf-lib), measured on this Mac (Apple M4). Fonts:
-macOS system fonts, smoke-test only — not licensed for redistribution;
-production needs bundled/licensed fonts regardless of outcome here. Two of
-the three (Thai, Japanese) ship as `.ttc` collections; pdf-lib/fontkit
-cannot embed a `.ttc` directly, so `spike/pdf-direct/ttc-split.js` extracts
-one face as a standalone sfnt first (binary table-directory copy, no
-resampling). Reproduce: `node spike/pdf-direct/rtl-cjk-smoke.js`, then
-rasterize `spike/pdf-direct/out-rtl-cjk-smoke.pdf`.
+Both candidates measured on this Mac (Apple M4). Fonts: macOS system fonts,
+smoke-test only — not licensed for redistribution; production needs
+bundled/licensed fonts regardless of outcome here.
 
-| Script | Font (face) | subset | Result |
+**Correction (same session, tick 5):** the pdf-direct row below was first
+written after eyeballing a small combined 3-line thumbnail and wrongly
+concluded pdf-lib does no Arabic bidi/shaping at all. A rigorous recheck —
+isolated single-line renders, explicit-codepoint two-letter order test,
+pixel-cluster analysis comparing rendered glyph x-positions against source
+codepoint order — showed that conclusion was **wrong**: pdf-lib (via
+fontkit, when a custom font is embedded) does correct bidi reordering and
+Arabic contextual joining, matching Typst's output almost exactly. The real,
+narrower defect is below. Lesson: pixel-level claims need pixel-level
+verification, not a glance at a thumbnail — kept here rather than silently
+overwritten.
+
+pdf-direct: two of the three system fonts (Thai, Japanese) ship as `.ttc`
+collections; pdf-lib/fontkit cannot embed a `.ttc` directly, so
+`spike/pdf-direct/ttc-split.js` extracts one face as a standalone sfnt first
+(binary table-directory copy, no resampling). Reproduce:
+`npm run spike:rtl-cjk`, rasterize `spike/pdf-direct/out-rtl-cjk-smoke.pdf`.
+Typst: reproduce with `typst compile --root . spike/typst/rtl-cjk-smoke.typ spike/typst/out-rtl-cjk-smoke.pdf`.
+
+| Script | Case | pdf-direct (pdf-lib) | Typst |
 |---|---|---|---|
-| th-TH | ThonburiUI.ttc (`.ThonburiUI-Regular`) | true | **PASS** — renders correctly, combining tone/vowel marks stack right. Thai doesn't need contextual shaping (marks are self-contained in the font's per-glyph metrics), so pdf-lib's plain codepoint→glyph draw is sufficient. |
-| ja-JP | ヒラギノ角ゴシック W3.ttc (`HiraginoSans-W3`) | true | **FAIL** — tofu boxes; poppler reports "Embedded font file may be invalid". pdf-lib's TrueType subsetter breaks on this font (20,339 glyphs, many composite/component glyphs) — a subsetting bug, not a shaping problem. |
-| ja-JP | same, `subset: false` | false | PASS (workaround) — full font embeds and renders correctly, but bloats a 1-page PDF to ~5.7MB per unique CJK font. Not viable for volume production without either a pdf-lib subsetting fix or per-corpus glyph pre-filtering done outside pdf-lib. |
-| ar-SA | SFArabic.ttf | true | **FAIL** — glyphs draw without crashing, but pdf-lib does no Arabic shaping: no GSUB contextual joining (isolated/initial/medial/final substitution) and no bidi visual reordering. The string is drawn left-to-right in logical codepoint order starting at the left margin — the mirror image of correct RTL layout. Unusable for real Arabic documents as-is. |
+| th-TH | ใบสั่งซื้อ... (Thonburi) | **PASS** — renders correctly, combining marks stack right | **PASS** |
+| ja-JP | 発注書... (Hiragino W3, `subset: true`) | **FAIL** — tofu; poppler "Embedded font file may be invalid". pdf-lib's TrueType subsetter breaks on this font's 20,339 glyphs / composite components — a subsetting bug, not shaping | **PASS** |
+| ja-JP | same, `subset: false` | PASS (workaround) — full font embeds correctly but bloats output to ~5.7MB for one CJK font on a 1-page PDF | PASS, and cheap: Typst's own combined 3-script PDF is **21KB total** (vs pdf-lib's 5.8MB) — Typst subsets CJK correctly, no bug, no size tradeoff |
+| ar-SA | أمر شراء... pure Arabic (SF Arabic) | **PASS** — bidi reordering and GSUB contextual joining both correct (verified: source codepoint order SEEN-then-YEH renders YEH-left/SEEN-right, i.e. first-logical-char rightmost; full sentence word order matches Typst pixel-for-pixel) | **PASS** |
+| ar-SA | السعر 1234.50 ريال... Arabic + Latin digits (real invoice shape) | **FAIL** — Arabic words reorder/join correctly, but "1234.50" and "ABC" render as `.notdef` boxes. Root cause confirmed at the font level: `fontkit.create(...).glyphForCodePoint('1'.codePointAt(0)).id === 0` — **SFArabic.ttf genuinely has no Latin/digit glyphs** (a macOS "companion" font meant to be paired with a Latin font by the OS's font-fallback chain). pdf-lib has **no font-fallback mechanism** — pick an incomplete font and missing glyphs silently become boxes | **PASS** — same font (`"SF Arabic"` requested explicitly), same missing glyphs in that font, but Typst automatically falls back to another available font for the codepoints SF Arabic lacks. Renders correctly with zero extra code. |
 
-**Verdict:** pdf-lib alone does not clear this gate for ar-SA (needs a
-shaping layer, e.g. HarfBuzz, ahead of glyph placement — substantial added
-engineering) and clears ja-JP only via an embedding-size tradeoff (full-font
-embed) until the subsetter bug is fixed or worked around. th-TH is clean.
-This is exactly the "second renderer" condition in the Stage-0 exit gate —
-feeds ADR-000 driver 5 / ADR-002 directly; do not treat pdf-lib as the sole
-volume renderer without an RTL/CJK follow-up plan.
+**Verdict:** pdf-lib's Arabic bidi/shaping is fine on its own — the earlier
+"needs HarfBuzz" framing was wrong and is retracted. The real, narrower gaps
+are (1) a TrueType subsetter bug on large composite-glyph CJK fonts
+(workaround: disable subsetting, at a real size cost, until fixed upstream)
+and (2) no font-fallback chain, which bites as soon as a document mixes
+scripts with numbers/Latin text in one font — the normal case for real
+invoices/POs, not an edge case. Typst has neither gap in this test. This
+still feeds ADR-000 driver 5 / ADR-002: not "pdf-lib can't do RTL" but
+"pdf-lib needs either a complete-per-script font set assembled by hand (no
+fallback) or a subsetting fix/workaround for CJK volume," which is real
+added engineering cost pdf-lib carries and Typst doesn't, in this test.
 
 ## Decision
 - ADR-000 (authoring model): Path ___ because
