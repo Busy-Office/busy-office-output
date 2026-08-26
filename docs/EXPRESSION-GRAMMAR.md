@@ -1,9 +1,20 @@
 # Expression grammar (Path A)
 
-Governs the `value` string in `DocNode` kinds `text`, `fieldGrid.fields[].value`,
-`table.bind`/`table.columns[].key`, and `totals.rows[].value`
+Governs the `value`/`bind`/`key` strings in `DocNode`
 (`packages/schema/src/document/nodes.ts`). Implementation:
 `packages/schema/src/expression/parse.ts`.
+
+There are two contexts, sharing one syntax:
+
+- **Envelope-rooted** — `text.value`, `fieldGrid.fields[].value`,
+  `table.bind`, `totals.rows[].value`. The path's root must be a known
+  `DataContractEnvelope` key (see below). Validated by `parseExpression`.
+- **Row-relative** — `table.columns[].key`. A `table` node's `bind` already
+  addresses the bound array (envelope-rooted); each column's `key` is a path
+  *within one array element*, so it has no envelope root to check against —
+  any syntactically valid path is accepted. Validated by
+  `parseRelativePath`. (`textalign`/`width`/`label` on a column are not
+  expressions at all — plain strings/numbers.)
 
 Per HLD §7: **allowlisted grammar, no eval, no imports, no I/O.** This grammar
 precedes the parser — the parser implements exactly what is written here, and
@@ -31,20 +42,24 @@ template change (corpus gates, provenance).
 
 ## Publish-time identifier allowlisting
 
-A path's **root identifier** (the first segment) must be one of the
-envelope's known top-level keys: `schemaVersion`, `documentType`, `header`,
-`lines`, `totals`. Anything else — a typo, a field that doesn't exist on the
-envelope, an attempt to reach outside the bound data — is rejected **at
-publish time** (when a template moves from `draft`/`review` into
-`published`/`approved`), never silently accepted and left to fail at render
-time.
+For an envelope-rooted expression, the path's **root identifier** (the first
+segment) must be one of the envelope's known top-level keys: `schemaVersion`,
+`documentType`, `header`, `lines`, `totals`. Anything else — a typo, a field
+that doesn't exist on the envelope, an attempt to reach outside the bound
+data — is rejected **at publish time** (when a template moves from
+`draft`/`review` into `published`/`approved`), never silently accepted and
+left to fail at render time. A row-relative path (`table.columns[].key`) has
+no root to check — a `table` binds a `documentType`-specific array, and this
+package does not know a column key's validity without that context; it can
+only reject malformed *syntax*.
 
-The parser (`parseExpression`) only validates syntax and the root identifier
-against this fixed allowlist; it does not (yet) validate the full path
-against a specific `documentType`'s JSON Schema (e.g. that
-`header.invoiceNumber` is invalid for a `purchase-order` template) — that
-schema-aware check is a natural Stage 2 extension once composition binds a
-template to a concrete `documentType`, not a Stage 1 requirement.
+The parser (`parseExpression` / `parseRelativePath`) validates syntax, and
+`parseExpression` additionally validates the root identifier against the
+fixed allowlist above; neither validates the full path against a specific
+`documentType`'s JSON Schema (e.g. that `header.invoiceNumber` is invalid for
+a `purchase-order` template) — that schema-aware check is a natural Stage 2
+extension once composition binds a template to a concrete `documentType`,
+not a Stage 1 requirement.
 
 ## No eval, no imports, no I/O
 

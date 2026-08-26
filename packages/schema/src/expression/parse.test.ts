@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { ExpressionParseError, parseExpression } from './parse.js';
+import { ExpressionParseError, parseExpression, parseRelativePath } from './parse.js';
 
 describe('parseExpression', () => {
   it('parses a single-segment path rooted at a known identifier', () => {
@@ -43,5 +43,20 @@ describe('parseExpression', () => {
 
   it('rejects an attempt to smuggle JavaScript', () => {
     expect(() => parseExpression('require("fs").readFileSync')).toThrow(ExpressionParseError);
+  });
+});
+
+describe('parseRelativePath', () => {
+  it('accepts a path with no envelope root at all (row-relative)', () => {
+    expect(parseRelativePath('netAmount.amount').segments).toEqual(['netAmount', 'amount']);
+  });
+
+  it('accepts a single field name', () => {
+    expect(parseRelativePath('description').segments).toEqual(['description']);
+  });
+
+  it('still rejects malformed syntax', () => {
+    expect(() => parseRelativePath('netAmount[0]')).toThrow(ExpressionParseError);
+    expect(() => parseRelativePath('')).toThrow(ExpressionParseError);
   });
 });

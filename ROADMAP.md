@@ -66,17 +66,18 @@ before product code.
 `packages/schema` already stubs the path-independent parts.
 
 ### Tasks
-- [ ] Data contract per document type (PO, invoice, payslip): JSON Schema + `schemaVersion` + written rename-compatibility policy — DoD: schemas in `packages/schema/contracts/`, typecheck green
-- [ ] Variant resolution spec: most-specific-match over `(documentType, companyCode, country, partnerId, locale)` + `parentId` inheritance, with worked examples — DoD: spec doc + pure resolver function + unit tests
-- [ ] Reproduction policy written once (archive = reproduction; determinism is test-time only) — DoD: section in `docs/POLICY.md`, referenced from CLAUDE.md
-- [ ] Tier 1 standards into the contracts (ADR-006): ISO 4217, ISO 3166-1, RFC 3339, UNECE Rec 20 UoM codes, reserved ISO 6523/EAS party-id fields; fix the reference generator's non-Rec-20 units — DoD: schema patterns/enums enforce the codes; regenerated reference data passes
-- [ ] *Path A only:* freeze the nine node kinds; expression grammar (allowlist, publish-time rejection of unknown identifiers) — DoD: grammar doc precedes parser; parser rejects unknown identifier in a test
-- [ ] **N/A — Path B not adopted** ~~*Path B only:* marker/formatter allowlist for office templates + binary-template review procedure~~ — out of scope per ADR-000 ("do not build both speculatively"; Carbone/Path B reserved, not adopted, not built). Revisit only if a named user needs `.odt`/`.docx` template authoring.
-- [ ] Paper test — DoD: PO and invoice templates written on paper in the chosen model with **zero** new node kinds / marker patterns needed
+- [x] Data contract per document type (PO, invoice, payslip): JSON Schema + `schemaVersion` + written rename-compatibility policy — DoD: schemas in `packages/schema/contracts/`, typecheck green *(2026-08-27: purchase-order/invoice/payslip.schema.json + common.schema.json + RENAME-POLICY.md; typecheck green)*
+- [x] Variant resolution spec: most-specific-match over `(documentType, companyCode, country, partnerId, locale)` + `parentId` inheritance, with worked examples — DoD: spec doc + pure resolver function + unit tests *(2026-08-27: docs/VARIANT-RESOLUTION.md + packages/schema/src/variant/resolve.ts, 13 unit tests)*
+- [x] Reproduction policy written once (archive = reproduction; determinism is test-time only) — DoD: section in `docs/POLICY.md`, referenced from CLAUDE.md *(2026-08-27: docs/POLICY.md, CLAUDE.md points to it)*
+- [x] Tier 1 standards into the contracts (ADR-006): ISO 4217, ISO 3166-1, RFC 3339, UNECE Rec 20 UoM codes, reserved ISO 6523/EAS party-id fields; fix the reference generator's non-Rec-20 units — DoD: schema patterns/enums enforce the codes; regenerated reference data passes *(2026-08-27: enforced in common.schema.json — currencyCode/countryCode pattern, date/date-time format, unitOfMeasure Rec 20 enum, partyIdentification reserved fields. "Regenerate reference data" is moot: the reference generator lived in spike/, deleted at Stage 0 close (docs/RESULTS.md) — no generator exists to re-run; the enum is the fix for any future one)*
+- [x] *Path A only:* freeze the nine node kinds; expression grammar (allowlist, publish-time rejection of unknown identifiers) — DoD: grammar doc precedes parser; parser rejects unknown identifier in a test *(2026-08-27: nodes.ts DRAFT→FROZEN; docs/EXPRESSION-GRAMMAR.md precedes packages/schema/src/expression/parse.ts; parseExpression rejects unknown root identifiers, 10 tests)*
+- [x] **N/A — Path B not adopted** ~~*Path B only:* marker/formatter allowlist for office templates + binary-template review procedure~~ — out of scope per ADR-000 ("do not build both speculatively"; Carbone/Path B reserved, not adopted, not built). Revisit only if a named user needs `.odt`/`.docx` template authoring.
+- [x] Paper test — DoD: PO and invoice templates written on paper in the chosen model with **zero** new node kinds / marker patterns needed *(2026-08-27: PASS — packages/schema/src/document/paper-test.test.ts, docs/PAPER-TEST.md. Both PO and invoice built from the existing nine kinds and existing grammar; zero new kinds/syntax needed)*
 
-### Exit gate — `/gate-check 1`
-Paper test passes; `npm run verify` green; ADR-001 closed or formally moot
-(Path B).
+### Exit gate — `/gate-check 1`  — **all 3 PASS, 2026-08-27**
+1. Paper test passes — **PASS** (docs/PAPER-TEST.md)
+2. `npm run verify` green — **PASS** (30/30 tests, typecheck clean)
+3. ADR-001 closed or formally moot (Path B) — **PASS** (ADR-001 Accepted 2026-08-27)
 
 ---
 

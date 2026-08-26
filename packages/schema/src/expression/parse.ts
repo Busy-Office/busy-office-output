@@ -17,12 +17,7 @@ export interface ParsedExpression {
 
 export class ExpressionParseError extends Error {}
 
-/**
- * Parses and publish-time-validates an expression. Throws ExpressionParseError
- * on malformed syntax or an unknown root identifier — never returns a
- * partially-valid result.
- */
-export function parseExpression(raw: string): ParsedExpression {
+function parsePath(raw: string): ParsedExpression {
   if (raw.length === 0) {
     throw new ExpressionParseError('expression must not be empty');
   }
@@ -32,11 +27,30 @@ export function parseExpression(raw: string): ParsedExpression {
       throw new ExpressionParseError(`invalid identifier "${segment}" in expression "${raw}"`);
     }
   }
-  const root = segments[0]!;
+  return { raw, segments };
+}
+
+/**
+ * Parses and publish-time-validates an envelope-rooted expression (text.value,
+ * fieldGrid.fields[].value, table.bind, totals.rows[].value). Throws
+ * ExpressionParseError on malformed syntax or an unknown root identifier —
+ * never returns a partially-valid result.
+ */
+export function parseExpression(raw: string): ParsedExpression {
+  const parsed = parsePath(raw);
+  const root = parsed.segments[0]!;
   if (!(KNOWN_ROOT_IDENTIFIERS as readonly string[]).includes(root)) {
     throw new ExpressionParseError(
       `unknown root identifier "${root}" in expression "${raw}" — must be one of ${KNOWN_ROOT_IDENTIFIERS.join(', ')}`,
     );
   }
-  return { raw, segments };
+  return parsed;
+}
+
+/**
+ * Parses a row-relative path (table.columns[].key) — same syntax as
+ * parseExpression, but with no envelope root to check (docs/EXPRESSION-GRAMMAR.md).
+ */
+export function parseRelativePath(raw: string): ParsedExpression {
+  return parsePath(raw);
 }
