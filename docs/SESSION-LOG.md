@@ -13,6 +13,7 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 7, 2026-08-26: noop — same as tick 6, GATE-CARBONE still unanswered.
 - tick 6, 2026-08-26: noop — Q6 (/adr 000 draft) blocked on GATE-CARBONE (docs/INBOX.md empty, no soffice/libreoffice on this Mac). Queue empty otherwise.
 
 ## 2026-08-26 — Stage 0 (loop tick 5)
