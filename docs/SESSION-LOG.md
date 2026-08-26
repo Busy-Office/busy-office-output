@@ -11,6 +11,22 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 3)
+- Did: Q3 RTL/CJK smoke test for pdf-direct — real rasterized evidence, not
+  a checkbox rubber-stamp. th-TH PASS. ja-JP FAILS with subsetting on
+  (pdf-lib TrueType subsetter bug on a 20k-glyph composite-glyph font ->
+  tofu), only passes full-font-embedded (~5.7MB/font). ar-SA FAILS: no
+  bidi reordering, no Arabic contextual joining — pdf-lib draws RTL text
+  in mirrored logical order. Wrote spike/pdf-direct/ttc-split.js (.ttc ->
+  standalone sfnt, dependency-free) + rtl-cjk-smoke.js (`npm run
+  spike:rtl-cjk`). RESULTS.md updated with full findings + reproduce steps.
+  Logged GATE-RTL-SHAPING (open) — real ADR-000/002 decision point.
+- Open: pdf-lib is not provably sufficient as the sole volume renderer for
+  non-Latin scripts; GATE-RTL-SHAPING needs a human call (shaping layer /
+  second renderer / defer scope).
+- Next: Q4 — parametrized bursting math table (window still open via
+  GATE-BURST-WINDOW).
+
 ## 2026-08-26 — Stage 0 (loop tick 2)
 - Did: Q2 pdf-direct bench on target hardware — MacBook Air / Apple M4 /
   24GB / macOS 26.5.2 / Node v26.3.0. p50=12.1ms p95=14.5ms mean=12.3ms
