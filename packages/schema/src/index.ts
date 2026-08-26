@@ -4,3 +4,4 @@ export * from './document/template.js';
 export * from './document/nodes.js';
 export * from './ir/layout-ir.js';
 export * from './renderer.js';
+export * from './variant/resolve.js';
