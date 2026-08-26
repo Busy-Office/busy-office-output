@@ -1,0 +1,13 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version-file: .nvmrc }
+      - run: npm install
+      - run: npm run verify
+      # smoke: the verified spike must keep rendering 3 pages
+      - run: npm --prefix spike/pdf-direct install && node spike/pdf-direct/run.js

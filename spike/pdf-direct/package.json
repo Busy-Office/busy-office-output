@@ -1,0 +1,6 @@
+{
+  "name": "spike-pdf-direct",
+  "private": true,
+  "scripts": { "start": "node run.js", "bench": "node run.js --bench" },
+  "dependencies": { "pdf-lib": "^1.17.1" }
+}
