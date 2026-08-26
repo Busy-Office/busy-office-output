@@ -19,9 +19,26 @@
 | 5 ms/doc (p50 warm) | | | PASS — p50=12.1ms p95=14.5ms mean=12.3ms (n=30, 3 pages, 25KB) |
 
 ## Bursting math
-target window: ______ min for 8,000 docs (GATE-BURST-WINDOW, open) → required ≤ ______ ms/doc
-achieved: carbone ______ / typst ______ / pdf-direct 12.1ms p50 → 8,000 docs ≈ 97s single-threaded on
-this machine (Apple M4), before parallelism
+target window is still undecided (GATE-BURST-WINDOW, open). Parametrized
+against 8,000 docs so the decision doesn't block the math:
+
+| Window | Required ms/doc (single-threaded budget) | pdf-direct p50=12.1ms — margin |
+|---|---|---|
+| 5 min (300s) | 37.5 ms/doc | 3.1x under budget |
+| 15 min (900s) | 112.5 ms/doc | 9.3x under budget |
+| 30 min (1800s) | 225 ms/doc | 18.6x under budget |
+| 60 min (3600s) | 450 ms/doc | 37.2x under budget |
+
+pdf-direct alone, single-threaded, renders 8,000 docs in ≈97s (8,000 ×
+12.1ms) — that already clears every window above from a *single Node
+process*, no fan-out required. This machine has 10 cores (4P + 6E,
+`sysctl hw.perflevel0/1.physicalcpu`); worker-pool fan-out across even 4
+processes would put 8,000 docs at ≈24s. **pdf-direct's raw throughput is
+not the bottleneck at any plausible window** — carbone/typst numbers still
+needed (GATE-CARBONE, GATE-TYPST-INSTALL) before this table is complete,
+but pdf-direct already clears the Stage-0 exit-gate-3 bursting condition on
+its own. The open question that remains is GATE-RTL-SHAPING, not throughput.
+achieved: carbone ______ / typst ______ / pdf-direct 12.1ms p50 (see table above)
 
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):
