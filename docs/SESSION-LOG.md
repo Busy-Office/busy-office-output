@@ -11,6 +11,22 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 4, dispatcher)
+- Did: dispatcher pass (tick % 4 == 0) — docs/INBOX.md Open section empty,
+  no gate answered, nothing to rule on; no arb-chair spawn needed
+  (consecutiveNoopDispatches now 1). Then Q4: parametrized bursting math —
+  5/15/30/60-min windows for 8,000 docs vs pdf-direct's measured
+  p50=12.1ms. Clears every window 3.1x-37.2x single-threaded (~97s total
+  sequential). Conclusion: pdf-direct throughput is not the bottleneck at
+  any plausible window; GATE-RTL-SHAPING is the real open question, not
+  bursting.
+- Open: GATE-BURST-WINDOW still unanswered but no longer load-bearing for
+  the pdf-direct verdict; carbone/typst rows still need their gates.
+- Next: Q5 — typst bench, blocked on GATE-TYPST-INSTALL (`brew install
+  typst`); the loop will not self-install. If still blocked next tick,
+  Q6 (/adr 000 draft) is also blocked on GATE-CARBONE — loop likely goes
+  human-blocked from here until you answer something in docs/INBOX.md.
+
 ## 2026-08-26 — Stage 0 (loop tick 3)
 - Did: Q3 RTL/CJK smoke test for pdf-direct — real rasterized evidence, not
   a checkbox rubber-stamp. th-TH PASS. ja-JP FAILS with subsetting on
