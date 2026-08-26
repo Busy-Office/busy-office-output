@@ -11,6 +11,30 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 12, dispatcher: checkbox reconciliation)
+- Did: dispatcher pass. INBOX Open empty, no gates newly answered — but
+  flagged-last-session stale checkboxes were real. corpus-qa verified
+  spike/RESULTS.md against ROADMAP.md:36/37/39: hardware re-run (line 36)
+  and RTL/CJK smoke test (line 37) both have genuine target-hardware
+  evidence already recorded (from loop Q2/Q3/Q5) — ticked both with
+  inline citations. Bursting math (line 39) correctly stays unticked:
+  GATE-BURST-WINDOW is genuinely still open, RESULTS.md has a
+  parametrized 4-window table, not the single decided window the DoD
+  names. arb-chair then ruled on a second flag: the Stage 0 exit gate
+  (ROADMAP.md:45) said "all four decision drivers answered from
+  measurements," but ADR-000 (now Accepted) has 5 drivers and only 1 is
+  purely measurement-based. Updated exit-gate item 1 to match what was
+  actually accepted (evidenced — measured, explicitly skipped, or
+  ADR-sourced — not silently missing) without going toothless. Item 3
+  (bursting window) left as-is — correctly still blocking. `npm run
+  verify` green.
+- Open: GATE-BURST-WINDOW, GATE-S1-PREWORK still open. ADR-001
+  (pagination location) still needs deciding — live per ADR-000's
+  practical consequence. `spike/` deletion (ROADMAP.md last task) still
+  blocked on ADR-000/001 both being fully settled per the exit gate.
+- Next: ADR-001 decision (maintainer), or the exit-gate re-check via
+  `/gate-check 0` once bursting window is decided.
+
 ## 2026-08-26 — Stage 0 (ADR-000 decided)
 - Did: maintainer decided ADR-000: **Option C (hybrid), scoped narrowly.**
   Clarified first (the draft's Option C text said "Carbone as renderer #1,

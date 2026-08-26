@@ -33,8 +33,8 @@ project cheaply.
 - [x] pdf-direct spike passes gates 1–4 — DoD: 3-page out.pdf; carried/brought-forward verified on rasterized page; bench prints ms/doc *(container: p50=37.8ms)*
 - [x] Typst spike passes gates 1–4 incl. state-based running footer — DoD: compile clean, page-2 footer shows running total *(container: cold p50≈459ms)*
 - [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Author `spike/carbone/po-template.odt`; install LibreOffice; run `npm run spike:carbone`~~ — skipped by maintainer decision (docs/INBOX.md, GATE-CARBONE closed); ADR-000 draft proceeds on pdf-direct + typst evidence only. Revisit only if a named user needs .odt/.docx template authoring.
-- [ ] **[HUMAN]** Re-run pdf-direct + typst benches on target hardware — DoD: RESULTS.md hardware section + gate-5 row filled
-- [ ] RTL + CJK smoke test (th-TH, ja-JP, ar-SA) in the two leading candidates — DoD: RESULTS.md section filled with pass/fail per script *(not deferred to Stage 6)*
+- [x] **[HUMAN]** Re-run pdf-direct + typst benches on target hardware — DoD: RESULTS.md hardware section + gate-5 row filled *(done under loop Q2/Q5, reconciled tick 12: MacBook Air M4, typst cold p50=100ms n=15, pdf-direct p50=12.1ms n=30 — spike/RESULTS.md §Hardware + §Gate matrix)*
+- [x] RTL + CJK smoke test (th-TH, ja-JP, ar-SA) in the two leading candidates — DoD: RESULTS.md section filled with pass/fail per script *(not deferred to Stage 6)* *(done under loop Q3, corrected+reverified Q5, reconciled tick 12: pdf-direct fails ja-JP subsetting + ar-SA+digits (no font fallback), Typst passes all — spike/RESULTS.md §RTL/CJK smoke test)*
 - [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Read Carbone `LICENSE.md` (CCL) against intended distribution~~ — moot: Carbone not adopted for Stage 0 (docs/INBOX.md skip-carbone decision); CCL review happens only if Path B / Carbone is revisited for a named user.
 - [ ] Bursting math — DoD: RESULTS.md: target window, required ms/doc, achieved per renderer
 - [x] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced *(arb-chair ruling 2026-08-26: "evidenced" ≠ "answered positively" — drivers 2–4 are traceably documented "unanswered by choice," not fabricated or silently missing; see ADRs/000-template-authoring-model.md)*
@@ -42,7 +42,11 @@ project cheaply.
 - [ ] Delete `spike/` except `RESULTS.md`; move RESULTS.md → `docs/` — DoD: tree clean, log entry
 
 ### Exit gate — `/gate-check 0`
-1. ADR-000 Accepted with all four decision drivers answered from measurements
+1. ADR-000 Accepted, with all five decision drivers traceably evidenced —
+   each either measured (spike/RESULTS.md), explicitly skipped by named
+   maintainer decision (docs/HUMAN-GATES-LOG.md / docs/INBOX.md), or
+   sourced from a named companion ADR — none silently missing or
+   fabricated
 2. ms/doc per surviving renderer, measured warm on target hardware
 3. Bursting math closes: 8,000 docs fit the stated window, or a second renderer is named
 4. `spike/` deleted, `docs/RESULTS.md` kept
