@@ -62,3 +62,15 @@ stop_on_gate: false
 - Log payload data; only hashes/traces.
 - Tick a ROADMAP checkbox whose DoD command did not run this tick.
 - Self-answer a gate.
+
+## Orchestration (ultracode is ON for this project — maintainer, 2026-08-26)
+Each non-trivial tick runs as a Workflow, sequential and gated:
+1. `build` — the queue row's agent implements the task (worktree isolation not
+   needed: one tick, one task).
+2. `verify` — 2 independent skeptics try to REFUTE the DoD evidence (did the
+   command actually run? is the RESULTS.md number from this machine? was any
+   checkbox ticked without its gate?). Either refutation → back to build, max 3.
+3. `close` — `npm run verify`, SESSION-LOG entry, commit, push.
+Dispatcher ticks add a `rule` stage: arb-chair proposes ROADMAP edits, a
+skeptic checks them against the Deferred wall and CLAUDE.md golden rules
+before they are applied. Noop ticks spawn nothing.
