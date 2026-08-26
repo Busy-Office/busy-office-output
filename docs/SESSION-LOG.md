@@ -11,6 +11,17 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — build-loop tick 25 (noop, goal="complete Stage 1")
+- Did: session goal set to "complete Stage 1". Checked docs/INBOX.md — Open
+  still empty. GATE-S1-PREWORK still `open`, default NO. Per CLAUDE.md
+  ("only the human decides") and build-loop's own rule ("never self-approve
+  a gate"), the loop cannot open Stage 1 work on its own — this is a hard
+  human-only decision point, not a stalled search for work.
+- Open: GATE-S1-PREWORK — the single blocker on the "complete Stage 1" goal.
+- Next: goal stays unmet until the maintainer answers GATE-S1-PREWORK in
+  docs/INBOX.md (e.g. "GATE-S1-PREWORK: yes, start Stage 1"). Next
+  dispatcher tick is 28.
+
 ## 2026-08-27 — build-loop tick 24 (dispatcher, noop)
 - Did: dispatcher tick — docs/INBOX.md Open section still empty, nothing to
   process. GATE-S1-PREWORK still `open`, default NO. No change since tick 23.
