@@ -4,9 +4,10 @@ ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
 Status: **Stage 0 closed 2026-08-27** (exit gate passed, see ROADMAP.md);
-Stage 1 not yet started — `GATE-S1-PREWORK` in `docs/HUMAN-GATES-LOG.md`
-governs early start, default NO. One part-time maintainer; sessions are
-short — leave everything in a resumable state.
+**Stage 1 in progress** — `GATE-S1-PREWORK` closed 2026-08-27 (maintainer:
+"yes, start Stage 1", see `docs/HUMAN-GATES-LOG.md`). Path B (Carbone) Stage
+1 task stays out of scope per ADR-000. One part-time maintainer; sessions
+are short — leave everything in a resumable state.
 
 ## Read order at session start
 1. `ROADMAP.md` — find the current stage and its first unchecked task
@@ -22,12 +23,12 @@ Design records (consult, don't re-derive): `docs/HLD.md` (architecture),
   where effort goes. Never gold-plate a renderer.
 - **ADR-000 and ADR-001 are Accepted** (2026-08-27; Option C hybrid,
   schema-first built now — see `ADRs/000-template-authoring-model.md`,
-  `ADRs/001-pagination-location.md`). That does not itself authorize
-  Path-A composition work beyond Stage 0's spike — Stage 1 governs that,
-  and `GATE-S1-PREWORK` (default NO, see `docs/HUMAN-GATES-LOG.md`) is
-  what decides whether Stage 1 work may start early. Claude may *draft*
-  ADR recommendations from evidence (now in `docs/RESULTS.md`); only the
-  human decides.
+  `ADRs/001-pagination-location.md`). Stage 1 is open (`GATE-S1-PREWORK`
+  closed 2026-08-27). Path B (Carbone) stays out of scope per ADR-000's own
+  "do not build both speculatively" clause — the Stage 1 Path-B task is
+  marked N/A in ROADMAP.md, not built. Claude may *draft* ADR
+  recommendations from evidence (now in `docs/RESULTS.md`); only the human
+  decides.
 - **Gates are commands, not opinions.** A stage task is done when its gate
   command passes. Never mark a ROADMAP checkbox without running the check.
 - **No package before its stage.** `packages/` gains a directory only when the
@@ -37,7 +38,8 @@ Design records (consult, don't re-derive): `docs/HLD.md` (architecture),
 - `@busy-office/output-schema` stays **zero-runtime-dependency**.
 - Templates are never copied — variant resolution + `parentId` inheritance only.
 - Never log data-contract payloads (payslips = PII). Hashes and rule traces only.
-- Delivery failure never triggers re-render. The archived artifact is the reproduction.
+- Delivery failure never triggers re-render. The archived artifact is the
+  reproduction — full policy in `docs/POLICY.md`.
 - **Console screens obey the five UI principles** in docs/UI-DESIGN.md; the
   deliberately-absent list is binding — adding to it needs an arb-chair ruling.
 - **Standards by tier** (ADR-006, `docs/STANDARDS.md`): Tier 1 codes live in the
@@ -58,7 +60,7 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
 ## Conventions
 - TypeScript strict, NodeNext modules, Node >= 22 (`.nvmrc`)
 - Money is integer-cents or round-at-boundary; formatting is the renderer's job
-- Commit style: `stage0: <what>` / `adr: <what>` / `docs: <what>`
+- Commit style: `stage0: <what>` / `stage1: <what>` / `adr: <what>` / `docs: <what>`
 - PDF snapshots: zero CreationDate/ModDate and doc ID before hashing
   (pattern preserved in git history; see `docs/RESULTS.md` for the
   measurements it produced)
