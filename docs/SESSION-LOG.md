@@ -76,6 +76,7 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 11, 2026-08-26: noop — queue empty (Q1-Q6 all done), docs/INBOX.md Open section empty, not a dispatcher tick (11%4≠0). Only remaining Stage 0 work is [HUMAN]-only (decide ADR-000/001) or a stale-checkbox reconciliation (RTL/CJK, bursting math ROADMAP lines vs. already-done Q3/Q4 — noted in the ROADMAP.md:40-ruling session entry) that's deferred to the next dispatcher pass (tick 12).
 - tick 9, 2026-08-26: noop — unchanged, GATE-CARBONE still open.
 - tick 8, 2026-08-26: dispatcher noop (2/3 consecutive) — docs/INBOX.md still empty, no gates answered. Q6 still blocked on GATE-CARBONE.
 - tick 7, 2026-08-26: noop — same as tick 6, GATE-CARBONE still unanswered.
