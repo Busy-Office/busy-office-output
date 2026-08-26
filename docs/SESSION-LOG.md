@@ -11,6 +11,17 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 2)
+- Did: Q2 pdf-direct bench on target hardware — MacBook Air / Apple M4 /
+  24GB / macOS 26.5.2 / Node v26.3.0. p50=12.1ms p95=14.5ms mean=12.3ms
+  (n=30). RESULTS.md hardware + gate-5 pdf-direct row filled; bursting
+  math shows pdf-direct alone clears 8,000 docs in ~97s single-threaded
+  (window itself still open, GATE-BURST-WINDOW).
+- Open: typst/LibreOffice not installed on this machine (GATE-TYPST-INSTALL,
+  GATE-CARBONE).
+- Next: Q3 — RTL/CJK smoke test (th-TH, ja-JP, ar-SA) in pdf-direct using
+  macOS system fonts.
+
 ## 2026-08-26 — Stage 0 (loop tick 1)
 - Did: Q1 bootstrap — `npm install` root + spike/pdf-direct (lockfiles
   committed, 0 vulns in prod deps); `npm run verify` green; `spike:data`
