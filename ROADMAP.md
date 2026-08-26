@@ -71,7 +71,7 @@ before product code.
 - [ ] Reproduction policy written once (archive = reproduction; determinism is test-time only) — DoD: section in `docs/POLICY.md`, referenced from CLAUDE.md
 - [ ] Tier 1 standards into the contracts (ADR-006): ISO 4217, ISO 3166-1, RFC 3339, UNECE Rec 20 UoM codes, reserved ISO 6523/EAS party-id fields; fix the reference generator's non-Rec-20 units — DoD: schema patterns/enums enforce the codes; regenerated reference data passes
 - [ ] *Path A only:* freeze the nine node kinds; expression grammar (allowlist, publish-time rejection of unknown identifiers) — DoD: grammar doc precedes parser; parser rejects unknown identifier in a test
-- [ ] *Path B only:* marker/formatter allowlist for office templates + binary-template review procedure — DoD: `docs/TEMPLATE-POLICY.md`
+- [ ] **N/A — Path B not adopted** ~~*Path B only:* marker/formatter allowlist for office templates + binary-template review procedure~~ — out of scope per ADR-000 ("do not build both speculatively"; Carbone/Path B reserved, not adopted, not built). Revisit only if a named user needs `.odt`/`.docx` template authoring.
 - [ ] Paper test — DoD: PO and invoice templates written on paper in the chosen model with **zero** new node kinds / marker patterns needed
 
 ### Exit gate — `/gate-check 1`
