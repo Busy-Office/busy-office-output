@@ -5,3 +5,4 @@ out.pdf
 /tmp/
 spike/**/out.pdf
 .claude/scheduled_tasks.lock
+spike/**/out-rtl-cjk-smoke.pdf

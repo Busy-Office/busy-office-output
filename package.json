@@ -10,6 +10,7 @@
     "verify": "npm run typecheck && npm test",
     "spike:data": "node spike/data/generate.js",
     "spike:pdf-direct": "npm --prefix spike/pdf-direct run bench",
+    "spike:rtl-cjk": "npm --prefix spike/pdf-direct run rtl-cjk-smoke",
     "spike:typst": "spike/typst/run.sh",
     "spike:carbone": "npm --prefix spike/carbone run bench"
   },
