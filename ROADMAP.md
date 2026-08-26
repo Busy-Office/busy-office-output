@@ -32,10 +32,10 @@ project cheaply.
 - [x] Spike harness + deterministic reference PO (seeded generator) — DoD: `npm run spike:data` reproduces byte-identical JSON
 - [x] pdf-direct spike passes gates 1–4 — DoD: 3-page out.pdf; carried/brought-forward verified on rasterized page; bench prints ms/doc *(container: p50=37.8ms)*
 - [x] Typst spike passes gates 1–4 incl. state-based running footer — DoD: compile clean, page-2 footer shows running total *(container: cold p50≈459ms)*
-- [ ] **[HUMAN]** Author `spike/carbone/po-template.odt` per `TEMPLATE.md`; install LibreOffice; run `npm run spike:carbone` — DoD: gate matrix row filled in `spike/RESULTS.md` incl. ms/doc
+- [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Author `spike/carbone/po-template.odt`; install LibreOffice; run `npm run spike:carbone`~~ — skipped by maintainer decision (docs/INBOX.md, GATE-CARBONE closed); ADR-000 draft proceeds on pdf-direct + typst evidence only. Revisit only if a named user needs .odt/.docx template authoring.
 - [ ] **[HUMAN]** Re-run pdf-direct + typst benches on target hardware — DoD: RESULTS.md hardware section + gate-5 row filled
 - [ ] RTL + CJK smoke test (th-TH, ja-JP, ar-SA) in the two leading candidates — DoD: RESULTS.md section filled with pass/fail per script *(not deferred to Stage 6)*
-- [ ] **[HUMAN]** Read Carbone `LICENSE.md` (CCL) against intended distribution — DoD: RESULTS.md licence section: Y/N + notes
+- [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Read Carbone `LICENSE.md` (CCL) against intended distribution~~ — moot: Carbone not adopted for Stage 0 (docs/INBOX.md skip-carbone decision); CCL review happens only if Path B / Carbone is revisited for a named user.
 - [ ] Bursting math — DoD: RESULTS.md: target window, required ms/doc, achieved per renderer
 - [ ] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced
 - [ ] **[HUMAN]** Decide ADR-000 (and ADR-001 if Path A) — DoD: Status: Accepted, Decision section written

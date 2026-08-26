@@ -10,3 +10,7 @@ that move.
 ## Open
 
 ## Processed
+
+- skip carbone — decided 2026-08-26. GATE-CARBONE closed (not benchmarked,
+  skipped by decision); ROADMAP.md carbone-author and CCL-read [HUMAN]
+  tasks marked SKIPPED; Q6 (/adr 000 draft) unblocked.
