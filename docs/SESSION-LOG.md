@@ -11,6 +11,14 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (loop tick 1)
+- Did: Q1 bootstrap — `npm install` root + spike/pdf-direct (lockfiles
+  committed, 0 vulns in prod deps); `npm run verify` green; `spike:data`
+  run twice → byte-identical sha256 across both runs on this machine.
+- Open: Q2 (pdf-direct bench on this Mac) next.
+- Next: Q2 — render-engineer runs `npm run spike:pdf-direct`, fills
+  RESULTS.md hardware section + gate-5 pdf-direct row.
+
 ## 2026-08-26 (later) — design consolidation (container)
 - Did: docs/HLD.md landed in-repo (topologies T1-T3 + transactional outbox,
   RenderJob seam, standards-aware renderer routing); docs/UI-DESIGN.md (five
