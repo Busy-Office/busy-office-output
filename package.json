@@ -7,12 +7,7 @@
   "scripts": {
     "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts",
     "test": "vitest run",
-    "verify": "npm run typecheck && npm test",
-    "spike:data": "node spike/data/generate.js",
-    "spike:pdf-direct": "npm --prefix spike/pdf-direct run bench",
-    "spike:rtl-cjk": "npm --prefix spike/pdf-direct run rtl-cjk-smoke",
-    "spike:typst": "spike/typst/run.sh",
-    "spike:carbone": "npm --prefix spike/carbone run bench"
+    "verify": "npm run typecheck && npm test"
   },
   "devDependencies": { "typescript": "^5.6.0", "vitest": "^2.1.0" }
 }

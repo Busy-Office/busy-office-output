@@ -11,6 +11,36 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 0 CLOSED (exit gate passed, spike/ deleted)
+- Did: ran `/gate-check 0` via corpus-qa (read-only pass): 3/4 exit-gate
+  criteria PASS (ADR-000 evidenced, ms/doc measured warm, bursting math
+  closes), 1 FAIL (spike/ not yet deleted). Applied the fix: moved
+  `spike/RESULTS.md` → `docs/RESULTS.md` (git mv, preserves history),
+  deleted the rest of `spike/` (`bench.js`, `carbone/`, `data/`,
+  `pdf-direct/`, `typst/`, `README.md` — all disposable by
+  `spike/README.md`'s own stated policy). Cleaned up what the deletion
+  broke rather than leaving it half-done: removed the now-dead `spike:*`
+  scripts from `package.json`; updated `CLAUDE.md`'s Commands section,
+  its stale "ADR-000 is open" golden rule (now factually wrong — fixed to
+  cite the real gate, GATE-S1-PREWORK, that governs early Stage 1 work),
+  and its status line; updated `README.md`'s "Start here" list and status
+  blurb (was still "pre-Stage-0" with a broken `spike/README.md` link);
+  repointed `spike/RESULTS.md` citations to `docs/RESULTS.md` in
+  ADRs/000, 001, 002. Left historical log entries (SESSION-LOG,
+  HUMAN-GATES-LOG prior rows) untouched — those correctly describe what
+  was true when written. `npm run verify` green throughout.
+  ROADMAP.md's exit-gate block now shows all 4 PASS with citations; Stage
+  0 heading marked CLOSED 2026-08-27.
+- Open: `GATE-S1-PREWORK` still open (default NO) — Stage 1 has not
+  formally started. `.claude/agents/render-engineer.md`,
+  `.claude/agents/corpus-qa.md`, and `.claude/skills/build-loop/SKILL.md`
+  still reference the now-deleted `spike/` paths/status — left as-is,
+  lower-priority documentation drift, not load-bearing for any command or
+  gate.
+- Next: Stage 1 work (contracts, variant resolver, Tier-1 codes) once
+  `GATE-S1-PREWORK` is answered, or ADR-002's routing rule (pdf-direct vs
+  Typst by document type/locale) — either is a live path now.
+
 ## 2026-08-27 — Stage 0 (GATE-BURST-WINDOW closed)
 - Did: maintainer decided the bursting window: **30 minutes** for 8,000
   docs. Chosen as the point where both renderers clear single-process

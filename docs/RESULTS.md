@@ -1,4 +1,13 @@
-# Stage 0 results — THE record that outlives this directory
+# Stage 0 results — THE record that outlives spike/
+
+> Moved from `spike/RESULTS.md` on 2026-08-27 when Stage 0 closed per its
+> own exit gate ("delete `spike/` except `RESULTS.md`, move it to
+> `docs/`"). The `spike/pdf-direct/`, `spike/typst/`, `spike/carbone/`,
+> and `spike/data/` code this document's reproduce-commands reference no
+> longer exists in the working tree — it's preserved in git history at
+> or before commit `0a9424e` if it's ever needed again. This file itself
+> is the durable record; the harnesses were disposable by design
+> (`spike/README.md`, now also deleted).
 
 > Container pre-run 2026-08-26 (indicative): pdf-direct p50=37.8ms p95=74.6ms (3 pages, 25KB);
 > typst cold-process p50=459ms (3 pages); carbone not run (no LibreOffice in container).

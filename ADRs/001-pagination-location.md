@@ -43,11 +43,11 @@ not forced cross-renderer parity.**
 
 Typst owns pagination natively for any document with real multi-page
 layout, carry-forward totals, or non-Latin scripts — exactly the cases
-`spike/RESULTS.md`'s RTL/CJK section shows pdf-direct struggling with (no
+`docs/RESULTS.md`'s RTL/CJK section shows pdf-direct struggling with (no
 font-fallback chain, TrueType subsetter bug on composite-glyph CJK fonts).
 pdf-direct remains available for simple, low-page-count, high-volume bursts
 where pagination correctness barely matters and its ~8x throughput
-advantage (p50=12.1ms vs. Typst's cold p50=100ms, `spike/RESULTS.md` §Gate
+advantage (p50=12.1ms vs. Typst's cold p50=100ms, `docs/RESULTS.md` §Gate
 matrix) is the deciding factor. This is the "fast path /
 conformance-and-script path" split ADR-000's Decision section already
 named as a likely ADR-002 outcome — this ADR adopts that split explicitly

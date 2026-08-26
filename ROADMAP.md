@@ -23,7 +23,7 @@ existence.
 
 ---
 
-## Stage 0 — Decide what to build  `~2 weeks · KILL GATE · in progress`
+## Stage 0 — Decide what to build  `~2 weeks · KILL GATE · CLOSED 2026-08-27`
 
 **Goal:** close ADR-000 (authoring model) on measured evidence, or kill the
 project cheaply.
@@ -39,17 +39,21 @@ project cheaply.
 - [x] Bursting math — DoD: RESULTS.md: target window, required ms/doc, achieved per renderer *(2026-08-27: target window 30 min decided, GATE-BURST-WINDOW closed; typst 100ms p50 clears at 2.25x margin, pdf-direct 12.1ms p50 clears at 18.6x margin — spike/RESULTS.md §Bursting math)*
 - [x] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced *(arb-chair ruling 2026-08-26: "evidenced" ≠ "answered positively" — drivers 2–4 are traceably documented "unanswered by choice," not fabricated or silently missing; see ADRs/000-template-authoring-model.md)*
 - [x] **[HUMAN]** Decide ADR-000 (and ADR-001 if Path A) — DoD: Status: Accepted, Decision section written *(2026-08-26: Accepted, Option C hybrid — schema-first built now, Carbone reserved/not adopted; see ADRs/000-template-authoring-model.md. Consequence: ADR-001 is now live, not moot — pagination location must be decided before Stage 1)*
-- [ ] Delete `spike/` except `RESULTS.md`; move RESULTS.md → `docs/` — DoD: tree clean, log entry
+- [x] Delete `spike/` except `RESULTS.md`; move RESULTS.md → `docs/` — DoD: tree clean, log entry *(2026-08-27: spike/ removed entirely, RESULTS.md moved to docs/RESULTS.md; package.json spike:* scripts and CLAUDE.md Commands section cleaned up to match — see docs/SESSION-LOG.md)*
 
-### Exit gate — `/gate-check 0`
+### Exit gate — `/gate-check 0`  — **all 4 PASS, 2026-08-27**
 1. ADR-000 Accepted, with all five decision drivers traceably evidenced —
-   each either measured (spike/RESULTS.md), explicitly skipped by named
+   each either measured (docs/RESULTS.md), explicitly skipped by named
    maintainer decision (docs/HUMAN-GATES-LOG.md / docs/INBOX.md), or
    sourced from a named companion ADR — none silently missing or
-   fabricated
-2. ms/doc per surviving renderer, measured warm on target hardware
-3. Bursting math closes: 8,000 docs fit the stated window, or a second renderer is named
-4. `spike/` deleted, `docs/RESULTS.md` kept
+   fabricated — **PASS**
+2. ms/doc per surviving renderer, measured warm on target hardware —
+   **PASS** (typst 100ms p50 n=15, pdf-direct 12.1ms p50 n=30, MacBook Air
+   M4 — docs/RESULTS.md §Hardware + §Gate matrix)
+3. Bursting math closes: 8,000 docs fit the stated window, or a second
+   renderer is named — **PASS** (30-min window, both renderers clear
+   single-process — docs/RESULTS.md §Bursting math)
+4. `spike/` deleted, `docs/RESULTS.md` kept — **PASS** (2026-08-27)
 
 **Kill criterion:** no path clears the bursting window or licence check → stop
 before product code.

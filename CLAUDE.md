@@ -3,7 +3,9 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stage 0** (see ROADMAP.md). One part-time maintainer; sessions are
+Status: **Stage 0 closed 2026-08-27** (exit gate passed, see ROADMAP.md);
+Stage 1 not yet started — `GATE-S1-PREWORK` in `docs/HUMAN-GATES-LOG.md`
+governs early start, default NO. One part-time maintainer; sessions are
 short — leave everything in a resumable state.
 
 ## Read order at session start
@@ -18,10 +20,14 @@ Design records (consult, don't re-derive): `docs/HLD.md` (architecture),
 ## Golden rules (violating these is a failed session)
 - **The runtime is the product.** Rendering is buy-or-thin-wrap; Stages 3–5 are
   where effort goes. Never gold-plate a renderer.
-- **ADR-000 is open.** Until a human closes it, do not delete `nodes.ts`/
-  `layout-ir.ts` (Path A drafts) and do not build Path-A composition beyond the
-  spike. Claude may *draft* ADR recommendations from `spike/RESULTS.md`
-  evidence; only the human decides.
+- **ADR-000 and ADR-001 are Accepted** (2026-08-27; Option C hybrid,
+  schema-first built now — see `ADRs/000-template-authoring-model.md`,
+  `ADRs/001-pagination-location.md`). That does not itself authorize
+  Path-A composition work beyond Stage 0's spike — Stage 1 governs that,
+  and `GATE-S1-PREWORK` (default NO, see `docs/HUMAN-GATES-LOG.md`) is
+  what decides whether Stage 1 work may start early. Claude may *draft*
+  ADR recommendations from evidence (now in `docs/RESULTS.md`); only the
+  human decides.
 - **Gates are commands, not opinions.** A stage task is done when its gate
   command passes. Never mark a ROADMAP checkbox without running the check.
 - **No package before its stage.** `packages/` gains a directory only when the
@@ -45,18 +51,17 @@ Design records (consult, don't re-derive): `docs/HLD.md` (architecture),
 ```bash
 npm run verify            # typecheck + tests — must pass before every session close
 npm run typecheck         # strict tsc over packages/schema
-npm run spike:data        # regenerate deterministic reference PO (seeded)
-npm run spike:pdf-direct  # verified renderer, prints ms/doc
-npm run spike:typst       # needs typst binary on PATH
-npm run spike:carbone     # needs LibreOffice + authored po-template.odt
 ```
+`spike:*` commands are gone — `spike/` was deleted 2026-08-27 when Stage 0
+closed its exit gate; see `docs/RESULTS.md` for what they found.
 
 ## Conventions
 - TypeScript strict, NodeNext modules, Node >= 22 (`.nvmrc`)
 - Money is integer-cents or round-at-boundary; formatting is the renderer's job
 - Commit style: `stage0: <what>` / `adr: <what>` / `docs: <what>`
 - PDF snapshots: zero CreationDate/ModDate and doc ID before hashing
-  (see `spike/pdf-direct/run.js` for the pattern)
+  (pattern preserved in git history; see `docs/RESULTS.md` for the
+  measurements it produced)
 
 ## Session protocol
 1. **Start:** read the three files above; state the one task you will do.

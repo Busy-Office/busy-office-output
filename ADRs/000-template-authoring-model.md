@@ -60,12 +60,12 @@ Git-native review (payslips, high-volume bursting via pdf-direct). The
 - **Cost of C:** two template models to document and govern. Accept only if a
   concrete document type demands each model; do not build both speculatively.
 
-## Decision drivers (fill from spike/RESULTS.md)
+## Decision drivers (fill from docs/RESULTS.md)
 
 1. **Is carried-forward-at-page-break a hard requirement for any Stage 3–4 document?**
    Yes for payslips and multi-page invoices/POs with running subtotals — this
    is the reference PO's own gate 2. Both schema-first renderers pass it
-   (pdf-direct and Typst, gate matrix, `spike/RESULTS.md` §Gate matrix).
+   (pdf-direct and Typst, gate matrix, `docs/RESULTS.md` §Gate matrix).
    Carbone's mechanism for this was never confirmed (see driver 3) — Option
    B's own text flags "no native office-format mechanism" as unverified.
 
@@ -109,7 +109,7 @@ Git-native review (payslips, high-volume bursting via pdf-direct). The
    unreadable diffs — and the "Word is the builder" advantage Option B
    claims matters less once the AI is the builder. This driver is
    evidenced by a proposed-but-in-motion ADR (`ADRs/README.md` row for 005;
-   its skill tasks already proceed) rather than by `spike/RESULTS.md` data
+   its skill tasks already proceed) rather than by `docs/RESULTS.md` data
    — the one driver here not sourced from a Stage 0 spike, which is weaker
    support than a closed decision. The direction is right, but ADR-005
    itself is not yet a settled precedent, and this gap should be named
@@ -164,7 +164,7 @@ now adopted):
   rest on Carbone having failed; it rests on Option A's demonstrated gate
   passes plus ADR-005's AI-leverage case being sufficient on their own,
   with the Carbone comparison simply absent from the record.
-- The RTL/CJK smoke test (`spike/RESULTS.md`, tick-5-corrected) shows a
+- The RTL/CJK smoke test (`docs/RESULTS.md`, tick-5-corrected) shows a
   real, quantified cost inside Option A itself: pdf-direct has no
   font-fallback chain (Arabic+digit invoices fail with `.notdef` boxes
   unless hand-assembled complete font sets are used) and a TrueType

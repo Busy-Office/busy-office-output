@@ -18,5 +18,5 @@ standard fonts are already a violation, so pdf-direct staying the volume
 renderer implies a font-embedding + XMP + OutputIntent workstream in Stage 2.
 
 ## Decision
-_Pending real-hardware numbers in spike/RESULTS.md. Default: pdf-lib direct
+_Pending real-hardware numbers in docs/RESULTS.md. Default: pdf-lib direct
 writer behind the Renderer interface, selected per-template._

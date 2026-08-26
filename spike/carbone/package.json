@@ -1,6 +1,0 @@
-{
-  "name": "spike-carbone",
-  "private": true,
-  "scripts": { "start": "node run.js", "bench": "node run.js --bench" },
-  "dependencies": { "carbone": "^3" }
-}
