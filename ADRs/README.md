@@ -2,8 +2,8 @@
 
 | ADR | Title | Status | Closes at |
 |---|---|---|---|
-| 000 | Template authoring model (Path A / B / hybrid) | Proposed | end of Stage 0 |
-| 001 | Pagination location (composition vs renderer) | Proposed — moot if Path B | end of Stage 1 |
+| 000 | Template authoring model (Path A / B / hybrid) | **Accepted** — Option C (hybrid), schema-first built now, Carbone reserved/not adopted | end of Stage 0 |
+| 001 | Pagination location (composition vs renderer) | Proposed — **live**, not moot (schema-first is the active path under ADR-000) | end of Stage 1 |
 | 002 | Volume renderer | Proposed — spike favours pdf-lib | Stage 4 latest |
 | 003 | Rule storage (files vs tables) | Proposed | Stage 3 |
 | 004 | Queue backend (embedded vs external) | Proposed | Stage 3 |

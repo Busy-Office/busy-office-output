@@ -11,6 +11,36 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (ADR-000 decided)
+- Did: maintainer decided ADR-000: **Option C (hybrid), scoped narrowly.**
+  Clarified first (the draft's Option C text said "Carbone as renderer #1,
+  fast to market," in tension with the skip-carbone decision) — confirmed
+  the intent is: schema-first (Option A: Typst/pdf-direct) is the only
+  renderer built now; Carbone/Path B is reserved behind the `Renderer`
+  seam per Option C's architecture but not adopted, not built, not
+  benchmarked — revisit only if a named user needs .odt/.docx authoring.
+  Applied: ADRs/000-template-authoring-model.md Status → Accepted,
+  Decision section rewritten from draft-recommendation to actual decision
+  with the practical consequence spelled out. ADRs/README.md status table
+  updated (000 Accepted; 001 now marked live/not-moot, since schema-first
+  is the active path). ROADMAP.md:41 ticked with the decision summary.
+  `npm run verify` green.
+- Open: **ADR-001 (pagination location) is now live** — composition-side
+  vs. renderer-side vs. hybrid, must be decided before Stage 1 locks
+  contracts. ADR-002 (Typst vs. pdf-direct vs. both as volume renderer)
+  also still open, informed by the RTL/CJK findings. Stage 0 exit gate
+  (ROADMAP.md:44-48) not yet fully clear: line 45 says "all four decision
+  drivers" but ADR-000 has 5 — pre-existing miscount in the roadmap text,
+  not introduced this session, worth a small fix later. Bursting math and
+  RTL/CJK ROADMAP checkboxes still look like stale duplicates of completed
+  Q3/Q4 loop work (flagged last session, still not reconciled).
+- Next: decide ADR-001 (pagination location) — present the three options
+  (composition-side / renderer-side / hybrid) to the maintainer. Then
+  Stage 0's remaining items: reconcile the stale RTL/CJK + bursting math
+  checkboxes against actual Q3/Q4 evidence, re-run benches DoD note
+  (ROADMAP.md:36 may also already be satisfied by loop tick 2/5 — same
+  reconciliation), then `spike/` deletion + `/gate-check 0`.
+
 ## 2026-08-26 — Stage 0 (ROADMAP.md:40 ruling)
 - Did: `/next` proposed getting an arb-chair ruling on whether
   ROADMAP.md:40 ("`/adr 000` round-table draft... decision drivers all

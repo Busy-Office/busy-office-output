@@ -1,6 +1,6 @@
 # ADR-000 — Template authoring model
 
-**Status:** Proposed — must close at the end of Stage 0
+**Status:** Accepted — 2026-08-26 (maintainer decision)
 **Decides:** the single largest fork in the project. ADR-001 and ADR-002 are moot or trivial under Path B.
 
 ## Context
@@ -118,10 +118,31 @@ Git-native review (payslips, high-volume bursting via pdf-direct). The
 
 ## Decision
 
-**This is a draft recommendation only. Decision remains with the maintainer.**
+**Accepted 2026-08-26: Option C (hybrid), scoped narrowly.** The runtime
+(Stages 3–5) is built renderer-agnostic behind the `Renderer` interface in
+`@busy-office/output-schema`, per Option C's architecture. But unlike
+Option C's original "Carbone as renderer #1, fast to market" framing, the
+maintainer's explicit instruction is: **schema-first (Option A: Typst /
+pdf-direct) is the only renderer built now.** Carbone/Path B is *reserved*
+behind the seam — the `RenderJob` union type accommodates it — but **not
+adopted, not built, not benchmarked**, consistent with the skip-carbone
+decision (`docs/INBOX.md`, GATE-CARBONE) and Option C's own cost clause:
+"accept only if a concrete document type demands each model; do not build
+both speculatively." No concrete document type has demanded Carbone yet
+(driver 2, unanswered). Revisit only if a named user needs `.odt`/`.docx`
+authoring — at that point GATE-CARBONE reopens for real (install
+LibreOffice, author `po-template.odt`, run `npm run spike:carbone`, read
+`LICENSE.md` in full) rather than being inferred from this ADR.
 
-**Recommended: Option A (schema-first), with renderer selection deferred
-to ADR-002.** Reasoning tied to the drivers above:
+**Practical consequence:** for all Stage 1+ work, the active path is
+schema-first. **ADR-001 (pagination location) is therefore live, not
+moot** — it must be decided before Stage 1 locks its contracts, since
+Option C's schema-path component is exactly Option A's architecture.
+ADR-002 (volume renderer: Typst vs. pdf-direct vs. both) also stays open,
+informed by the RTL/CJK findings below.
+
+Reasoning tied to the drivers above (retained from the draft recommendation,
+now adopted):
 
 - Driver 1 (carry-forward) is satisfied by both schema-first renderers
   today, on measured evidence — pdf-direct (p50=12.1ms, p95=14.5ms, n=30,
@@ -165,13 +186,14 @@ business-authoring requirement to surface soon should weight this higher
 than the evidence above does, since nothing in Stage 0 rules it out — it
 was simply never asked.
 
-**Carbone / Option B / Option C status:** explicitly undemonstrated by
-choice, not by evidence, and not rejected on the merits. GATE-CARBONE and
-the CCL licence read remain open commitments, to be revisited only if a
-named user needs `.odt`/`.docx` template authoring (per `docs/INBOX.md`
-and the GATE-CARBONE closure note in `ROADMAP.md`). Reopening either
-requires actually running `npm run spike:carbone` and reading `LICENSE.md`
-in full — this ADR draft must not be cited later as if that evaluation
-happened.
+**Carbone / Option B status:** explicitly undemonstrated by choice, not by
+evidence, and not rejected on the merits. GATE-CARBONE and the CCL licence
+read remain open commitments, reserved behind the `Renderer` seam per
+Option C's architecture but not scheduled, to be revisited only if a named
+user needs `.odt`/`.docx` template authoring. Reopening requires actually
+running `npm run spike:carbone` and reading `LICENSE.md` in full — this
+ADR must not be cited later as if that evaluation happened.
 
-**Decision:** Pending — draft recommendation above, human decides.
+**Decision:** Accepted. Option C (hybrid architecture), schema-first
+(Option A) is the only renderer built for Stage 0–2+; Carbone reserved,
+not adopted. See "Practical consequence" above — ADR-001 is now live.

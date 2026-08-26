@@ -38,7 +38,7 @@ project cheaply.
 - [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Read Carbone `LICENSE.md` (CCL) against intended distribution~~ — moot: Carbone not adopted for Stage 0 (docs/INBOX.md skip-carbone decision); CCL review happens only if Path B / Carbone is revisited for a named user.
 - [ ] Bursting math — DoD: RESULTS.md: target window, required ms/doc, achieved per renderer
 - [x] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced *(arb-chair ruling 2026-08-26: "evidenced" ≠ "answered positively" — drivers 2–4 are traceably documented "unanswered by choice," not fabricated or silently missing; see ADRs/000-template-authoring-model.md)*
-- [ ] **[HUMAN]** Decide ADR-000 (and ADR-001 if Path A) — DoD: Status: Accepted, Decision section written
+- [x] **[HUMAN]** Decide ADR-000 (and ADR-001 if Path A) — DoD: Status: Accepted, Decision section written *(2026-08-26: Accepted, Option C hybrid — schema-first built now, Carbone reserved/not adopted; see ADRs/000-template-authoring-model.md. Consequence: ADR-001 is now live, not moot — pagination location must be decided before Stage 1)*
 - [ ] Delete `spike/` except `RESULTS.md`; move RESULTS.md → `docs/` — DoD: tree clean, log entry
 
 ### Exit gate — `/gate-check 0`
