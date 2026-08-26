@@ -13,6 +13,7 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 8, 2026-08-26: dispatcher noop (2/3 consecutive) — docs/INBOX.md still empty, no gates answered. Q6 still blocked on GATE-CARBONE.
 - tick 7, 2026-08-26: noop — same as tick 6, GATE-CARBONE still unanswered.
 - tick 6, 2026-08-26: noop — Q6 (/adr 000 draft) blocked on GATE-CARBONE (docs/INBOX.md empty, no soffice/libreoffice on this Mac). Queue empty otherwise.
 
