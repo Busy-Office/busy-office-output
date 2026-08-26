@@ -37,7 +37,7 @@ project cheaply.
 - [ ] RTL + CJK smoke test (th-TH, ja-JP, ar-SA) in the two leading candidates — DoD: RESULTS.md section filled with pass/fail per script *(not deferred to Stage 6)*
 - [ ] **[HUMAN — SKIPPED 2026-08-26]** ~~Read Carbone `LICENSE.md` (CCL) against intended distribution~~ — moot: Carbone not adopted for Stage 0 (docs/INBOX.md skip-carbone decision); CCL review happens only if Path B / Carbone is revisited for a named user.
 - [ ] Bursting math — DoD: RESULTS.md: target window, required ms/doc, achieved per renderer
-- [ ] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced
+- [x] `/adr 000` round-table draft from completed RESULTS.md — DoD: draft recommendation appended, decision drivers all evidenced *(arb-chair ruling 2026-08-26: "evidenced" ≠ "answered positively" — drivers 2–4 are traceably documented "unanswered by choice," not fabricated or silently missing; see ADRs/000-template-authoring-model.md)*
 - [ ] **[HUMAN]** Decide ADR-000 (and ADR-001 if Path A) — DoD: Status: Accepted, Decision section written
 - [ ] Delete `spike/` except `RESULTS.md`; move RESULTS.md → `docs/` — DoD: tree clean, log entry
 

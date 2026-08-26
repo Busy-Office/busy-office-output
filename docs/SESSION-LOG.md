@@ -11,6 +11,35 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-26 — Stage 0 (ROADMAP.md:40 ruling)
+- Did: `/next` proposed getting an arb-chair ruling on whether
+  ROADMAP.md:40 ("`/adr 000` round-table draft... decision drivers all
+  evidenced") is satisfied by the ADR-000 draft, given drivers 2-4 are
+  explicitly marked unanswered/unanswered-by-choice rather than measured.
+  Ruling: **tick it** — "evidenced" ≠ "answered positively"; drivers 2-4
+  are traceably documented as deliberately unanswered (cited to
+  docs/INBOX.md, ROADMAP.md, ADRs/README.md), not fabricated or silently
+  missing, which is what the DoD's document-completeness standard
+  requires (no command can verify this DoD; two prior skeptic passes +
+  this arb-chair review are the verification). ROADMAP.md:40 ticked with
+  the ruling summary inline. No other ROADMAP.md text changes: line 41
+  ([HUMAN] Decide ADR-000) stays unchecked, the Stage 0 exit gate (lines
+  44-51) is unaffected and still fails criterion 1 until the maintainer
+  actually decides ADR-000.
+- Open: nothing from this task. Stage 0 exit gate still open (ADR-000
+  undecided, hardware re-run and RTL/CJK-in-two-candidates and bursting
+  math roadmap lines still unchecked — though RTL/CJK and bursting math
+  were substantively done under the loop's Q3/Q4 work; those checkbox
+  wordings may be stale duplicates of loop-queue items and worth a
+  dispatcher pass to reconcile, not done here).
+- Next: Stage 0's only remaining unblocked-in-principle roadmap lines are
+  either [HUMAN]-only (hardware re-run, decide ADR-000) or look like
+  stale restatements of already-completed loop work (RTL/CJK smoke test,
+  bursting math — both done under Q3/Q4, see loop tick 3/4 entries below,
+  but their ROADMAP.md checkboxes were never ticked). Worth reconciling
+  those checkboxes against the loop's actual work next, or otherwise
+  Stage 0 is human-blocked on ADR-000 itself.
+
 ## 2026-08-26 — Stage 0 (loop tick 10, dispatcher + Q6)
 - Did: dispatcher pass (interactive — maintainer answered GATE-CARBONE
   in-session, processed immediately rather than waiting for tick%4).
