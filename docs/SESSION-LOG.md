@@ -217,6 +217,7 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 15, 2026-08-27: noop — Stage 0 CLOSED this session (all 4 exit-gate criteria PASS, spike/ deleted). Queue empty, docs/INBOX.md Open section empty, not a dispatcher tick (15%4≠0). GATE-S1-PREWORK still open (default NO) — loop must not start Stage 1 tasks until answered.
 - tick 14, 2026-08-27: noop — queue empty, docs/INBOX.md Open section empty, not a dispatcher tick (14%4≠0). ADR-000 and ADR-001 both Accepted this session (direct maintainer decisions, already reconciled into ROADMAP.md/ADRs/*, no dispatcher action needed). Remaining Stage 0 work: GATE-BURST-WINDOW (open), GATE-S1-PREWORK (open), spike/ deletion blocked on exit gate.
 - tick 13, 2026-08-27: noop — queue empty, docs/INBOX.md Open section empty, not a dispatcher tick (13%4≠0). GATE-BURST-WINDOW and GATE-S1-PREWORK still open; ADR-001 (pagination location) still undecided — all human-blocked.
 - tick 11, 2026-08-26: noop — queue empty (Q1-Q6 all done), docs/INBOX.md Open section empty, not a dispatcher tick (11%4≠0). Only remaining Stage 0 work is [HUMAN]-only (decide ADR-000/001) or a stale-checkbox reconciliation (RTL/CJK, bursting math ROADMAP lines vs. already-done Q3/Q4 — noted in the ROADMAP.md:40-ruling session entry) that's deferred to the next dispatcher pass (tick 12).
