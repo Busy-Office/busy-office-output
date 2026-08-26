@@ -1,7 +1,10 @@
 /**
- * DRAFT — Path A only. Frozen until ADR-000 is decided; deleted if Path B wins.
- * Nine node types (roadmap Stage 2). If writing the PO and invoice templates
- * on paper needs a tenth, the schema is not done (Stage 1 gate).
+ * FROZEN — Path A (ADR-000 Accepted 2026-08-26, Option C hybrid; Path A is
+ * the active path). Nine node types. `value`/`bind`/`key` fields hold
+ * expressions per docs/EXPRESSION-GRAMMAR.md, parsed by
+ * packages/schema/src/expression/parse.ts. If writing the PO and invoice
+ * templates on paper needs a tenth, this freeze was wrong — that's the
+ * Stage 1 paper-test gate.
  */
 export type DocNode =
   | { kind: 'document'; page: PageSpec; children: DocNode[] }
