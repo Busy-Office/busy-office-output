@@ -11,6 +11,38 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 0/1 (ADR-001 decided)
+- Did: ran a deep-research workflow surveying the FOSS document-templating
+  landscape (Carbone, Typst, pdf-lib, and alternatives) to inform ADR-001.
+  Workflow's final synthesis stage returned broken placeholder output
+  (bug, feedback filed); manually re-derived the real findings from the
+  run's journal (107 agents, 86 claims extracted, 25 adversarially
+  verified, 17 confirmed/8 killed). No new FOSS option surfaced beyond
+  what Stage 0 already evaluated. Key finding: Typst's pagination is
+  renderer-side/automatic with a "regions" layout model giving exact
+  positional info during layout (unlike TeX's decoupled
+  linebreak-then-pagebreak) — the architectural crux of ADR-001.
+  Maintainer decided ADR-001: **Option 2 (renderer-side/Typst), scoped by
+  document type — not forced cross-renderer parity.** Typst owns
+  pagination for multi-page/carry-forward/non-Latin documents;
+  pdf-direct stays available for simple high-volume bursts on
+  throughput grounds (12.1ms vs 100ms). Retires the original
+  `test/conformance/` cross-renderer page-break-identity goal as a
+  global guarantee — named as a deliberate trade-off, not hidden.
+  Applied: ADRs/001-pagination-location.md Status → Accepted, Decision
+  section written with reasoning + named risk (can't cheaply route one
+  document type to either renderer interchangeably later without
+  revisiting). ADRs/README.md status table updated; ADR-002 noted as
+  inheriting the document-type-scoped-split framing. `npm run verify`
+  green.
+- Open: ADR-002 (volume renderer) still Proposed — now needs to decide
+  the concrete document-type/locale routing rule between pdf-direct and
+  Typst, per ADR-001's framing. GATE-BURST-WINDOW, GATE-S1-PREWORK still
+  open. `spike/` deletion still blocked on Stage 0 exit gate (bursting
+  window undecided).
+- Next: either GATE-BURST-WINDOW (maintainer picks the bursting window)
+  or start on ADR-002's routing rule — both are live paths forward now.
+
 ## 2026-08-26 — Stage 0 (loop tick 12, dispatcher: checkbox reconciliation)
 - Did: dispatcher pass. INBOX Open empty, no gates newly answered — but
   flagged-last-session stale checkboxes were real. corpus-qa verified

@@ -3,8 +3,8 @@
 | ADR | Title | Status | Closes at |
 |---|---|---|---|
 | 000 | Template authoring model (Path A / B / hybrid) | **Accepted** — Option C (hybrid), schema-first built now, Carbone reserved/not adopted | end of Stage 0 |
-| 001 | Pagination location (composition vs renderer) | Proposed — **live**, not moot (schema-first is the active path under ADR-000) | end of Stage 1 |
-| 002 | Volume renderer | Proposed — spike favours pdf-lib | Stage 4 latest |
+| 001 | Pagination location (composition vs renderer) | **Accepted** — Option 2 (renderer-side/Typst), scoped by document type, not forced cross-renderer parity | end of Stage 1 |
+| 002 | Volume renderer | Proposed — inherits ADR-001's document-type-scoped split; must decide the routing rule | Stage 4 latest |
 | 003 | Rule storage (files vs tables) | Proposed | Stage 3 |
 | 004 | Queue backend (embedded vs external) | Proposed | Stage 3 |
 | 005 | AI-native template lifecycle | Proposed — skill tasks proceed | Stage 7 entry |
