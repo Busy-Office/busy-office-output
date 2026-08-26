@@ -8,7 +8,7 @@ file is the rationale and the work queue.
 - Stage 0 (kill gate) is open. 3/11 tasks done. 6 of the 8 remaining are
   **[HUMAN]** (LibreOffice + `.odt` authoring, CCL licence read, ADR-000
   decision, spike deletion after decision).
-- This machine has never run the repo: no `node_modules`, no `.git`, no
+- This machine has never run the repo: no `node_modules`, no
   `typst`, no LibreOffice, no veraPDF. It *is* the target hardware.
 - Tool-less Claude-doable Stage 0 work is small and finite (queue below).
   After it is exhausted the loop is **human-blocked by design** — that is
@@ -29,7 +29,7 @@ the DoD command ran this tick. Human sign-offs go to
 ## Work queue (Stage 0, Claude-doable, in order)
 | # | Task | DoD (witnessed) | Agent |
 |---|---|---|---|
-| Q1 | Bootstrap: `npm install` root + `spike/pdf-direct`; `git init` + baseline commit | `npm run verify` green; `npm run spike:data` twice → identical hash | corpus-qa |
+| Q1 | Bootstrap: `npm install` root + `spike/pdf-direct` (git + remote `Busy-Office/busy-office-output` already set up, baseline pushed) | `npm run verify` green; `npm run spike:data` twice → identical hash | corpus-qa |
 | Q2 | pdf-direct bench on this Mac → RESULTS.md hardware section + gate-5 row (pdf-direct column) | `npm run spike:pdf-direct` prints p50; RESULTS row filled with machine/Node | render-engineer |
 | Q3 | RTL/CJK smoke (th-TH, ja-JP, ar-SA) in pdf-direct using macOS system fonts (Thonburi, Hiragino, Geeza Pro) | RESULTS.md RTL/CJK section pass/fail per script, rasterized page checked | render-engineer |
 | Q4 | Bursting math, parametrized (window unknown → table for 15/30/60 min) | RESULTS.md bursting section; GATE for the human to pick the window | corpus-qa |

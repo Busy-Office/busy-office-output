@@ -35,7 +35,7 @@ stop_on_gate: false
    arb-chair / runtime-engineer). Spike work stays under `spike/`.
 6. Verify: run the task's DoD command **and** `npm run verify`. Only then move
    the item to `done`, tick the ROADMAP checkbox (if the whole roadmap task is
-   complete — Q-items may be partial), commit (`stage0: <what>`).
+   complete — Q-items may be partial), commit (`stage0: <what>`) and `git push origin main` (authorized by maintainer 2026-08-26; never force).
    3 failed fix cycles → log GATE-<Q>-REGRESSION, move on.
 7. Log: SESSION-LOG entry per the template (Did / Open / Next) or the one-line
    noop form. Leave the tree resumable.
@@ -53,7 +53,7 @@ stop_on_gate: false
    exact ROADMAP edits (task text + DoD), gate status changes, queue changes."
 4. Apply the ruling: edit ROADMAP.md (tasks/DoD only — never tick a box here),
    update HUMAN-GATES-LOG status, update `queue` in loop-state, move INBOX
-   items to **Processed** with disposition. Commit `docs: dispatch tick N`.
+   items to **Processed** with disposition. Commit `docs: dispatch tick N` and push.
 5. Reset `consecutiveNoopDispatches = 0`, set `lastDispatchTick`.
 
 ## Hard stops (never do)
