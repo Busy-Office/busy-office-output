@@ -11,6 +11,29 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 3: archive store (FsArchiveStore + S3ArchiveStore)
+- Did: packages/runtime/src/archive/ — ArchiveStore port (archive/
+  retrieve), retentionUntil required at the type level and runtime-
+  validated (RFC 3339) before any byte is written. FsArchiveStore is the
+  default embedded backend under ./data/ (matches single-process serve's
+  "zero external services"); S3ArchiveStore is S3-compatible via
+  @aws-sdk/client-s3, mock-tested only (no live S3/MinIO in this
+  environment — flagged, not hidden). archiveArtifact() wires archive to
+  the registry: bytes written, then archiveRef+retentionUntil set, then
+  DRAFT->ORIGINAL — in that order, so a failed archive never leaves a
+  dangling registry row. New migration 0002_add_retention_until.sql.
+- Open: rest of Stage 3 — CloudEvents envelope, rule evaluation + TRACE
+  (blocked on ADR-003), fan-out, delivery queue (blocked on ADR-004),
+  channels, single-process serve, embeddable module + outbox, minimal
+  console, human thesis check.
+- Next: with registry + archive both done, "single-process serve" (API +
+  worker + embedded queue + FS archive, fresh clone -> zero external
+  services) is close to reachable but needs at least a minimal
+  determination/render wiring path to be a real end-to-end demo — likely
+  needs an arb-chair scoping call on how much of "determination" a
+  pre-ADR-003 demo can honestly claim. Channels/delivery queue still wait
+  on ADR-004; rule evaluation/fan-out still wait on ADR-003.
+
 ## 2026-08-27 — Stage 3: document registry (RegistryStore + SQLite)
 - Did: arb-chair ruling first (this task's storage choice touches ADR-004,
   still Proposed, whose own text conditions on "if the registry lands on
