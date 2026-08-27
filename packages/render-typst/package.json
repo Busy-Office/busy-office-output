@@ -1,0 +1,15 @@
+{
+  "name": "@busy-office/render-typst",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "description": "Path A Typst renderer (ADR-001 Accepted): implements the Renderer interface, shells out to `typst compile`. No npm Typst binding — shell-out only.",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@busy-office/output-schema": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

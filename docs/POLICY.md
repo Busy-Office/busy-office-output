@@ -34,10 +34,13 @@ the test corpus verifies at build/CI time — it is **not** a runtime
 guarantee the product makes to callers, and it is never invoked to justify
 re-rendering. Two consequences:
 
-- Corpus snapshot tests normalize `CreationDate`/`ModDate` and the PDF
-  document ID before hashing (the pattern already used in Stage 0 spikes;
-  see `docs/RESULTS.md`), because those fields are legitimately
-  wall-clock-dependent and would otherwise make byte-identical comparison
+- Corpus snapshot tests normalize `CreationDate`/`ModDate`, the PDF trailer
+  document ID, and (Typst-specific, found in Stage 2) XMP metadata
+  (`xmp:ModifyDate`, `xmpMM:InstanceID`/`DocumentID`) before hashing
+  (the pattern already used in Stage 0 spikes and extended in
+  `packages/render-typst/src/normalize-pdf.ts`; see `docs/RESULTS.md`),
+  because those fields are legitimately wall-clock-dependent and would
+  otherwise make byte-identical comparison
   meaningless.
 - Production renders are **not** re-run to verify they match a prior render
   of the "same" input — that would contradict "the archive is the

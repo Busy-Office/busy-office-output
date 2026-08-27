@@ -4,8 +4,9 @@
   "version": "0.0.0",
   "description": "ERP document output: determination, rendering, archive, delivery, audit. Stage 0.",
   "engines": { "node": ">=22" },
+  "workspaces": ["packages/*"],
   "scripts": {
-    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts",
+    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/index.ts",
     "test": "vitest run",
     "verify": "npm run typecheck && npm test"
   },

@@ -60,7 +60,10 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
 - TypeScript strict, NodeNext modules, Node >= 22 (`.nvmrc`)
 - Money is integer-cents or round-at-boundary; formatting is the renderer's job
 - Commit style: `stage0: <what>` / `stage1: <what>` / `adr: <what>` / `docs: <what>`
-- PDF snapshots: zero CreationDate/ModDate and doc ID before hashing
+- PDF snapshots: zero CreationDate/ModDate, the trailer doc ID, **and XMP
+  metadata** (`xmp:ModifyDate`, `xmpMM:InstanceID`/`DocumentID` — Typst
+  embeds these even when the trailer fields are zeroed; found in Stage 2's
+  Typst renderer, packages/render-typst/src/normalize-pdf.ts) before hashing
   (pattern preserved in git history; see `docs/RESULTS.md` for the
   measurements it produced)
 
