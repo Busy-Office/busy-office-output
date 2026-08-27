@@ -1,17 +1,16 @@
 /**
  * Idempotency on BusinessEventKey (ROADMAP Stage 3: "write this test first").
  *
- * This is a process-lifetime, in-memory stand-in for the persisted document
- * registry that a later, separate ROADMAP task builds ("Document registry
- * (docId, object/id, template+renderer versions, input/output hashes,
- * archiveRef, state, delivery history) — DoD: one row per artifact,
- * migration in repo"). It exists only to prove the idempotency *contract*
- * from HLD §4: "Idempotency key (businessObject, businessObjectId, event,
- * templateVersion): replay returns the existing docId." Do not grow this
- * into the registry in place — the registry task replaces it.
+ * These tests exercise `IdempotencyStore` as wired onto the real
+ * `RegistryStore` (an in-memory `:memory:` SQLite instance here, for speed
+ * and isolation) — proving the same contract from HLD §4 the old in-memory
+ * Map stand-in proved, now against durable storage. The
+ * persistence-survives-restart guarantee this replaced the Map to get is
+ * covered separately in registry/sqlite-registry-store.test.ts.
  */
 import { describe, expect, it } from 'vitest';
-import { createInMemoryIdempotencyStore } from './idempotency-store.js';
+import { createRegistryIdempotencyStore } from './idempotency-store.js';
+import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { BusinessEventKey } from '@busy-office/output-schema';
 
 function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
@@ -24,9 +23,13 @@ function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   };
 }
 
-describe('in-memory idempotency store', () => {
+function makeStore() {
+  return createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
+}
+
+describe('registry-backed idempotency store', () => {
   it('replayed event (same four-tuple) returns the existing docId, not a new one', () => {
-    const store = createInMemoryIdempotencyStore();
+    const store = makeStore();
 
     const first = store.getOrCreate(key());
     const second = store.getOrCreate(key());
@@ -37,7 +40,7 @@ describe('in-memory idempotency store', () => {
   });
 
   it('a different four-tuple gets its own docId, first-seen', () => {
-    const store = createInMemoryIdempotencyStore();
+    const store = makeStore();
 
     const first = store.getOrCreate(key());
     const other = store.getOrCreate(key({ businessObjectId: '4500009999' }));
@@ -47,7 +50,7 @@ describe('in-memory idempotency store', () => {
   });
 
   it('templateVersion is part of the key: same object/event, different template, different docId', () => {
-    const store = createInMemoryIdempotencyStore();
+    const store = makeStore();
 
     const first = store.getOrCreate(key());
     const reprocessedOnNewTemplate = store.getOrCreate(key({ templateVersion: '2.0.0' }));

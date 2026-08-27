@@ -3,18 +3,18 @@
  * key (businessObject, businessObjectId, event, templateVersion): replay
  * returns the existing docId."
  *
- * SCOPE: this is a process-lifetime, in-memory stand-in, not the persisted
- * document registry. The registry is a separate, later ROADMAP task
- * ("Document registry ... — DoD: one row per artifact, migration in repo")
- * that will own docId issuance for real, backed by durable storage with
- * template+renderer versions, input/output hashes, archiveRef, state, and
- * delivery history. This store exists solely to prove the idempotency
- * *contract* ahead of that: same four-tuple in, same docId out, without
- * re-processing. When the registry lands, this module is replaced, not
- * extended in place.
+ * This module now sits directly on top of the durable `RegistryStore`
+ * (registry/registry-store.ts) — the in-memory `Map` stand-in it used to
+ * hold is gone, replaced rather than extended, exactly as its old header
+ * comment promised. `IdempotencyStore` stays a thin, purpose-named facade
+ * (same external contract server.ts already depends on: `getOrCreate` ->
+ * `{ docId, replayed }`) over `RegistryStore.getOrCreateByEventKey`, which
+ * does the real, persisted work: mint-or-fetch a DRAFT registry row keyed
+ * on the four-tuple, backed by SQLite (see sqlite-registry-store.ts), so a
+ * replayed event returns the same docId even across a process restart.
  */
-import { randomUUID } from 'node:crypto';
 import type { BusinessEventKey } from '@busy-office/output-schema';
+import type { RegistryStore } from './registry/registry-store.js';
 
 export interface IdempotencyResult {
   docId: string;
@@ -24,31 +24,20 @@ export interface IdempotencyResult {
 
 export interface IdempotencyStore {
   /**
-   * First sighting of `key`: mints a new docId, records it, returns
-   * { docId, replayed: false }. Any later call with an equal four-tuple
-   * returns the SAME docId with { replayed: true } — no new work is done.
+   * First sighting of `key`: mints a new docId (via a new DRAFT registry
+   * row), returns { docId, replayed: false }. Any later call with an equal
+   * four-tuple returns the SAME docId with { replayed: true } — no new row,
+   * no new work.
    */
   getOrCreate(key: BusinessEventKey): IdempotencyResult;
 }
 
-/** Canonical string form of the four-tuple for use as a Map key. */
-function canonicalKey(key: BusinessEventKey): string {
-  return JSON.stringify([key.businessObject, key.businessObjectId, key.event, key.templateVersion]);
-}
-
-export function createInMemoryIdempotencyStore(): IdempotencyStore {
-  const seen = new Map<string, string>(); // canonical key -> docId
-
+/** Wraps a `RegistryStore` to satisfy the `IdempotencyStore` contract. */
+export function createRegistryIdempotencyStore(registryStore: RegistryStore): IdempotencyStore {
   return {
     getOrCreate(key: BusinessEventKey): IdempotencyResult {
-      const canonical = canonicalKey(key);
-      const existing = seen.get(canonical);
-      if (existing !== undefined) {
-        return { docId: existing, replayed: true };
-      }
-      const docId = randomUUID();
-      seen.set(canonical, docId);
-      return { docId, replayed: false };
+      const { row, created } = registryStore.getOrCreateByEventKey(key);
+      return { docId: row.docId, replayed: !created };
     },
   };
 }

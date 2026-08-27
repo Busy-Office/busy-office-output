@@ -2,8 +2,11 @@
  * Event ingress (ROADMAP Stage 3 task 1; HLD §2 "Event API": validate,
  * contract, idempotency). Scoped to validate + contract + idempotency only —
  * determination/fan-out/registry/archive/delivery are separate, later tasks.
- * Idempotency here is backed by an in-memory stand-in for the not-yet-built
- * document registry — see idempotency-store.ts's header comment for why.
+ * Idempotency here is backed by the durable document registry (registry/) —
+ * see idempotency-store.ts's header comment. `createIngressServer()` with
+ * no override defaults to an in-memory-backed registry (fast, isolated —
+ * what tests use); `index.ts`'s `serve()` wires a real on-disk registry by
+ * default for standalone single-process runs.
  *
  * Built on Node's built-in `http` module rather than a framework: a single
  * route (`POST /event`) with one job (parse JSON, validate against a JSON
@@ -20,9 +23,10 @@ import {
   type DocumentType,
 } from './contract-validation.js';
 import {
-  createInMemoryIdempotencyStore,
+  createRegistryIdempotencyStore,
   type IdempotencyStore,
 } from './idempotency-store.js';
+import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import {
   invalidContractProblem,
   malformedRequestProblem,
@@ -174,7 +178,12 @@ async function handleEvent(
 }
 
 export function createIngressServer(options: { idempotencyStore?: IdempotencyStore } = {}) {
-  const idempotencyStore = options.idempotencyStore ?? createInMemoryIdempotencyStore();
+  // Default: an in-memory (`:memory:`) SQLite-backed registry — fast and
+  // isolated, so `server.test.ts` / `idempotency.test.ts` can call
+  // `createIngressServer()` with no setup and get their own throwaway
+  // database. `index.ts`'s `serve()` overrides this with a durable,
+  // on-disk-backed store for standalone single-process runs.
+  const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
   return createServer((req, res) => {
     void (async () => {
       const url = req.url ?? '/';

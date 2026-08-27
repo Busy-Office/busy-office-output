@@ -2,8 +2,9 @@
  * Idempotency on BusinessEventKey, end-to-end through POST /event (ROADMAP
  * Stage 3: "replayed event returns existing docId; write this test first").
  *
- * The store backing this is an in-memory stand-in for the not-yet-built
- * document registry — see idempotency-store.ts's header comment.
+ * The store backing this is the durable document registry (registry/),
+ * defaulted here to an in-memory (`:memory:`) SQLite instance for test
+ * speed/isolation — see idempotency-store.ts's header comment.
  */
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
