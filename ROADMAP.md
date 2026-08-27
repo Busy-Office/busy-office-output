@@ -129,7 +129,7 @@ to exist.
 - [ ] Embeddable module (ADR-007): `createOutput()` mounts in a host process sharing its Postgres; **transactional outbox** — DoD: rollback test shows no orphaned artifact or registry row
 - [ ] Minimal console, read-only (UI-DESIGN): registry, document detail, rule trace as busy-office-ui pages — DoD: each passes the five UI principles; the Stage 3 demo runs through it
 - [ ] **[HUMAN]** Thesis check: show the two-minute demo to 5 real operators — DoD: notes in `docs/PREMORTEM.md`; feeds C2
-- [ ] ADR-003 (rule storage) + ADR-004 (queue) closed — DoD: Status: Accepted
+- [x] ADR-003 (rule storage) + ADR-004 (queue) closed — DoD: Status: Accepted *(2026-08-28: ADR-003 Option 1 files-first, ADR-004 Option 1 SQLite-backed embedded queue — both decided directly by the maintainer in chat)*
 
 ### Exit gate — `/gate-check 3`
 Event → rule trace → render → email → archived artifact → complete audit
