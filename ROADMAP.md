@@ -96,14 +96,17 @@ and the spike gates become the permanent corpus.
 - [x] Template-from-sample skill (`.claude/skills/template-from-sample/`) + **round-trip proof**: rasterize the corpus PO, hand the skill only the image, regenerate the template, diff converges — DoD: round-trip test green with zero real data *(2026-08-27: .claude/skills/template-from-sample/SKILL.md + test/corpus/purchase-order/009-template-from-sample-roundtrip.test.ts. HONESTY CAVEAT: the round-trip test proves rasterization works and diff-convergence checking is real/automated, but the reconstructed template is checked against the same generated data object as the original — not values OCR'd or vision-derived from the image. It does not prove a vision-only Claude session would independently derive the correct tree; that step stands in for a future human/Claude-in-the-loop skill invocation, not yet exercised end-to-end)*
 - [x] ms/doc published in README, measured by the corpus bench — DoD: README table row *(2026-08-27: README.md table, typst/purchase-order/001-single-page, p50≈123ms p95≈136ms, MacBook Air M4 — test/corpus/purchase-order/bench.ts, `npm run bench:po`. Not comparable to Stage 0's pdf-direct 38ms number — different renderer, shell-out vs in-process)*
 
-### Exit gate — `/gate-check 2`  — **2/3 PASS, 1 blocked, 2026-08-27**
-1. Corpus green twice consecutively with identical normalized hashes — **PASS** (18 test files / 64 tests, every corpus case asserts two-render determinism after normalization)
-2. Overflow case fails loudly — **PASS** (006-overflow-must-fail.test.ts: TypstOverflowError, measure()-based guard, never silently clipped)
-3. ms/doc in README — **PASS** (README.md table row)
+### Exit gate — `/gate-check 2`  — **all 3 PASS, 2026-08-27**
+1. Corpus green twice consecutively with identical normalized hashes — **PASS** (19 test files / 67 tests; determinism.ts does real byte-buffer equality on normalized re-renders, not a smoke test)
+2. Overflow case fails loudly — **PASS** (006-overflow-must-fail.test.ts: `rejects.toThrow(TypstOverflowError)`, measure()-based guard, never silently clipped)
+3. ms/doc in README — **PASS** (README.md table row, real measured p50/p95)
 
-All seven Stage 2 tasks are now complete: `GATE-VERAPDF-INSTALL` closed
-2026-08-27 (maintainer authorized `brew install verapdf` directly in chat),
-PDF/A-2b + veraPDF wired into the corpus gate as part of `npm test`.
+All seven Stage 2 tasks complete, all seven of the checked-off tasks
+above independently re-verified by a corpus-qa gate-check (real commands,
+fresh render + direct `verapdf` invocation, not self-asserted): PDF/A-2b
+144/144 veraPDF rules pass on a freshly rendered artifact,
+`GATE-VERAPDF-INSTALL` closed 2026-08-27 (maintainer authorized
+`brew install verapdf` directly in chat).
 
 ---
 

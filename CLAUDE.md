@@ -3,10 +3,12 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stage 0 and Stage 1 both closed 2026-08-27** (exit gates passed,
-see ROADMAP.md); Stage 2 not yet started. Path B (Carbone) Stage 1 task
-stayed out of scope per ADR-000. One part-time maintainer; sessions are
-short — leave everything in a resumable state.
+Status: **Stages 0, 1, and 2 all closed 2026-08-27** (exit gates passed,
+see ROADMAP.md); Stage 3 not yet started. Path B (Carbone) tasks stayed
+out of scope per ADR-000 in every stage. Renderer for the purchase-order
+document type is `@busy-office/render-typst` (ADR-001, PDF/A-2b, veraPDF
+in the corpus gate). One part-time maintainer; sessions are short — leave
+everything in a resumable state.
 
 ## Read order at session start
 1. `ROADMAP.md` — find the current stage and its first unchecked task

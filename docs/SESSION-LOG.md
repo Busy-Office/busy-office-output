@@ -11,6 +11,38 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 2 CLOSED (exit gate passed)
+- Did: all seven Stage 2 tasks built and independently verified.
+  New package `@busy-office/render-typst`: TypstRenderer implements
+  `Renderer` (id: 'typst'), evaluates the frozen DocNode tree's
+  expressions against real PurchaseOrderData, emits Typst markup for all
+  nine node kinds incl. state()-based carry-forward footer, shells out to
+  `typst compile --pdf-standard a-2b`. LayoutIR closed its DRAFT status
+  per ADR-001 (now { irVersion, root: DocNode, data }, no page-resolved
+  boxes — Typst owns pagination). Corpus: test/corpus/purchase-order/
+  001-007, deterministic seeded generator, 67/67 tests green;
+  overflow-must-fail (006) throws TypstOverflowError via a measure()-based
+  guard after discovering Typst's table() silently clips rows that don't
+  fit (a real gap the naive cursor-position guard missed). PDF
+  normalization zeros CreationDate/ModDate/trailer-ID and Typst's XMP
+  metadata (found: xmp:ModifyDate, xmpMM:InstanceID/DocumentID, and later
+  xmpMM:History from the --pdf-standard flag) — folded into CLAUDE.md.
+  Structural diff CLI (`bo-output diff`, shells to `pdftotext -bbox-layout`)
+  doubles as the ADR-005 AI verifier. Template-from-sample skill
+  (.claude/skills/template-from-sample/) with a round-trip proof — honestly
+  scoped: proves rasterization + diff-convergence checking work, not that
+  a vision-only agent independently derives the tree from pixels. ms/doc
+  published in README (typst/purchase-order, p50≈123ms p95≈136ms,
+  MacBook Air M4). PDF/A-2b + veraPDF: GATE-VERAPDF-INSTALL logged, the
+  maintainer authorized `brew install verapdf` directly in chat, installed,
+  wired into the corpus gate as part of `npm test` — 144/144 veraPDF rules
+  pass, check proven to have teeth (unflagged Typst output genuinely fails
+  validation). Every task independently re-verified by two separate
+  corpus-qa gate-checks (real commands, fresh renders, not self-asserted).
+- Open: nothing Stage-2-blocking. Stage 3 not yet started.
+- Next: Stage 3 ("The wedge: determination + delivery") — read
+  ROADMAP.md's Stage 3 section for its task list before starting.
+
 ## 2026-08-27 — Stage 1 CLOSED (exit gate passed)
 - Did: GATE-S1-PREWORK answered directly in chat by the maintainer ("yes,
   start Stage 1"), logged to docs/INBOX.md, arb-chair ruling applied
