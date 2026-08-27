@@ -11,6 +11,26 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 3: idempotency on BusinessEventKey
+- Did: test-first (RED confirmed before GREEN, two vertical slices).
+  packages/runtime/src/idempotency-store.ts — in-memory stand-in Map
+  keyed on the canonical (businessObject, businessObjectId, event,
+  templateVersion) four-tuple, explicitly documented as replaced wholesale
+  by the later Document registry task, not extended in place.
+  BusinessEventKey travels as a top-level `businessEvent` envelope field
+  sibling to the contract payload (chosen to match the shape the future
+  CloudEvents envelope task will need). Response: 202+replayed:false on
+  first sighting, 200+replayed:true + same docId on replay.
+- Open: rest of Stage 3 — CloudEvents envelope, rule evaluation + TRACE
+  (blocked on ADR-003), fan-out, document registry (will replace this
+  session's idempotency store), archive store, delivery queue (blocked on
+  ADR-004), channels, single-process serve, embeddable module + outbox,
+  minimal console, human thesis check.
+- Next: document registry is the natural following task now that
+  idempotency's contract is proven — it's ADR-independent and directly
+  supersedes idempotency-store.ts. Rule evaluation/fan-out and the delivery
+  queue stay blocked until ADR-003/ADR-004 are decided.
+
 ## 2026-08-27 — Stage 3 started: packages/runtime ingress
 - Did: first Stage 3 task. New packages/runtime: POST /event on plain
   node:http, ajv 2020-12 + ajv-formats validation against

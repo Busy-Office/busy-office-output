@@ -120,7 +120,7 @@ to exist.
 - [ ] Standard API shapes (ADR-006): optional CloudEvents 1.0 envelope on `POST /event`; all errors as RFC 9457 problem+json incl. the rule TRACE — DoD: contract tests
 - [ ] Rule evaluation with mandatory TRACE; non-match = error carrying the evaluated trace — DoD: test proves no silent no-op path exists
 - [ ] Fan-out: one event → N resolutions (template, locale, channel, recipient) — DoD: bursting test = fan-out test
-- [ ] Idempotency on `BusinessEventKey` — DoD: replayed event returns existing docId; **write this test first**
+- [x] Idempotency on `BusinessEventKey` — DoD: replayed event returns existing docId; **write this test first** *(2026-08-27: packages/runtime/src/idempotency-store.ts, test-first (RED confirmed before GREEN). Explicitly scoped as an in-memory stand-in for the not-yet-built Document registry task below — not a foundation to extend in place. BusinessEventKey travels as a top-level `businessEvent` envelope field; replay returns 200 + same docId + replayed:true, first sighting returns 202 + replayed:false)*
 - [ ] Document registry (docId, object/id, template+renderer versions, input/output hashes, archiveRef, state, delivery history) — DoD: one row per artifact, migration in repo
 - [ ] Archive store (FS + S3-compatible) with mandatory `retentionUntil` — DoD: archiving without retention fails
 - [ ] Delivery queue: retry w/ backoff → terminal poison + alert; **never re-render on delivery failure** — DoD: test kills channel, artifact untouched, poison row present
