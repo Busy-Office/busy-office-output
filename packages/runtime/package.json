@@ -1,0 +1,17 @@
+{
+  "name": "@busy-office/runtime",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "description": "Determination + delivery runtime (Stage 3, HLD §2/§4): Event API ingress and contract validation. Single-process by default (CLAUDE.md: API + worker + embedded queue + FS archive in one command).",
+  "engines": { "node": ">=22" },
+  "dependencies": {
+    "@busy-office/output-schema": "*",
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0"
+  }
+}

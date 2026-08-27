@@ -6,7 +6,7 @@
   "engines": { "node": ">=22" },
   "workspaces": ["packages/*"],
   "scripts": {
-    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/cli/diff.ts",
+    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/cli/diff.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/runtime/src/index.ts",
     "test": "vitest run",
     "diff": "tsx packages/render-typst/src/cli/diff.ts",
     "bench:po": "tsx test/corpus/purchase-order/bench.ts",
