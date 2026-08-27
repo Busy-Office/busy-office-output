@@ -30,6 +30,18 @@ export interface IdempotencyStore {
    * no new work.
    */
   getOrCreate(key: BusinessEventKey): IdempotencyResult;
+
+  /**
+   * The fan-out-aware sibling of `getOrCreate` (ROADMAP Stage 3 "Fan-out"
+   * task): identical contract, but keyed on `key` PLUS `ruleId` — the
+   * firing `OutputRule.id` that produced this particular resolution — so
+   * two resolutions from the SAME event that happen to share the same
+   * four-tuple (same businessObject/businessObjectId/event/templateVersion)
+   * still get distinct docIds, one per firing rule, while a replay of the
+   * exact same event+rule combo still returns the same docId (see
+   * registry/registry-store.ts's `ResolutionEventKey`).
+   */
+  getOrCreateForResolution(key: BusinessEventKey, ruleId: string): IdempotencyResult;
 }
 
 /** Wraps a `RegistryStore` to satisfy the `IdempotencyStore` contract. */
@@ -37,6 +49,10 @@ export function createRegistryIdempotencyStore(registryStore: RegistryStore): Id
   return {
     getOrCreate(key: BusinessEventKey): IdempotencyResult {
       const { row, created } = registryStore.getOrCreateByEventKey(key);
+      return { docId: row.docId, replayed: !created };
+    },
+    getOrCreateForResolution(key: BusinessEventKey, ruleId: string): IdempotencyResult {
+      const { row, created } = registryStore.getOrCreateByResolutionKey({ ...key, ruleId });
       return { docId: row.docId, replayed: !created };
     },
   };

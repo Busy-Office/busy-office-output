@@ -281,25 +281,48 @@ async function handleEvent(
     return;
   }
 
-  // Idempotency (HLD §4): replay of the same four-tuple returns the SAME
-  // docId, without re-running fan-out/render/delivery (none of which exist
-  // yet — this is ingress + determination only, but the response already
-  // proves the contract). 202 on first sighting = new work accepted; 200 on
-  // replay = here is the existing result, no new work was done.
-  const { docId, replayed } = idempotencyStore.getOrCreate(businessEventKey);
-  sendJson(res, replayed ? 200 : 202, {
+  // Idempotency (HLD §4): replay of the same event returns the SAME docId(s),
+  // without re-running fan-out/render/delivery (none of which exist yet —
+  // this is ingress + determination only, but the response already proves
+  // the contract). One resolution per firing rule (ROADMAP Stage 3
+  // "Fan-out"): each gets its OWN idempotency lookup, keyed on the
+  // four-tuple plus the firing ruleId (idempotency-store.ts's
+  // `getOrCreateForResolution`), so a replayed event returns the same N
+  // docIds, never 2N. 202 if any resolution was newly minted this call; 200
+  // only when every resolution was already seen (a pure replay).
+  const results = determination.resolutions.map((resolution) => {
+    const { docId, replayed } = idempotencyStore.getOrCreateForResolution(businessEventKey, resolution.ruleId);
+    return {
+      docId,
+      replayed,
+      ruleId: resolution.ruleId,
+      templateId: resolution.templateId,
+      templateVersion: resolution.templateVersion,
+      channel: resolution.channel,
+      recipients: resolution.recipients,
+      locale: resolution.locale,
+    };
+  });
+  const allReplayed = results.every((r) => r.replayed);
+  // Back-compat primary fields (docId/determination) mirror the FIRST
+  // resolution — for the common single-rule-fires case this is byte-for-
+  // -byte what callers got before fan-out existed. `resolutions` carries
+  // every resolution for callers that need the full fan-out set.
+  const [primary] = results;
+  sendJson(res, allReplayed ? 200 : 202, {
     status: 'accepted',
     documentType,
-    docId,
-    replayed,
+    docId: primary.docId,
+    replayed: primary.replayed,
     determination: {
-      ruleId: determination.ruleId,
-      templateId: determination.templateId,
-      templateVersion: determination.templateVersion,
-      channel: determination.channel,
-      recipients: determination.recipients,
-      locale: determination.locale,
+      ruleId: primary.ruleId,
+      templateId: primary.templateId,
+      templateVersion: primary.templateVersion,
+      channel: primary.channel,
+      recipients: primary.recipients,
+      locale: primary.locale,
     },
+    resolutions: results,
     trace: determination.trace,
   });
 }

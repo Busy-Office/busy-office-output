@@ -1,15 +1,16 @@
 /**
  * Determination (ROADMAP Stage 3, HLD §2 "Event API → Determination →
- * Composition → ..."). Resolves ONE (template variant, channel, recipients)
- * for a validated event — fan-out (one event → N resolutions) is a
- * separate, later roadmap task and is deliberately NOT built here; see this
- * task's report for that scope boundary.
+ * Composition → ..."). Resolves N `(template variant, channel, recipients,
+ * locale)` resolutions for a validated event — HLD §4: "fan-out: one event
+ * → N resolutions — bursting is fan-out, not a subsystem" (§2 diagram).
  *
- * Two halves:
- *  - Rule matching (NEW here): which `OutputRule` wins, giving channel +
- *    recipients (+ optional locale/companyCode/country/partnerId overrides).
- *  - Template resolution (REUSED, not reimplemented): the winning rule's
- *    overrides plus the event build a `VariantKey`, handed to
+ * Two halves, per resolution:
+ *  - Rule matching: which `OutputRule`(s) fire, giving channel + recipients
+ *    (+ optional locale/companyCode/country/partnerId overrides). See
+ *    rule-types.ts's `OutputRule.fanOut` doc for the full co-firing design
+ *    (opt-in, default false) and why.
+ *  - Template resolution (REUSED, not reimplemented, per firing rule): the
+ *    firing rule's overrides plus the event build a `VariantKey`, handed to
  *    `resolveTemplate` from `@busy-office/output-schema`
  *    (packages/schema/src/variant/resolve.ts, Stage 1) — the same
  *    most-specific-match algorithm docs/VARIANT-RESOLUTION.md specifies.
@@ -19,7 +20,17 @@
  *    never disagree with the real decision.
  *
  * TRACE is mandatory on every call (HLD §9) — `determine()` always returns
- * one, whether it matched or not.
+ * one, whether it matched or not, and it is never collapsed across
+ * resolutions: every firing rule gets its own `ResolutionTrace` (trace.ts),
+ * while `trace.rules` still shows every rule that was EVALUATED (fired or
+ * not), so "why didn't this rule ALSO fire" is always answerable.
+ *
+ * Atomicity: if ANY firing rule's template lookup fails, the whole
+ * determination is `no-template-match` — no partial resolution set is ever
+ * returned. Rationale: a partially-successful fan-out (some copies
+ * archived, some silently missing) is exactly the kind of silent no-op
+ * HLD §9 forbids; better to fail the whole event loudly, with a TRACE that
+ * shows precisely which firing rule broke, than to under-deliver quietly.
  */
 import {
   matchesVariant,
@@ -29,7 +40,7 @@ import {
   type VariantKey,
 } from '@busy-office/output-schema';
 import type { DeterminationContext, OutputRule } from './rule-types.js';
-import type { DeterminationTrace, RuleTraceEntry, TemplateTraceEntry } from './trace.js';
+import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './trace.js';
 
 const RULE_CONDITION_FIELDS = ['event', 'businessObject', 'companyCode', 'country', 'partnerId'] as const;
 
@@ -71,29 +82,46 @@ function evaluateRule(rule: OutputRule, ctx: DeterminationContext): RuleTraceEnt
 /**
  * Evaluate every rule against ctx (mandatory full evaluation, not
  * short-circuit-on-first-match — the TRACE must show every candidate).
- * Winner: highest specificity among matches, ties broken by explicit
- * `priority` (higher wins), then first-in-array (stable on file order).
+ *
+ * Returns the firing set (rule-types.ts's `OutputRule.fanOut` doc): the
+ * winner-take-all pick among matched NON-fan-out rules (highest
+ * specificity, ties broken by `priority`, then file order — unchanged from
+ * pre-fan-out `determine()`), followed by every matched `fanOut: true` rule
+ * in file order. At most one non-fan-out rule ever fires; any number of
+ * fan-out rules can.
  */
 function evaluateRules(
   rules: readonly OutputRule[],
   ctx: DeterminationContext,
-): { entries: RuleTraceEntry[]; winner?: OutputRule } {
+): { entries: RuleTraceEntry[]; firing: OutputRule[] } {
   const entries = rules.map((rule) => evaluateRule(rule, ctx));
+
   let winner: OutputRule | undefined;
   let winnerEntry: RuleTraceEntry | undefined;
+  const fanOutMatches: OutputRule[] = [];
+
   for (let i = 0; i < rules.length; i++) {
+    const rule = rules[i];
     const entry = entries[i];
     if (!entry.matched) continue;
+
+    if (rule.fanOut === true) {
+      fanOutMatches.push(rule);
+      continue;
+    }
+
     if (
       winnerEntry === undefined ||
       entry.specificity > winnerEntry.specificity ||
       (entry.specificity === winnerEntry.specificity && entry.priority > winnerEntry.priority)
     ) {
-      winner = rules[i];
+      winner = rule;
       winnerEntry = entry;
     }
   }
-  return { entries, winner };
+
+  const firing = winner === undefined ? fanOutMatches : [winner, ...fanOutMatches];
+  return { entries, firing };
 }
 
 function evaluateTemplateCandidates(
@@ -133,15 +161,21 @@ function evaluateTemplateCandidates(
   return { entries, winner };
 }
 
+/** One resolved `(template, channel, recipients, locale)` — one per firing rule. */
+export interface Resolution {
+  ruleId: string;
+  templateId: string;
+  templateVersion: string;
+  channel: string;
+  recipients: string[];
+  locale?: string;
+}
+
 export type DeterminationResult =
   | {
       outcome: 'matched';
-      ruleId: string;
-      templateId: string;
-      templateVersion: string;
-      channel: string;
-      recipients: string[];
-      locale?: string;
+      /** Always non-empty — one entry per rule that fired (see rule-types.ts's `fanOut` doc). */
+      resolutions: Resolution[];
       trace: DeterminationTrace;
     }
   | { outcome: 'no-rule-match'; trace: DeterminationTrace }
@@ -152,46 +186,78 @@ export function determine(
   rules: readonly OutputRule[],
   templateCandidates: readonly TemplateMeta[],
 ): DeterminationResult {
-  const { entries: ruleEntries, winner: winningRule } = evaluateRules(rules, ctx);
+  const { entries: ruleEntries, firing: firingRules } = evaluateRules(rules, ctx);
 
-  if (winningRule === undefined) {
+  if (firingRules.length === 0) {
     const trace: DeterminationTrace = {
       documentType: ctx.documentType,
       businessObject: ctx.businessObject,
       event: ctx.event,
-      variantQuery: { documentType: ctx.documentType, companyCode: ctx.companyCode, country: ctx.country, partnerId: ctx.partnerId, locale: ctx.locale },
       rules: ruleEntries,
-      templates: [],
+      resolutions: [],
       outcome: 'no-rule-match',
+      firingRuleIds: [],
     };
     return { outcome: 'no-rule-match', trace };
   }
 
-  // The winning rule's resolution can confirm/override the variant fields
-  // the event itself carried (rule-types.ts's OutputRuleResolution doc).
-  const variantQuery: VariantKey = {
-    documentType: ctx.documentType,
-    companyCode: winningRule.resolution.companyCode ?? ctx.companyCode,
-    country: winningRule.resolution.country ?? ctx.country,
-    partnerId: winningRule.resolution.partnerId ?? ctx.partnerId,
-    locale: winningRule.resolution.locale ?? ctx.locale,
-  };
+  // Template resolution runs once per firing rule — each rule's own
+  // resolution can confirm/override the variant fields the event itself
+  // carried (rule-types.ts's OutputRuleResolution doc), so different firing
+  // rules can legitimately query different variants for the same event.
+  const resolutionTraces: ResolutionTrace[] = [];
+  const resolutions: Resolution[] = [];
+  let anyTemplateMissing = false;
 
-  const { entries: templateEntries, winner: winningTemplate } = evaluateTemplateCandidates(
-    templateCandidates,
-    variantQuery,
-  );
+  for (const rule of firingRules) {
+    const variantQuery: VariantKey = {
+      documentType: ctx.documentType,
+      companyCode: rule.resolution.companyCode ?? ctx.companyCode,
+      country: rule.resolution.country ?? ctx.country,
+      partnerId: rule.resolution.partnerId ?? ctx.partnerId,
+      locale: rule.resolution.locale ?? ctx.locale,
+    };
 
-  if (winningTemplate === undefined) {
+    const { entries: templateEntries, winner: winningTemplate } = evaluateTemplateCandidates(
+      templateCandidates,
+      variantQuery,
+    );
+
+    resolutionTraces.push({
+      ruleId: rule.id,
+      variantQuery,
+      templates: templateEntries,
+      winningTemplateId: winningTemplate?.id,
+    });
+
+    if (winningTemplate === undefined) {
+      anyTemplateMissing = true;
+      continue;
+    }
+
+    resolutions.push({
+      ruleId: rule.id,
+      templateId: winningTemplate.id,
+      templateVersion: winningTemplate.version,
+      channel: rule.resolution.channel,
+      recipients: rule.resolution.recipients,
+      locale: variantQuery.locale,
+    });
+  }
+
+  const firingRuleIds = firingRules.map((r) => r.id);
+
+  if (anyTemplateMissing) {
+    // Atomic failure (see file header): even one firing rule failing its
+    // template lookup fails the whole event, never a partial resolution set.
     const trace: DeterminationTrace = {
       documentType: ctx.documentType,
       businessObject: ctx.businessObject,
       event: ctx.event,
-      variantQuery,
       rules: ruleEntries,
-      templates: templateEntries,
+      resolutions: resolutionTraces,
       outcome: 'no-template-match',
-      winningRuleId: winningRule.id,
+      firingRuleIds,
     };
     return { outcome: 'no-template-match', trace };
   }
@@ -200,22 +266,11 @@ export function determine(
     documentType: ctx.documentType,
     businessObject: ctx.businessObject,
     event: ctx.event,
-    variantQuery,
     rules: ruleEntries,
-    templates: templateEntries,
+    resolutions: resolutionTraces,
     outcome: 'matched',
-    winningRuleId: winningRule.id,
-    winningTemplateId: winningTemplate.id,
+    firingRuleIds,
   };
 
-  return {
-    outcome: 'matched',
-    ruleId: winningRule.id,
-    templateId: winningTemplate.id,
-    templateVersion: winningTemplate.version,
-    channel: winningRule.resolution.channel,
-    recipients: winningRule.resolution.recipients,
-    locale: variantQuery.locale,
-    trace,
-  };
+  return { outcome: 'matched', resolutions, trace };
 }

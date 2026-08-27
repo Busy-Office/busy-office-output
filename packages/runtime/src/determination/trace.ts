@@ -27,11 +27,19 @@ export interface TemplateTraceEntry {
 
 export type DeterminationOutcome = 'matched' | 'no-rule-match' | 'no-template-match';
 
-export interface DeterminationTrace {
-  documentType: string;
-  businessObject: string;
-  event: string;
-  /** The VariantKey query built for the template half of resolution. */
+/**
+ * The template-resolution half of the TRACE for exactly ONE firing rule
+ * (ROADMAP Stage 3 fan-out task). One event can now have zero, one, or many
+ * of these — one per rule that actually fired (the winner-take-all pick,
+ * plus every `fanOut: true` match, see rule-types.ts). Each carries its own
+ * `variantQuery` because a fan-out rule's `resolution.locale`/`companyCode`/
+ * `country`/`partnerId` overrides can differ from the winner's, so the same
+ * event can legitimately query the template candidates differently per
+ * firing rule (HLD's "email copy to AP + archival copy in a different
+ * locale" example).
+ */
+export interface ResolutionTrace {
+  ruleId: string;
   variantQuery: {
     documentType: string;
     companyCode?: string;
@@ -39,10 +47,28 @@ export interface DeterminationTrace {
     partnerId?: string;
     locale?: string;
   };
-  rules: RuleTraceEntry[];
-  /** Empty when no rule matched — template resolution never runs without a winning rule. */
+  /** Every template candidate evaluated for THIS firing rule's variant query. */
   templates: TemplateTraceEntry[];
-  outcome: DeterminationOutcome;
-  winningRuleId?: string;
   winningTemplateId?: string;
+}
+
+export interface DeterminationTrace {
+  documentType: string;
+  businessObject: string;
+  event: string;
+  /** Every rule evaluated, exactly once, whether or not it matched or fired. */
+  rules: RuleTraceEntry[];
+  /**
+   * One entry per rule that actually FIRED (winner-take-all pick + every
+   * fan-out match), in firing order. Empty on `no-rule-match` (nothing
+   * fired) and also empty on `no-template-match` is NOT guaranteed —
+   * firing rules whose own template lookup failed still get an entry here,
+   * with `winningTemplateId` undefined and `templates` explaining why, so a
+   * human debugging "why didn't this ALSO fire" can see every rule that WAS
+   * eligible to fire and where template resolution broke down for it.
+   */
+  resolutions: ResolutionTrace[];
+  outcome: DeterminationOutcome;
+  /** ruleIds that fired (winner-take-all pick, if any, + every fan-out match). */
+  firingRuleIds: string[];
 }

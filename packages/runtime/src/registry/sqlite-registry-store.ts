@@ -39,6 +39,7 @@ import type {
   DocumentState,
   GetOrCreateResult,
   RegistryStore,
+  ResolutionEventKey,
 } from './registry-store.js';
 
 interface DocumentRow {
@@ -52,6 +53,7 @@ interface DocumentRow {
   output_hash: string | null;
   archive_ref: string | null;
   retention_until: string | null;
+  rule_id: string;
   state: string;
   created_at: string;
   updated_at: string;
@@ -87,7 +89,14 @@ export class SqliteRegistryStore implements RegistryStore {
   }
 
   getOrCreateByEventKey(key: BusinessEventKey): GetOrCreateResult {
-    const existing = this.selectByEventKey(key);
+    // The plain four-tuple lookup is the fan-out-aware lookup with an
+    // explicit '' ruleId — one implementation, one unique index, see
+    // registry-store.ts's `ResolutionEventKey` / `rule_id` column doc.
+    return this.getOrCreateByResolutionKey({ ...key, ruleId: '' });
+  }
+
+  getOrCreateByResolutionKey(key: ResolutionEventKey): GetOrCreateResult {
+    const existing = this.selectByResolutionKey(key);
     if (existing !== undefined) {
       return { row: this.toRow(existing), created: false };
     }
@@ -98,17 +107,17 @@ export class SqliteRegistryStore implements RegistryStore {
       this.db
         .prepare(
           `INSERT INTO document_registry
-             (doc_id, business_object, business_object_id, event, template_version, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+             (doc_id, business_object, business_object_id, event, template_version, rule_id, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
         )
-        .run(docId, key.businessObject, key.businessObjectId, key.event, key.templateVersion, now, now);
+        .run(docId, key.businessObject, key.businessObjectId, key.event, key.templateVersion, key.ruleId, now, now);
     } catch (err) {
       // Concurrent first-sighting (or a re-entrant call) lost the race to
-      // the UNIQUE index on the four-tuple — the row now exists; return it
+      // the UNIQUE index on the five-tuple — the row now exists; return it
       // rather than treating this as a failure. This does not arise within
       // a single Node event-loop turn (DatabaseSync is synchronous), but
       // guards against it regardless of call pattern.
-      const raced = this.selectByEventKey(key);
+      const raced = this.selectByResolutionKey(key);
       if (raced !== undefined) {
         return { row: this.toRow(raced), created: false };
       }
@@ -167,13 +176,15 @@ export class SqliteRegistryStore implements RegistryStore {
     this.db.close();
   }
 
-  private selectByEventKey(key: BusinessEventKey): DocumentRow | undefined {
+  private selectByResolutionKey(key: ResolutionEventKey): DocumentRow | undefined {
     return this.db
       .prepare(
         `SELECT * FROM document_registry
-         WHERE business_object = ? AND business_object_id = ? AND event = ? AND template_version = ?`,
+         WHERE business_object = ? AND business_object_id = ? AND event = ? AND template_version = ? AND rule_id = ?`,
       )
-      .get(key.businessObject, key.businessObjectId, key.event, key.templateVersion) as DocumentRow | undefined;
+      .get(key.businessObject, key.businessObjectId, key.event, key.templateVersion, key.ruleId) as
+      | DocumentRow
+      | undefined;
   }
 
   private selectByDocId(docId: string): DocumentRow | undefined {
@@ -201,6 +212,7 @@ export class SqliteRegistryStore implements RegistryStore {
       outputHash: doc.output_hash,
       archiveRef: doc.archive_ref,
       retentionUntil: doc.retention_until,
+      ruleId: doc.rule_id,
       state: doc.state as DocumentState,
       createdAt: doc.created_at,
       updatedAt: doc.updated_at,

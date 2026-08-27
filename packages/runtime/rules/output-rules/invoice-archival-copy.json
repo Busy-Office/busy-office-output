@@ -1,0 +1,13 @@
+{
+  "id": "invoice-archival-copy",
+  "priority": 0,
+  "fanOut": true,
+  "conditions": {
+    "documentType": "invoice",
+    "event": "invoice.posted"
+  },
+  "resolution": {
+    "channel": "object-store",
+    "recipients": ["archive://invoices/ap"]
+  }
+}

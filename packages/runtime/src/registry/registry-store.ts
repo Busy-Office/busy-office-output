@@ -31,6 +31,32 @@
 import type { BusinessEventKey } from '@busy-office/output-schema';
 
 /**
+ * The idempotency key for ONE resolution (ROADMAP Stage 3 "Fan-out: one
+ * event → N resolutions" task). `BusinessEventKey`'s four-tuple
+ * (businessObject, businessObjectId, event, templateVersion) was built
+ * assuming one event → one docId; with fan-out, one event can now produce
+ * several resolutions that legitimately share ALL FOUR of those fields at
+ * once (e.g. two fan-out rules routing the same invoice to two different
+ * object-store archives, both resolving to the same template version). The
+ * four-tuple alone can no longer tell those apart, so `ruleId` — the
+ * firing `OutputRule.id` that produced this particular resolution — is
+ * added as a fifth, disambiguating key field. Deliberately NOT added to
+ * `BusinessEventKey` itself (packages/schema, a shared, widely-used
+ * contract type its own package keeps zero-runtime-dependency and stable):
+ * this is a determination-layer concept the registry lookup needs, not a
+ * change to the wire-level business-event identity every existing caller
+ * already depends on.
+ *
+ * Replay stability: the SAME event + SAME ruleId must always resolve to
+ * the SAME docId (never mint a duplicate) — that is what the unique index
+ * in migrations/0003_add_rule_id_to_registry.sql enforces at the DB layer,
+ * mirroring the four-tuple's own enforcement in 0001_init.sql.
+ */
+export interface ResolutionEventKey extends BusinessEventKey {
+  ruleId: string;
+}
+
+/**
  * HLD §3: "state ORIGINAL/COPY/DUPLICATE/REPRINT/CANCELLED/DRAFT".
  * New rows start DRAFT — see migrations/0001_init.sql for why.
  */
@@ -64,6 +90,14 @@ export interface DocumentRegistryRow {
   /** RFC 3339 timestamp: mandatory once archived, null until then. See
    * migrations/0002_add_retention_until.sql. */
   retentionUntil: string | null;
+  /**
+   * The firing `OutputRule.id` that produced this resolution (see
+   * `ResolutionEventKey` above). `''` for rows minted via the plain
+   * four-tuple `getOrCreateByEventKey` (pre-fan-out callers, and any
+   * caller that genuinely has no rule to disambiguate by) — never `null`,
+   * so it composes cleanly with the unique index's NOT NULL column.
+   */
+  ruleId: string;
   state: DocumentState;
   createdAt: string;
   updatedAt: string;
@@ -84,6 +118,17 @@ export interface RegistryStore {
    * { created: false } — no new work, no new row.
    */
   getOrCreateByEventKey(key: BusinessEventKey): GetOrCreateResult;
+
+  /**
+   * The fan-out-aware idempotency lookup (see `ResolutionEventKey` above):
+   * first sighting of the five-tuple (four-tuple + ruleId) mints a new
+   * docId and inserts a DRAFT row; any later call with an equal five-tuple
+   * returns the SAME row, unchanged. `getOrCreateByEventKey` is exactly
+   * this method called with `ruleId: ''` — the two share one
+   * implementation and one unique index, so a plain four-tuple lookup and
+   * a ruleId-disambiguated lookup can never disagree about identity.
+   */
+  getOrCreateByResolutionKey(key: ResolutionEventKey): GetOrCreateResult;
 
   /** Fetch a row by its docId. Returns undefined if no such row exists. */
   getByDocId(docId: string): DocumentRegistryRow | undefined;

@@ -87,7 +87,7 @@ export function noTemplateMatchProblem(trace: DeterminationTrace): ProblemDetail
     type: `${PROBLEM_BASE}/no-template-match`,
     title: 'No template matched the resolved variant',
     status: 422,
-    detail: `Rule "${trace.winningRuleId}" matched, but no template candidate's variant matches the resolved query. See "trace" for every template candidate considered and why each did not match.`,
+    detail: `Rule(s) "${trace.firingRuleIds.join(', ')}" fired, but at least one did not resolve a matching template candidate for its variant query. See "trace" for every firing rule's own template candidates considered and why each did not match.`,
     trace,
   };
 }

@@ -47,6 +47,40 @@ export interface OutputRule {
   id: string;
   /** Explicit tiebreaker when two matching rules have equal specificity. Higher wins. Default 0. */
   priority?: number;
+  /**
+   * Fan-out opt-in (ROADMAP Stage 3 "Fan-out: one event → N resolutions").
+   *
+   * Design decision (recorded here, not just in the report, since this is
+   * the field a rule author actually reads): co-firing is OPT-IN, default
+   * `false`. Two disjoint matched-rule pools exist per event:
+   *   - Every rule with `fanOut: true` that matches ALWAYS fires — each
+   *     becomes its own independent resolution (own template lookup, own
+   *     channel/recipients/locale, own registry row). These rules are
+   *     understood to be additive/parallel by construction (e.g. "also
+   *     archive a copy"), so there is no winner-take-all among them: if
+   *     three fan-out rules match, all three fire.
+   *   - Every rule WITHOUT `fanOut: true` (the default) still competes in
+   *     the pre-existing winner-take-all pool: highest `specificity` wins,
+   *     ties broken by `priority`, then file order — identical to
+   *     pre-fan-out `determine()` behavior. At most one of these fires.
+   * The event's final resolution set is the union: the winner-take-all
+   * pick (if any matched) plus every fan-out match (if any matched). A
+   * plain rule set with no `fanOut: true` rules therefore produces exactly
+   * the same single resolution as before this task — existing rule files
+   * and tests are unaffected by default.
+   *
+   * Why opt-in rather than "every match always fires" (the other option
+   * this task's report weighs): most `OutputRule`s express mutually
+   * exclusive alternatives for the SAME resolution (global vs.
+   * companyCode-1000 routing for the same purchase order) — specificity
+   * exists precisely to pick one of those, and "always fan out" would
+   * silently turn every such override into a duplicate delivery. Making
+   * co-firing an explicit, opt-in property on the rules that actually mean
+   * "also fire this" keeps specificity's original job intact and makes
+   * fan-out a deliberate authoring choice, not an emergent side effect of
+   * how many rules happen to match.
+   */
+  fanOut?: boolean;
   conditions: OutputRuleConditions;
   resolution: OutputRuleResolution;
 }
