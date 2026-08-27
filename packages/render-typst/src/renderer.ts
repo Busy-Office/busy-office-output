@@ -67,7 +67,7 @@ export class TypstRenderer implements Renderer {
     try {
       await writeFile(srcPath, markup, 'utf8');
 
-      const compile = await run(this.typstBin, ['compile', srcPath, pdfPath]);
+      const compile = await run(this.typstBin, ['compile', '--pdf-standard', 'a-2b', srcPath, pdfPath]);
       if (compile.code !== 0) {
         throw new TypstCompileError(`typst compile failed (exit ${compile.code}):\n${compile.stderr}`);
       }

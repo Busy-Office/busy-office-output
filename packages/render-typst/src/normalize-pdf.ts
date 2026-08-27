@@ -31,6 +31,20 @@
  * only ~1s apart, normalized by the three trailer/info-dict fields alone,
  * still failed a byte-equality check (see the render-typst corpus test
  * flake this fixed). All four XMP tags are zero-filled the same way.
+ *
+ * A THIRD source surfaced empirically once `typst compile` was run with
+ * `--pdf-standard a-2b` (Stage 2 PDF/A task, docs/STANDARDS.md Tier 2):
+ * PDF/A's XMP profile adds an `<xmpMM:History>` sequence of `<rdf:li>`
+ * events (Typst emits "saved" and "converted" entries), each carrying its
+ * own `<stEvt:when>` timestamp and `<stEvt:instanceID>` — same shape of
+ * nondeterminism as the tags above but a distinct tag name, so the
+ * existing zero-fill list didn't cover it. Caught the same way: a
+ * multi-page corpus render (004, ~3.5s compile) two renders apart no
+ * longer byte-matched after normalization once `--pdf-standard` was added,
+ * even though the single-page case (fast enough to land in the same wall
+ * clock second) happened not to show it. Both tags are zero-filled the
+ * same way, once per `<rdf:li>` occurrence (`replaceAll`-style via the
+ * global regex flag).
  */
 
 const LATIN1 = 'latin1';
@@ -61,6 +75,8 @@ export function normalizePdf(pdfBytes: Uint8Array): Uint8Array {
   text = zeroFillTag(text, 'xmp:MetadataDate');
   text = zeroFillTag(text, 'xmpMM:InstanceID');
   text = zeroFillTag(text, 'xmpMM:DocumentID');
+  text = zeroFillTag(text, 'stEvt:when');
+  text = zeroFillTag(text, 'stEvt:instanceID');
 
   return new Uint8Array(Buffer.from(text, LATIN1));
 }
