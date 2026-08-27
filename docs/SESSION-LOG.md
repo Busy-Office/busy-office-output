@@ -11,6 +11,29 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: ADR-003/004 accepted, determination + TRACE
+- Did: goal set to "complete Stage 3". ADR-003 (rule storage) and ADR-004
+  (queue backend) were both blocking remaining tasks — drafted
+  recommendations and got the maintainer's direct decision in chat:
+  ADR-003 Option 1 (files first), ADR-004 Option 1 (SQLite-backed embedded
+  queue — the registry's own SQLite choice resolved ADR-004's stated
+  Postgres-conditional leaning). Then built: CloudEvents 1.0 envelope
+  support on POST /event (optional, raw payloads unaffected) and rule
+  evaluation with mandatory TRACE (packages/runtime/src/determination/) —
+  files-first OutputRules matched against the event, reusing Stage 1's
+  resolveTemplate as the sole authoritative template-resolution winner.
+  TRACE is mandatory on every call (match or no-match), no-rule-match/
+  no-template-match are 422 problem+json carrying the full trace,
+  determination runs before idempotency so a no-match event never mints
+  a docId.
+- Open: fan-out (one event -> N resolutions), delivery queue, channels
+  (email + object-store), single-process serve, embeddable module +
+  outbox, minimal console, [HUMAN] thesis check (genuinely human-only —
+  showing the demo to 5 real operators is not something this session can
+  do; will stay open regardless of how far Stage 3 otherwise gets).
+- Next: fan-out builds directly on today's determination work (N
+  resolutions instead of one) — natural next task.
+
 ## 2026-08-27 — Stage 3: archive store (FsArchiveStore + S3ArchiveStore)
 - Did: packages/runtime/src/archive/ — ArchiveStore port (archive/
   retrieve), retentionUntil required at the type level and runtime-
