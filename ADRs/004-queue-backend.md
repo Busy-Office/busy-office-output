@@ -14,4 +14,26 @@ Novu's BullMQ/Redis design is the reference for the scaled shape.
 3. External broker from day one — rejected: kills the single-binary story
 
 ## Decision
-_Pending. Leaning option 2 if the registry lands on Postgres anyway._
+
+**Accepted 2026-08-28: Option 1 (SQLite-backed embedded queue, adapter
+interface reserved).**
+
+This ADR's own stated leaning ("option 2 if the registry lands on
+Postgres anyway") was explicitly conditional. That condition is now
+resolved: Stage 3's Document registry task landed on `node:sqlite`
+(`packages/runtime/src/registry/sqlite-registry-store.ts`), not Postgres
+— a deliberate arb-chair ruling made specifically to avoid this ADR being
+pre-decided by the registry's implementation choice
+(`docs/SESSION-LOG.md`, 2026-08-27 registry entry). With the registry on
+SQLite, Option 2's own rationale ("one store for registry + queue")
+argues for SQLite too, not Postgres — running two different embedded
+databases in single-process mode would contradict HLD §11's
+non-negotiable single-process topology and undercut the "fresh clone →
+serve → zero external services" DoD on the Stage 3 roadmap.
+
+The adapter interface is reserved (per this option's own text) so an
+external backend (Postgres SKIP LOCKED, or a broker) can be added later
+behind the same seam without rework, matching how the registry's
+`RegistryStore` port was built.
+
+Decided directly by the maintainer in chat, 2026-08-28.

@@ -14,5 +14,17 @@ users but need their own change governance.
 3. Both from day one — rejected: two sources of truth before there is one user
 
 ## Decision
-_Pending. Leaning option 1; the rule TRACE requirement (never fail silently)
-holds regardless of storage._
+
+**Accepted 2026-08-28: Option 1 (files first).**
+
+Git-versioned config files: diffable, reviewable, matches the
+developer-first positioning. A table-backed adapter is deferred, not
+rejected — it can be added later behind the same rule-storage seam if a
+real user demands runtime edits by non-developers, without a rewrite of
+rule evaluation itself. The mandatory rule TRACE requirement (every
+non-match is an error carrying the full evaluated trace, never a silent
+no-op — HLD §9) holds regardless of storage backend, so this choice does
+not weaken auditability.
+
+Decided directly by the maintainer in chat, 2026-08-28, no new evidence
+against the ADR's own original leaning — accepted as drafted.
