@@ -7,6 +7,7 @@
   "description": "Determination + delivery runtime (Stage 3, HLD §2/§4): Event API ingress and contract validation. Single-process by default (CLAUDE.md: API + worker + embedded queue + FS archive in one command).",
   "engines": { "node": ">=22" },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1119.0",
     "@busy-office/output-schema": "*",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"

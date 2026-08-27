@@ -51,6 +51,7 @@ interface DocumentRow {
   input_hash: string | null;
   output_hash: string | null;
   archive_ref: string | null;
+  retention_until: string | null;
   state: string;
   created_at: string;
   updated_at: string;
@@ -136,6 +137,22 @@ export class SqliteRegistryStore implements RegistryStore {
     }
   }
 
+  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void {
+    if (typeof archiveRef !== 'string' || archiveRef.trim() === '') {
+      throw new TypeError('updateArchiveRef requires a non-empty archiveRef.');
+    }
+    if (typeof retentionUntil !== 'string' || retentionUntil.trim() === '') {
+      throw new TypeError('updateArchiveRef requires a non-empty retentionUntil.');
+    }
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare('UPDATE document_registry SET archive_ref = ?, retention_until = ?, updated_at = ? WHERE doc_id = ?')
+      .run(archiveRef, retentionUntil, now, docId);
+    if (result.changes === 0) {
+      throw new Error(`Cannot update archiveRef: no registry row for docId ${docId}.`);
+    }
+  }
+
   appendDeliveryEvent(docId: string, event: DeliveryHistoryEvent): void {
     const doc = this.selectByDocId(docId);
     if (doc === undefined) {
@@ -183,6 +200,7 @@ export class SqliteRegistryStore implements RegistryStore {
       inputHash: doc.input_hash,
       outputHash: doc.output_hash,
       archiveRef: doc.archive_ref,
+      retentionUntil: doc.retention_until,
       state: doc.state as DocumentState,
       createdAt: doc.created_at,
       updatedAt: doc.updated_at,

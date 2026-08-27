@@ -23,6 +23,8 @@ export type {
   DeliveryHistoryEvent,
   GetOrCreateResult,
 } from './registry/index.js';
+export { FsArchiveStore, S3ArchiveStore, assertValidRetentionUntil, archiveArtifact } from './archive/index.js';
+export type { ArchiveStore, ArchiveInput, S3ArchiveStoreOptions, S3ClientLike, ArchiveArtifactInput } from './archive/index.js';
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

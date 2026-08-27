@@ -13,9 +13,14 @@
  *   - getByDocId: read a row back by its primary key.
  *   - updateState: transition ORIGINAL/COPY/DUPLICATE/REPRINT/CANCELLED/DRAFT.
  *   - appendDeliveryEvent: append one append-only delivery-history record.
- * Explicitly NOT here: archiving bytes, retention enforcement, actually
- * delivering anything, rule TRACE, fan-out — those are separate, later
- * ROADMAP tasks and must not be speculatively added to this port.
+ *   - updateArchiveRef: record where the archived bytes live and the
+ *     mandatory retentionUntil deadline for them (added for the Archive
+ *     store task — see src/archive/archive-store.ts).
+ * Explicitly NOT here: archiving bytes (that's ArchiveStore's job — this
+ * port only records the resulting pointer), retention *enforcement*
+ * (Stage 4), actually delivering anything, rule TRACE, fan-out — those are
+ * separate, later ROADMAP tasks and must not be speculatively added to
+ * this port.
  *
  * Backend-agnostic on purpose: this interface has no SQLite (or Postgres)
  * in its signatures. `SqliteRegistryStore` (sqlite-registry-store.ts) is the
@@ -54,8 +59,11 @@ export interface DocumentRegistryRow {
   rendererVersion: string | null;
   inputHash: string | null;
   outputHash: string | null;
-  /** Pointer into the (not-yet-built) archive store. Null until archived. */
+  /** Pointer into the archive store (src/archive/). Null until archived. */
   archiveRef: string | null;
+  /** RFC 3339 timestamp: mandatory once archived, null until then. See
+   * migrations/0002_add_retention_until.sql. */
+  retentionUntil: string | null;
   state: DocumentState;
   createdAt: string;
   updatedAt: string;
@@ -92,6 +100,20 @@ export interface RegistryStore {
    * history is never edited or removed. Throws if `docId` does not exist.
    */
   appendDeliveryEvent(docId: string, event: DeliveryHistoryEvent): void;
+
+  /**
+   * Record where an artifact's bytes were archived and its mandatory
+   * retention deadline. Does NOT itself transition `state` — callers
+   * archiving a DRAFT row into ORIGINAL call `updateState` separately
+   * (see src/archive/index.ts's `archiveArtifact` for the orchestration).
+   * Throws if `docId` does not exist, `archiveRef` is empty, or
+   * `retentionUntil` is empty — this method is a second line of defense,
+   * not the primary enforcement point (that's
+   * `assertValidRetentionUntil` in src/archive/archive-store.ts, which
+   * every `ArchiveStore.archive()` call runs through before bytes are
+   * even written).
+   */
+  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void;
 
   /** Release the underlying connection/handle. Safe to call once, at shutdown. */
   close(): void;
