@@ -23,6 +23,22 @@ high-volume bursts.
 npm run verify               # typecheck + tests
 ```
 
+## Three numbers (ROADMAP.md, published from Stage 2 onward)
+
+Measured warm, in-process, `n=20` timed runs (3 untimed warmup runs first —
+each `typst compile` shell-out pays a one-time OS/font-cache cost) via
+`npm run bench:po`.
+
+| Renderer | Document type | Corpus case | p50 | p95 | Hardware |
+|---|---|---|---|---|---|
+| `typst` (`@busy-office/render-typst`) | purchase-order | 001-single-page | ~123ms/doc | ~136ms/doc | MacBook Air, Apple M4, 24 GB RAM, macOS 26.5.2 (25F84) |
+
+Not comparable to Stage 0's pdf-direct spike number (38ms/doc, container,
+`docs/RESULTS.md`) — different renderer, different measurement context
+(shell-out to `typst compile` vs. in-process `pdf-lib`). Pagination pass
+rate: 7/7 corpus cases green (`test/corpus/purchase-order/`), including the
+overflow-must-fail case failing loudly as required.
+
 ## One clarification, up front
 
 `busy-office-ui` is a CSS-first, no-build, client-side framework.

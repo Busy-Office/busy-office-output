@@ -64,6 +64,10 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
   metadata** (`xmp:ModifyDate`, `xmpMM:InstanceID`/`DocumentID` — Typst
   embeds these even when the trailer fields are zeroed; found in Stage 2's
   Typst renderer, packages/render-typst/src/normalize-pdf.ts) before hashing
+- External binaries are shelled out to, never reimplemented or npm-bound:
+  `typst` (rendering) and `pdftotext`/poppler-utils (structural diff). Both
+  are unpinned so far — no Dockerfile/CI exists yet to lock versions; pin
+  before either becomes an actual CI gate.
   (pattern preserved in git history; see `docs/RESULTS.md` for the
   measurements it produced)
 

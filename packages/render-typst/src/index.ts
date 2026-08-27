@@ -5,3 +5,7 @@ export { countPdfPages } from './pdf-page-count.js';
 export { emitDocument, OVERFLOW_MARKER_LABEL } from './emit-typst.js';
 export { evaluateExpression, evaluateRelative } from './evaluate.js';
 export { formatMoneyCents, isMoneyAmountPath } from './format.js';
+export { extractPdfWords, PdfTextExtractionError } from './diff/pdf-words.js';
+export type { Word, PageWords, ExtractWordsOptions } from './diff/pdf-words.js';
+export { diffPdfBytes, formatStructuralDiff } from './diff/structural-diff.js';
+export type { StructuralDiff, PageDiff, WordDiffOp, Point } from './diff/structural-diff.js';
