@@ -4,9 +4,11 @@ import { createIngressServer } from './index.js';
 import {
   invoiceMissingDueDate,
   purchaseOrderMissingPoNumber,
+  sampleBusinessEventKey,
   validInvoice,
   validPayslip,
   validPurchaseOrder,
+  withBusinessEvent,
 } from './fixtures.js';
 
 describe('POST /event ingress + contract validation', () => {
@@ -85,7 +87,9 @@ describe('POST /event ingress + contract validation', () => {
   });
 
   it('accepts a genuinely valid purchase-order payload', async () => {
-    const { status, json } = await post(validPurchaseOrder());
+    const { status, json } = await post(
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey()),
+    );
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');
@@ -100,14 +104,18 @@ describe('POST /event ingress + contract validation', () => {
   });
 
   it('accepts a genuinely valid invoice payload', async () => {
-    const { status, json } = await post(validInvoice());
+    const { status, json } = await post(
+      withBusinessEvent(validInvoice(), sampleBusinessEventKey({ businessObject: 'RBKP', event: 'invoice.posted' })),
+    );
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');
   });
 
   it('accepts a genuinely valid payslip payload', async () => {
-    const { status, json } = await post(validPayslip());
+    const { status, json } = await post(
+      withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', event: 'payslip.issued' })),
+    );
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');

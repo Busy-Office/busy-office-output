@@ -7,6 +7,8 @@ export { createIngressServer } from './server.js';
 export { validateContract, isKnownDocumentType, KNOWN_DOCUMENT_TYPES } from './contract-validation.js';
 export type { DocumentType, ContractValidationResult } from './contract-validation.js';
 export type { ProblemDetails, SchemaValidationError } from './problem.js';
+export { createInMemoryIdempotencyStore } from './idempotency-store.js';
+export type { IdempotencyStore, IdempotencyResult } from './idempotency-store.js';
 
 import { createIngressServer } from './server.js';
 

@@ -3,7 +3,7 @@
  * Not corpus data (the generators under test/corpus own that, Stage 2) —
  * just enough to exercise ingress + contract validation.
  */
-import type { InvoiceData, PayslipData, PurchaseOrderData } from '@busy-office/output-schema';
+import type { BusinessEventKey, InvoiceData, PayslipData, PurchaseOrderData } from '@busy-office/output-schema';
 
 const buyer = {
   name: 'Acme Buyer Corp',
@@ -14,6 +14,29 @@ const vendor = {
   name: 'Northwind Vendor Ltd',
   address: { line1: '2 Harbor Road', city: 'Rivertown', postalCode: '10101', country: 'US' },
 };
+
+/**
+ * A representative BusinessEventKey four-tuple (HLD §4) for exercising
+ * idempotency: `(businessObject, businessObjectId, event, templateVersion)`.
+ */
+export function sampleBusinessEventKey(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
+  return {
+    businessObject: 'EKKO',
+    businessObjectId: '4500001234',
+    event: 'po.released',
+    templateVersion: '1.0.0',
+    ...overrides,
+  };
+}
+
+/**
+ * Wraps a contract-valid document payload with a top-level `businessEvent`
+ * envelope field carrying the BusinessEventKey — see server.ts for why the
+ * key travels as a sibling JSON field rather than headers.
+ */
+export function withBusinessEvent<T>(payload: T, businessEvent: BusinessEventKey): T & { businessEvent: BusinessEventKey } {
+  return { ...payload, businessEvent };
+}
 
 export function validPurchaseOrder(): PurchaseOrderData {
   return {

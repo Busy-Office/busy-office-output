@@ -1,7 +1,9 @@
 /**
  * Event ingress (ROADMAP Stage 3 task 1; HLD §2 "Event API": validate,
- * contract, idempotency). This task is scoped to validate + contract only —
+ * contract, idempotency). Scoped to validate + contract + idempotency only —
  * determination/fan-out/registry/archive/delivery are separate, later tasks.
+ * Idempotency here is backed by an in-memory stand-in for the not-yet-built
+ * document registry — see idempotency-store.ts's header comment for why.
  *
  * Built on Node's built-in `http` module rather than a framework: a single
  * route (`POST /event`) with one job (parse JSON, validate against a JSON
@@ -11,15 +13,21 @@
  * from the start.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import type { BusinessEventKey } from '@busy-office/output-schema';
 import {
   isKnownDocumentType,
   validateContract,
   type DocumentType,
 } from './contract-validation.js';
 import {
+  createInMemoryIdempotencyStore,
+  type IdempotencyStore,
+} from './idempotency-store.js';
+import {
   invalidContractProblem,
   malformedRequestProblem,
   methodNotAllowedProblem,
+  missingBusinessEventProblem,
   notFoundProblem,
   unknownDocumentTypeProblem,
   type ProblemDetails,
@@ -67,7 +75,44 @@ function extractDocumentType(payload: unknown): unknown {
   return undefined;
 }
 
-async function handleEvent(req: IncomingMessage, res: ServerResponse): Promise<void> {
+const BUSINESS_EVENT_KEY_FIELDS = ['businessObject', 'businessObjectId', 'event', 'templateVersion'] as const;
+
+/**
+ * Extract + validate the BusinessEventKey envelope. Design choice: the key
+ * travels as a top-level `businessEvent` object sibling to the contract
+ * payload's own fields (documentType, header, ...) — not as headers. This
+ * mirrors how the ADR-006 CloudEvents envelope (a later, not-yet-built
+ * task) will carry a `data` field alongside event metadata, so this shape
+ * won't need reshaping when that lands; it also keeps the whole event in
+ * one JSON body rather than splitting identity across headers + body.
+ */
+function extractBusinessEventKey(payload: unknown): BusinessEventKey | undefined {
+  if (payload === null || typeof payload !== 'object' || !('businessEvent' in payload)) {
+    return undefined;
+  }
+  const candidate = (payload as Record<string, unknown>).businessEvent;
+  if (candidate === null || typeof candidate !== 'object') {
+    return undefined;
+  }
+  const record = candidate as Record<string, unknown>;
+  for (const field of BUSINESS_EVENT_KEY_FIELDS) {
+    if (typeof record[field] !== 'string' || record[field] === '') {
+      return undefined;
+    }
+  }
+  return {
+    businessObject: record.businessObject as string,
+    businessObjectId: record.businessObjectId as string,
+    event: record.event as string,
+    templateVersion: record.templateVersion as string,
+  };
+}
+
+async function handleEvent(
+  req: IncomingMessage,
+  res: ServerResponse,
+  idempotencyStore: IdempotencyStore,
+): Promise<void> {
   let raw: string;
   try {
     raw = await readBody(req);
@@ -85,24 +130,51 @@ async function handleEvent(req: IncomingMessage, res: ServerResponse): Promise<v
     return;
   }
 
-  const documentType = extractDocumentType(payload);
+  // `businessEvent` is envelope metadata, not part of the data-contract
+  // payload (whose schemas are additionalProperties:false) — validate the
+  // contract against the payload with the envelope field stripped out.
+  const documentPayload =
+    payload !== null && typeof payload === 'object'
+      ? (() => {
+          const { businessEvent: _businessEvent, ...rest } = payload as Record<string, unknown>;
+          return rest;
+        })()
+      : payload;
+
+  const documentType = extractDocumentType(documentPayload);
   if (!isKnownDocumentType(documentType)) {
     sendProblem(res, unknownDocumentTypeProblem(documentType));
     return;
   }
 
-  const result = validateContract(documentType as DocumentType, payload);
+  const result = validateContract(documentType as DocumentType, documentPayload);
   if (!result.valid) {
     sendProblem(res, invalidContractProblem(documentType, result.errors));
     return;
   }
 
-  // Contract-valid: accepted. Determination/fan-out/registry/archive/delivery
-  // are separate, not-yet-reached Stage 3 tasks — this is ingress-only.
-  sendJson(res, 202, { status: 'accepted', documentType });
+  const businessEventKey = extractBusinessEventKey(payload);
+  if (businessEventKey === undefined) {
+    sendProblem(
+      res,
+      missingBusinessEventProblem(
+        'Request body must carry a "businessEvent" object with businessObject, businessObjectId, event, and templateVersion (all non-empty strings).',
+      ),
+    );
+    return;
+  }
+
+  // Idempotency (HLD §4): replay of the same four-tuple returns the SAME
+  // docId, without re-running determination/fan-out/render/delivery (none
+  // of which exist yet — this is ingress-only, but the response already
+  // proves the contract). 202 on first sighting = new work accepted; 200 on
+  // replay = here is the existing result, no new work was done.
+  const { docId, replayed } = idempotencyStore.getOrCreate(businessEventKey);
+  sendJson(res, replayed ? 200 : 202, { status: 'accepted', documentType, docId, replayed });
 }
 
-export function createIngressServer() {
+export function createIngressServer(options: { idempotencyStore?: IdempotencyStore } = {}) {
+  const idempotencyStore = options.idempotencyStore ?? createInMemoryIdempotencyStore();
   return createServer((req, res) => {
     void (async () => {
       const url = req.url ?? '/';
@@ -116,7 +188,7 @@ export function createIngressServer() {
         sendProblem(res, methodNotAllowedProblem(req.method));
         return;
       }
-      await handleEvent(req, res);
+      await handleEvent(req, res, idempotencyStore);
     })().catch(() => {
       // Last-resort guard: never leak an unhandled-exception stack (which may
       // embed payload data) — respond with an opaque problem+json instead.

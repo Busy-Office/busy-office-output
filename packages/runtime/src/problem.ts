@@ -47,6 +47,15 @@ export function unknownDocumentTypeProblem(documentType: unknown): ProblemDetail
   };
 }
 
+export function missingBusinessEventProblem(detail: string): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/missing-business-event`,
+    title: 'Missing or malformed businessEvent envelope',
+    status: 400,
+    detail,
+  };
+}
+
 export function malformedRequestProblem(detail: string): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/malformed-request`,
