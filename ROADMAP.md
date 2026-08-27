@@ -116,7 +116,7 @@ fresh render + direct `verapdf` invocation, not self-asserted): PDF/A-2b
 to exist.
 
 ### Tasks
-- [ ] `packages/runtime` created (its stage has begun) — ingress `POST /event` + contract validation — DoD: invalid payload → 400 with schema errors
+- [x] `packages/runtime` created (its stage has begun) — ingress `POST /event` + contract validation — DoD: invalid payload → 400 with schema errors *(2026-08-27: packages/runtime/ — node:http ingress, ajv 2020-12 validation against packages/schema/contracts/*.schema.json, RFC 9457 problem+json errors. 17 tests: invalid PO/invoice/payslip payloads → 400 with schema errors, valid payloads accepted, unknown documentType/malformed JSON/wrong method all handled without a 500)*
 - [ ] Standard API shapes (ADR-006): optional CloudEvents 1.0 envelope on `POST /event`; all errors as RFC 9457 problem+json incl. the rule TRACE — DoD: contract tests
 - [ ] Rule evaluation with mandatory TRACE; non-match = error carrying the evaluated trace — DoD: test proves no silent no-op path exists
 - [ ] Fan-out: one event → N resolutions (template, locale, channel, recipient) — DoD: bursting test = fan-out test

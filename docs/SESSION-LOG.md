@@ -11,6 +11,25 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 3 started: packages/runtime ingress
+- Did: first Stage 3 task. New packages/runtime: POST /event on plain
+  node:http, ajv 2020-12 + ajv-formats validation against
+  packages/schema/contracts/*.schema.json (source of truth, not the TS
+  aliases), RFC 9457 problem+json error shapes. Size-bounded body reads,
+  no payload/stack leakage in any error path. ajv stays a
+  packages/runtime-only dependency — packages/schema unaffected, still
+  zero-runtime-dependency.
+- Open: rest of Stage 3 — standard API shapes (CloudEvents envelope),
+  rule evaluation + TRACE (blocked on ADR-003 rule-storage decision),
+  fan-out, idempotency, document registry, archive store, delivery queue
+  (blocked on ADR-004 queue-backend decision), channels, single-process
+  serve, embeddable module + outbox, minimal console, human thesis check.
+- Next: next Stage 3 task not yet chosen — ADR-003/ADR-004 remain
+  Proposed and gate several of the tasks above; the maintainer should
+  decide whether to prepare those ADR decisions next or pick another
+  ADR-independent task (e.g. idempotency, which the roadmap explicitly
+  flags "write this test first").
+
 ## 2026-08-27 — Stage 2 CLOSED (exit gate passed)
 - Did: all seven Stage 2 tasks built and independently verified.
   New package `@busy-office/render-typst`: TypstRenderer implements
