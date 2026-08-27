@@ -11,6 +11,24 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: fan-out (one event → N resolutions)
+- Did: determine() now returns resolutions: Resolution[] (>=1). Rule
+  co-firing is opt-in (OutputRule.fanOut, default false) — non-fan-out
+  rules still compete winner-take-all, every matched fanOut:true rule
+  fires additionally. Atomic on template-lookup failure (no partial fan-out
+  set). Idempotency key widened to (four-tuple + ruleId) via
+  ResolutionEventKey/getOrCreateByResolutionKey, migration
+  0003_add_rule_id_to_registry.sql — N resolutions from one event mint N
+  stable docIds on replay, never 2N. fanout.test.ts proves 3 rules -> 3
+  resolutions -> 3 stable docIds.
+- Open: delivery queue, channels (email + object-store), single-process
+  serve, embeddable module + outbox, minimal console, [HUMAN] thesis check
+  (stays open regardless — genuinely needs the maintainer to show the demo
+  to 5 real operators).
+- Next: delivery queue is the natural next task — it consumes
+  resolutions'/registry's channel+recipients+archiveRef and is now
+  unblocked by ADR-004 (SQLite-backed embedded, accepted this session).
+
 ## 2026-08-28 — Stage 3: ADR-003/004 accepted, determination + TRACE
 - Did: goal set to "complete Stage 3". ADR-003 (rule storage) and ADR-004
   (queue backend) were both blocking remaining tasks — drafted
