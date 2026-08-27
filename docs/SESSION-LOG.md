@@ -11,6 +11,31 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 3: document registry (RegistryStore + SQLite)
+- Did: arb-chair ruling first (this task's storage choice touches ADR-004,
+  still Proposed, whose own text conditions on "if the registry lands on
+  Postgres anyway") — ruled proceed behind a RegistryStore port with a
+  default node:sqlite implementation, not Postgres, so ADR-004 isn't
+  silently pre-decided; a PostgresRegistryStore stays available later
+  behind the same port. Then built packages/runtime/src/registry/: real
+  versioned migrations (migrations/0001_init.sql + schema_migrations
+  tracking), document_registry (one row per artifact: docId, business
+  object/id, template+renderer versions, input/output hashes, archiveRef
+  pointer, state — DRAFT on mint) with a UNIQUE index on the idempotency
+  four-tuple, append-only delivery_history child table. Replaced
+  idempotency-store.ts's in-memory Map (not extended — replaced, as its
+  own header comment promised) with a facade over the registry; docId now
+  survives a process restart, proven by a dedicated test.
+- Open: rest of Stage 3 — CloudEvents envelope, rule evaluation + TRACE
+  (blocked on ADR-003), fan-out, archive store (writes archiveRef's actual
+  bytes + retentionUntil — the registry only holds the pointer), delivery
+  queue (blocked on ADR-004), channels, single-process serve, embeddable
+  module + outbox, minimal console, human thesis check.
+- Next: archive store is the natural following task — it's ADR-independent
+  and directly consumes the registry's archiveRef pointer field. Delivery
+  queue/channels still wait on ADR-004; rule evaluation/fan-out still wait
+  on ADR-003.
+
 ## 2026-08-27 — Stage 3: idempotency on BusinessEventKey
 - Did: test-first (RED confirmed before GREEN, two vertical slices).
   packages/runtime/src/idempotency-store.ts — in-memory stand-in Map
