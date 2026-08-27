@@ -1,0 +1,12 @@
+{
+  "id": "payslip-default-email",
+  "priority": 0,
+  "conditions": {
+    "documentType": "payslip",
+    "event": "payslip.issued"
+  },
+  "resolution": {
+    "channel": "email",
+    "recipients": ["employee-self-service@example.com"]
+  }
+}

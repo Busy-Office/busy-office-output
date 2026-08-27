@@ -1,0 +1,7 @@
+{
+  "id": "invoice-global-v1",
+  "variant": { "documentType": "invoice" },
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "renderer": "typst"
+}

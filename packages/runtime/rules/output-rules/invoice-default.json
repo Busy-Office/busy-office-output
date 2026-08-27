@@ -1,0 +1,12 @@
+{
+  "id": "invoice-default-email",
+  "priority": 0,
+  "conditions": {
+    "documentType": "invoice",
+    "event": "invoice.posted"
+  },
+  "resolution": {
+    "channel": "email",
+    "recipients": ["ap-clerk@example.com"]
+  }
+}

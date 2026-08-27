@@ -1,0 +1,12 @@
+{
+  "id": "po-default-email",
+  "priority": 0,
+  "conditions": {
+    "documentType": "purchase-order",
+    "event": "po.released"
+  },
+  "resolution": {
+    "channel": "email",
+    "recipients": ["vendor-contact@example.com"]
+  }
+}

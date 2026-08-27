@@ -1,0 +1,7 @@
+{
+  "id": "po-global-v1",
+  "variant": { "documentType": "purchase-order" },
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "renderer": "typst"
+}

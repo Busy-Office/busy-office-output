@@ -27,11 +27,15 @@ import {
   type IdempotencyStore,
 } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
+import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
 import {
   invalidContractProblem,
+  malformedCloudEventsProblem,
   malformedRequestProblem,
   methodNotAllowedProblem,
   missingBusinessEventProblem,
+  noRuleMatchProblem,
+  noTemplateMatchProblem,
   notFoundProblem,
   unknownDocumentTypeProblem,
   type ProblemDetails,
@@ -69,6 +73,48 @@ async function readBody(req: IncomingMessage): Promise<string> {
     chunks.push(buf);
   }
   return Buffer.concat(chunks).toString('utf8');
+}
+
+const CLOUDEVENTS_SPECVERSION = '1.0';
+/** CloudEvents 1.0 REQUIRED context attributes (excl. specversion itself). */
+const CLOUDEVENTS_REQUIRED_ATTRIBUTES = ['id', 'source', 'type'] as const;
+
+/**
+ * ADR-006 / docs/STANDARDS.md Tier 2: "CloudEvents 1.0 | optional envelope
+ * for POST /event". Detection signal is `specversion: "1.0"` on the parsed
+ * body (CloudEvents' own required attribute) — when present, the same
+ * ingress payload this route always accepted (documentType/header/lines/
+ * totals/businessEvent) is expected in CloudEvents' `data` field, sibling
+ * to CloudEvents' own context attributes (id, source, type, ...). When
+ * absent, the body is the raw shape exactly as before — this keeps the
+ * envelope genuinely optional and reuses the same downstream ingress logic
+ * either way (no duplicated validate/idempotency path per shape).
+ */
+function isCloudEventsEnvelope(payload: unknown): payload is Record<string, unknown> {
+  return (
+    payload !== null &&
+    typeof payload === 'object' &&
+    (payload as Record<string, unknown>).specversion === CLOUDEVENTS_SPECVERSION
+  );
+}
+
+/**
+ * Unwraps a detected CloudEvents envelope to the inner ingress payload
+ * (its `data` field), or returns `raw` unchanged when no envelope is
+ * present. Throws only when `specversion: "1.0"` is present but the
+ * envelope is otherwise malformed (missing a REQUIRED attribute or `data`)
+ * — a 400, not a 500, via the caller's catch.
+ */
+function unwrapCloudEventsEnvelope(raw: unknown): unknown {
+  if (!isCloudEventsEnvelope(raw)) return raw;
+  const missing = CLOUDEVENTS_REQUIRED_ATTRIBUTES.filter((attr) => typeof raw[attr] !== 'string' || raw[attr] === '');
+  if (missing.length > 0) {
+    throw new Error(`CloudEvents envelope is missing required attribute(s): ${missing.join(', ')}.`);
+  }
+  if (!('data' in raw)) {
+    throw new Error('CloudEvents envelope (specversion "1.0") must carry a "data" field.');
+  }
+  return raw.data;
 }
 
 /** Extract documentType without trusting shape — payload may be anything. */
@@ -112,6 +158,39 @@ function extractBusinessEventKey(payload: unknown): BusinessEventKey | undefined
   };
 }
 
+const DETERMINATION_CONTEXT_FIELDS = ['companyCode', 'country', 'partnerId', 'locale'] as const;
+
+/**
+ * Determination's OPTIONAL, caller-supplied routing hints beyond
+ * documentType/businessEvent — companyCode/country/partnerId/locale. None
+ * of the frozen data contracts (packages/schema/contracts/) carry these at
+ * top level, so a caller who wants finer-than-documentType-and-event rule
+ * or template-variant routing supplies them via this sibling envelope
+ * field, alongside `businessEvent`. Judgment call flagged in this task's
+ * report: this is a new wire-level field this task introduces, not
+ * specified by the task prompt itself. Absent entirely, determination
+ * still works — rules/templates that only constrain documentType/event
+ * match on wildcards for the rest (docs/VARIANT-RESOLUTION.md semantics).
+ */
+function extractDeterminationContext(payload: unknown): Partial<Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale'>> {
+  if (payload === null || typeof payload !== 'object' || !('determination' in payload)) {
+    return {};
+  }
+  const candidate = (payload as Record<string, unknown>).determination;
+  if (candidate === null || typeof candidate !== 'object') {
+    return {};
+  }
+  const record = candidate as Record<string, unknown>;
+  const context: Partial<Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale'>> = {};
+  for (const field of DETERMINATION_CONTEXT_FIELDS) {
+    const value = record[field];
+    if (typeof value === 'string' && value !== '') {
+      context[field] = value;
+    }
+  }
+  return context;
+}
+
 async function handleEvent(
   req: IncomingMessage,
   res: ServerResponse,
@@ -125,22 +204,34 @@ async function handleEvent(
     return;
   }
 
-  let payload: unknown;
+  let rawPayload: unknown;
   try {
-    payload = raw.length > 0 ? JSON.parse(raw) : undefined;
+    rawPayload = raw.length > 0 ? JSON.parse(raw) : undefined;
   } catch {
     // Never log the raw body (CLAUDE.md: no payloads in logs) — including in errors.
     sendProblem(res, malformedRequestProblem('Request body is not valid JSON.'));
     return;
   }
 
-  // `businessEvent` is envelope metadata, not part of the data-contract
-  // payload (whose schemas are additionalProperties:false) — validate the
-  // contract against the payload with the envelope field stripped out.
+  // Task 1 (ADR-006): optional CloudEvents 1.0 envelope. Detected + unwrapped
+  // here so every downstream step (contract validation, businessEvent
+  // extraction, determination) runs identically whether the caller sent the
+  // raw shape or a CloudEvents-wrapped one — no duplicated ingress logic.
+  let payload: unknown;
+  try {
+    payload = unwrapCloudEventsEnvelope(rawPayload);
+  } catch (err) {
+    sendProblem(res, malformedCloudEventsProblem(err instanceof Error ? err.message : 'Malformed CloudEvents envelope.'));
+    return;
+  }
+
+  // `businessEvent` (and `determination`) are envelope metadata, not part of
+  // the data-contract payload (whose schemas are additionalProperties:false)
+  // — validate the contract against the payload with those fields stripped.
   const documentPayload =
     payload !== null && typeof payload === 'object'
       ? (() => {
-          const { businessEvent: _businessEvent, ...rest } = payload as Record<string, unknown>;
+          const { businessEvent: _businessEvent, determination: _determination, ...rest } = payload as Record<string, unknown>;
           return rest;
         })()
       : payload;
@@ -168,13 +259,49 @@ async function handleEvent(
     return;
   }
 
+  // Determination (HLD §2/§9, ADR-003): rule evaluation is mandatory and
+  // ALWAYS produces a TRACE, match or no-match. No rule/template match is a
+  // loud 422 problem+json carrying that trace — never a silent 2xx
+  // acceptance with nothing determined. Runs BEFORE idempotency so a
+  // no-match event never mints a registry row / docId for work that was
+  // never actually determined.
+  const determinationContext: DeterminationContext = {
+    documentType,
+    businessObject: businessEventKey.businessObject,
+    event: businessEventKey.event,
+    ...extractDeterminationContext(payload),
+  };
+  const determination = determine(determinationContext, loadOutputRules(), loadTemplateCandidates());
+  if (determination.outcome === 'no-rule-match') {
+    sendProblem(res, noRuleMatchProblem(determination.trace));
+    return;
+  }
+  if (determination.outcome === 'no-template-match') {
+    sendProblem(res, noTemplateMatchProblem(determination.trace));
+    return;
+  }
+
   // Idempotency (HLD §4): replay of the same four-tuple returns the SAME
-  // docId, without re-running determination/fan-out/render/delivery (none
-  // of which exist yet — this is ingress-only, but the response already
+  // docId, without re-running fan-out/render/delivery (none of which exist
+  // yet — this is ingress + determination only, but the response already
   // proves the contract). 202 on first sighting = new work accepted; 200 on
   // replay = here is the existing result, no new work was done.
   const { docId, replayed } = idempotencyStore.getOrCreate(businessEventKey);
-  sendJson(res, replayed ? 200 : 202, { status: 'accepted', documentType, docId, replayed });
+  sendJson(res, replayed ? 200 : 202, {
+    status: 'accepted',
+    documentType,
+    docId,
+    replayed,
+    determination: {
+      ruleId: determination.ruleId,
+      templateId: determination.templateId,
+      templateVersion: determination.templateVersion,
+      channel: determination.channel,
+      recipients: determination.recipients,
+      locale: determination.locale,
+    },
+    trace: determination.trace,
+  });
 }
 
 export function createIngressServer(options: { idempotencyStore?: IdempotencyStore } = {}) {

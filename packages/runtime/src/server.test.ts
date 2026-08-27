@@ -5,10 +5,12 @@ import {
   invoiceMissingDueDate,
   purchaseOrderMissingPoNumber,
   sampleBusinessEventKey,
+  unmatchedBusinessEventKey,
   validInvoice,
   validPayslip,
   validPurchaseOrder,
   withBusinessEvent,
+  wrapCloudEvent,
 } from './fixtures.js';
 
 describe('POST /event ingress + contract validation', () => {
@@ -93,6 +95,17 @@ describe('POST /event ingress + contract validation', () => {
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');
+    // Determination result + its TRACE are carried on the successful
+    // response too (HLD §9: TRACE isn't restricted to failures).
+    expect(json.determination).toMatchObject({
+      ruleId: expect.any(String),
+      templateId: expect.any(String),
+      channel: expect.any(String),
+      recipients: expect.any(Array),
+    });
+    expect(json.trace).toMatchObject({ outcome: 'matched' });
+    expect(Array.isArray(json.trace.rules)).toBe(true);
+    expect(json.trace.rules.length).toBeGreaterThan(0);
   });
 
   it('rejects an invoice payload missing a required field (400 problem+json)', async () => {
@@ -119,6 +132,66 @@ describe('POST /event ingress + contract validation', () => {
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');
+  });
+
+  it('accepts a raw purchase-order payload wrapped in a CloudEvents 1.0 envelope, identically to the raw shape', async () => {
+    const inner = withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500009999' }));
+    const { status, json } = await post(wrapCloudEvent(inner));
+
+    expect(status).toBeGreaterThanOrEqual(200);
+    expect(status).toBeLessThan(300);
+    expect(json.status).toBe('accepted');
+    expect(json.documentType).toBe('purchase-order');
+    expect(json.determination.channel).toEqual(expect.any(String));
+  });
+
+  it('rejects a body claiming CloudEvents specversion "1.0" but missing required attributes (400, not 500)', async () => {
+    const res = await fetch(`${baseUrl}/event`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ specversion: '1.0', data: { foo: 'bar' } }), // missing id/source/type
+    });
+    expect(res.status).toBe(400);
+    expect(res.headers.get('content-type')).toContain('application/problem+json');
+    const json = await res.json();
+    expect(json.type).toContain('malformed-cloudevents-envelope');
+  });
+
+  it('a CloudEvents-wrapped invalid contract still surfaces the same 400 invalid-contract problem as the raw path', async () => {
+    const { status, json } = await post(wrapCloudEvent(purchaseOrderMissingPoNumber()));
+    expect(status).toBe(400);
+    expect(json.type).toContain('invalid-contract');
+  });
+
+  it('no rule matches the event → 422 problem+json (never a silent 2xx), carrying a non-empty rule TRACE', async () => {
+    const { status, contentType, json } = await post(
+      withBusinessEvent(validPurchaseOrder(), unmatchedBusinessEventKey()),
+    );
+
+    expect(status).toBe(422);
+    expect(status < 200 || status >= 300).toBe(true); // never a 2xx acceptance
+    expect(contentType).toContain('application/problem+json');
+    expect(json.type).toContain('no-rule-match');
+    expect(json.status).toBe(422);
+    expect(Array.isArray(json.trace?.rules)).toBe(true);
+    expect(json.trace.rules.length).toBeGreaterThan(0);
+    expect(json.trace.outcome).toBe('no-rule-match');
+    // Every considered rule explains itself — not a bare boolean.
+    for (const entry of json.trace.rules) {
+      expect(typeof entry.matched).toBe('boolean');
+      expect(Array.isArray(entry.reasons)).toBe(true);
+      expect(entry.reasons.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('a no-rule-match event never mints a registry docId (determination runs before idempotency)', async () => {
+    const key = unmatchedBusinessEventKey({ businessObjectId: '4500055555' });
+    const first = await post(withBusinessEvent(validPurchaseOrder(), key));
+    const second = await post(withBusinessEvent(validPurchaseOrder(), key));
+    expect(first.status).toBe(422);
+    expect(second.status).toBe(422);
+    expect(first.json.docId).toBeUndefined();
+    expect(second.json.docId).toBeUndefined();
   });
 
   it('returns 404 problem+json for unknown routes', async () => {

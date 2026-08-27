@@ -1,0 +1,14 @@
+{
+  "id": "po-companyCode-1000-object-store",
+  "priority": 0,
+  "conditions": {
+    "documentType": "purchase-order",
+    "event": "po.released",
+    "companyCode": "1000"
+  },
+  "resolution": {
+    "channel": "object-store",
+    "recipients": ["archive://vendors/1000/purchase-orders"],
+    "companyCode": "1000"
+  }
+}

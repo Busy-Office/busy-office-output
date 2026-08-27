@@ -1,10 +1,11 @@
 /**
  * RFC 9457 (problem+json) error shapes (docs/STANDARDS.md Tier 2, ADR-006):
  * "every API error, including the rule-evaluation TRACE on non-match".
- * This module only carries the ingress-time shapes (bad contract, unknown
- * documentType, malformed request body); the rule-TRACE variant belongs to
- * the not-yet-built determination task.
+ * Ingress-time shapes (bad contract, unknown documentType, malformed
+ * request body) plus the determination-time no-match shapes, which carry
+ * the mandatory TRACE (HLD §9) as a problem+json extension member.
  */
+import type { DeterminationTrace } from './determination/trace.js';
 
 /** A single JSON Schema validation failure, shaped for API consumers (not a raw ajv dump). */
 export interface SchemaValidationError {
@@ -24,6 +25,8 @@ export interface ProblemDetails {
   status: number;
   detail: string;
   errors?: SchemaValidationError[];
+  /** RFC 9457 extension member: the full evaluated rule TRACE (HLD §9), never omitted on a determination non-match. */
+  trace?: DeterminationTrace;
 }
 
 const PROBLEM_BASE = 'https://busy-office.dev/problems';
@@ -51,6 +54,48 @@ export function missingBusinessEventProblem(detail: string): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/missing-business-event`,
     title: 'Missing or malformed businessEvent envelope',
+    status: 400,
+    detail,
+  };
+}
+
+/**
+ * No `OutputRule` matched the event (HLD §9, ADR-003). 422 Unprocessable
+ * Entity: the request was syntactically fine and passed contract
+ * validation (400 territory), but the server understands it cannot
+ * determine an output for it — a semantic failure, not a malformed
+ * request. Never a silent 2xx acceptance with nothing determined.
+ */
+export function noRuleMatchProblem(trace: DeterminationTrace): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/no-rule-match`,
+    title: 'No output rule matched this event',
+    status: 422,
+    detail: `No OutputRule's conditions matched documentType "${trace.documentType}" / event "${trace.event}". See "trace" for every rule considered and why each did not match.`,
+    trace,
+  };
+}
+
+/**
+ * A rule matched (channel + recipients resolved) but no template candidate
+ * matches the resulting VariantKey — also a loud, distinct determination
+ * failure, not folded into no-rule-match, so a caller can tell which half
+ * of resolution failed at a glance.
+ */
+export function noTemplateMatchProblem(trace: DeterminationTrace): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/no-template-match`,
+    title: 'No template matched the resolved variant',
+    status: 422,
+    detail: `Rule "${trace.winningRuleId}" matched, but no template candidate's variant matches the resolved query. See "trace" for every template candidate considered and why each did not match.`,
+    trace,
+  };
+}
+
+export function malformedCloudEventsProblem(detail: string): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/malformed-cloudevents-envelope`,
+    title: 'Malformed CloudEvents 1.0 envelope',
     status: 400,
     detail,
   };

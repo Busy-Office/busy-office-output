@@ -25,6 +25,19 @@ export type {
 } from './registry/index.js';
 export { FsArchiveStore, S3ArchiveStore, assertValidRetentionUntil, archiveArtifact } from './archive/index.js';
 export type { ArchiveStore, ArchiveInput, S3ArchiveStoreOptions, S3ClientLike, ArchiveArtifactInput } from './archive/index.js';
+export { determine, loadOutputRules, loadTemplateCandidates } from './determination/index.js';
+export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, DeterminationTrace, DeterminationOutcome, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
+export {
+  invalidContractProblem,
+  malformedCloudEventsProblem,
+  malformedRequestProblem,
+  methodNotAllowedProblem,
+  missingBusinessEventProblem,
+  noRuleMatchProblem,
+  noTemplateMatchProblem,
+  notFoundProblem,
+  unknownDocumentTypeProblem,
+} from './problem.js';
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';

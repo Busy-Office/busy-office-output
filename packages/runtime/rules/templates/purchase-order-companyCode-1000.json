@@ -1,0 +1,7 @@
+{
+  "id": "po-companyCode-1000-v1",
+  "variant": { "documentType": "purchase-order", "companyCode": "1000" },
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "renderer": "typst"
+}

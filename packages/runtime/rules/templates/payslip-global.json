@@ -1,0 +1,7 @@
+{
+  "id": "payslip-global-v1",
+  "variant": { "documentType": "payslip" },
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "renderer": "typst"
+}

@@ -38,6 +38,31 @@ export function withBusinessEvent<T>(payload: T, businessEvent: BusinessEventKey
   return { ...payload, businessEvent };
 }
 
+/**
+ * Wraps an already-`withBusinessEvent`-shaped ingress payload in a
+ * CloudEvents 1.0 envelope (ADR-006 / docs/STANDARDS.md Tier 2) — the same
+ * payload sits in `data`, sibling to CloudEvents' own required context
+ * attributes. Used by server.test.ts to prove the CloudEvents path and the
+ * raw path normalize to identical downstream processing.
+ */
+export function wrapCloudEvent<T>(
+  data: T,
+  overrides: Partial<{ id: string; source: string; type: string }> = {},
+): { specversion: '1.0'; id: string; source: string; type: string; data: T } {
+  return {
+    specversion: '1.0',
+    id: overrides.id ?? 'evt-0001',
+    source: overrides.source ?? '/erp/purchasing',
+    type: overrides.type ?? 'dev.busy-office.po.released',
+    data,
+  };
+}
+
+/** A BusinessEventKey whose `event` no OutputRule file's conditions match — for the no-rule-match determination test. */
+export function unmatchedBusinessEventKey(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
+  return sampleBusinessEventKey({ event: 'po.cancelled', ...overrides });
+}
+
 export function validPurchaseOrder(): PurchaseOrderData {
   return {
     schemaVersion: '1.0.0',
