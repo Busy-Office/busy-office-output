@@ -3,11 +3,10 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stage 0 closed 2026-08-27** (exit gate passed, see ROADMAP.md);
-**Stage 1 in progress** — `GATE-S1-PREWORK` closed 2026-08-27 (maintainer:
-"yes, start Stage 1", see `docs/HUMAN-GATES-LOG.md`). Path B (Carbone) Stage
-1 task stays out of scope per ADR-000. One part-time maintainer; sessions
-are short — leave everything in a resumable state.
+Status: **Stage 0 and Stage 1 both closed 2026-08-27** (exit gates passed,
+see ROADMAP.md); Stage 2 not yet started. Path B (Carbone) Stage 1 task
+stayed out of scope per ADR-000. One part-time maintainer; sessions are
+short — leave everything in a resumable state.
 
 ## Read order at session start
 1. `ROADMAP.md` — find the current stage and its first unchecked task

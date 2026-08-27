@@ -11,6 +11,28 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-27 — Stage 1 CLOSED (exit gate passed)
+- Did: GATE-S1-PREWORK answered directly in chat by the maintainer ("yes,
+  start Stage 1"), logged to docs/INBOX.md, arb-chair ruling applied
+  (GATE-S1-PREWORK closed; Path B Stage 1 task marked N/A per ADR-000's
+  "do not build both speculatively" clause). Then built all six Stage 1
+  tasks: data contracts (packages/schema/contracts/, 3 doc types + common
+  definitions + RENAME-POLICY.md), variant resolution spec + resolver +
+  13 tests (docs/VARIANT-RESOLUTION.md, packages/schema/src/variant/),
+  reproduction policy (docs/POLICY.md, referenced from CLAUDE.md), Tier 1
+  standards enforced in the contract schemas, node kinds un-drafted to
+  FROZEN, expression grammar + allowlist parser + tests
+  (docs/EXPRESSION-GRAMMAR.md, packages/schema/src/expression/), and the
+  paper test (PO + invoice DocNode trees, packages/schema/src/document/
+  paper-test.test.ts, docs/PAPER-TEST.md) — PASS, zero new node kinds or
+  expression syntax needed. Exit gate independently verified by a
+  corpus-qa gate-check (real commands, not self-asserted): paper test
+  4/4, npm run verify 30/30 tests + clean typecheck, ADR-001 confirmed
+  Accepted. ROADMAP.md Stage 1 exit gate marked 3/3 PASS.
+- Open: nothing Stage-1-blocking. Stage 2 not yet started.
+- Next: Stage 2 (rendering IR + renderer implementation) — read
+  ROADMAP.md's Stage 2 section for its task list before starting.
+
 ## 2026-08-27 — build-loop tick 25 (noop, goal="complete Stage 1")
 - Did: session goal set to "complete Stage 1". Checked docs/INBOX.md — Open
   still empty. GATE-S1-PREWORK still `open`, default NO. Per CLAUDE.md
