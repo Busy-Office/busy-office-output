@@ -110,6 +110,20 @@ export interface GetOrCreateResult {
   created: boolean;
 }
 
+/**
+ * One pending transactional-outbox row (see migrations/0005_add_composition_
+ * outbox.sql for the full rationale). `resolution`/`data` are exactly what
+ * `composeRenderArchiveAndEnqueue` needs to redo its work for `docId` —
+ * JSON-parsed already, so callers can cast straight to `Resolution` /
+ * `DataContractEnvelope` without re-parsing.
+ */
+export interface OutboxEntry {
+  docId: string;
+  resolution: unknown;
+  data: unknown;
+  createdAt: string;
+}
+
 export interface RegistryStore {
   /**
    * The idempotency lookup (HLD §4): first sighting of `key` mints a new
@@ -129,6 +143,35 @@ export interface RegistryStore {
    * a ruleId-disambiguated lookup can never disagree about identity.
    */
   getOrCreateByResolutionKey(key: ResolutionEventKey): GetOrCreateResult;
+
+  /**
+   * The transactional-outbox-aware mint (ROADMAP Stage 3 "Embeddable
+   * module ... transactional outbox"): identical mint-or-fetch contract to
+   * `getOrCreateByResolutionKey`, except on first sighting (`created:
+   * true`) it ALSO writes a `composition_outbox` row for the new docId, in
+   * the SAME SQLite transaction as the `document_registry` insert — either
+   * both rows exist or neither does, closing the window where a docId is
+   * minted with no durable record of the composition work still owed on
+   * it. On replay (`created: false`) the outbox is left untouched — call
+   * `getOutboxEntry(row.docId)` to find out whether a previous attempt's
+   * composition work is still pending (stranded by a crash) and needs
+   * redriving before treating this as a pure replay.
+   */
+  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown): GetOrCreateResult;
+
+  /** The pending outbox entry for `docId`, or undefined if none exists
+   * (composition already completed for it, or it was never minted via
+   * `mintWithOutbox`). */
+  getOutboxEntry(docId: string): OutboxEntry | undefined;
+
+  /** Every outbox entry still pending, oldest first — the source of truth
+   * `resumeStrandedCompositions` (composition.ts) scans. */
+  listOutboxEntries(): OutboxEntry[];
+
+  /** Delete the outbox entry for `docId`, if any. Called once
+   * `composeRenderArchiveAndEnqueue` has run to completion for it (any
+   * outcome). Safe to call even when no entry exists (idempotent). */
+  clearOutboxEntry(docId: string): void;
 
   /** Fetch a row by its docId. Returns undefined if no such row exists. */
   getByDocId(docId: string): DocumentRegistryRow | undefined;

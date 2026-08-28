@@ -3,6 +3,7 @@ export type {
   DocumentRegistryRow,
   DocumentState,
   GetOrCreateResult,
+  OutboxEntry,
   RegistryStore,
 } from './registry-store.js';
 export { SqliteRegistryStore, createSqliteRegistryStore } from './sqlite-registry-store.js';

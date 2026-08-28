@@ -108,3 +108,58 @@ export async function composeRenderArchiveAndEnqueue(
     };
   }
 }
+
+/** One `resumeStrandedCompositions` result: which docId, and what running
+ * (or skipping) composition for it produced. `skipped: true` means the
+ * archive write had already completed before the crash — the outbox row
+ * itself just hadn't been cleared yet; re-running composition would have
+ * archived a second, orphaned copy of the same artifact, so it wasn't. */
+export type ResumeOutcome =
+  | { docId: string; skipped: false; outcome: CompositionOutcome }
+  | { docId: string; skipped: true };
+
+/**
+ * Redrive every still-pending `composition_outbox` row (ROADMAP Stage 3
+ * "Embeddable module ... transactional outbox" — see
+ * migrations/0005_add_composition_outbox.sql for the full rationale).
+ *
+ * A pending outbox row means `mintWithOutbox` committed a docId but
+ * `composeRenderArchiveAndEnqueue` never ran to completion for it — either
+ * it is still genuinely in flight elsewhere in this process, or the
+ * process crashed between mint and composition-complete. This function is
+ * meant to be called after a restart (or on a timer), once whatever else
+ * might still be legitimately in flight has had time to finish —
+ * `minAgeMs` (default 0) lets a caller skip rows younger than that.
+ *
+ * Never re-renders/re-archives a docId whose archiveRef is already set
+ * (`skipped: true`): composeRenderArchiveAndEnqueue's own archive step
+ * already succeeded before the crash, so only the outbox row's own
+ * deletion was interrupted — running composition again would silently
+ * produce a second, unreferenced copy of the same artifact bytes, exactly
+ * the orphan this mechanism exists to prevent. Every entry, redriven or
+ * skipped, has its outbox row cleared before this returns.
+ */
+export async function resumeStrandedCompositions(
+  deps: CompositionDeps,
+  minAgeMs = 0,
+): Promise<ResumeOutcome[]> {
+  const results: ResumeOutcome[] = [];
+  for (const entry of deps.registryStore.listOutboxEntries()) {
+    const ageMs = Date.now() - Date.parse(entry.createdAt);
+    if (Number.isFinite(ageMs) && ageMs < minAgeMs) continue;
+
+    const row = deps.registryStore.getByDocId(entry.docId);
+    if (row?.archiveRef) {
+      deps.registryStore.clearOutboxEntry(entry.docId);
+      results.push({ docId: entry.docId, skipped: true });
+      continue;
+    }
+
+    const resolution = entry.resolution as Resolution;
+    const data = entry.data as DataContractEnvelope;
+    const outcome = await composeRenderArchiveAndEnqueue(deps, entry.docId, resolution, data);
+    deps.registryStore.clearOutboxEntry(entry.docId);
+    results.push({ docId: entry.docId, skipped: false, outcome });
+  }
+  return results;
+}

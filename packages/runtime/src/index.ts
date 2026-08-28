@@ -22,6 +22,7 @@ export type {
   DocumentState,
   DeliveryHistoryEvent,
   GetOrCreateResult,
+  OutboxEntry,
 } from './registry/index.js';
 export { FsArchiveStore, S3ArchiveStore, assertValidRetentionUntil, archiveArtifact } from './archive/index.js';
 export type { ArchiveStore, ArchiveInput, S3ArchiveStoreOptions, S3ClientLike, ArchiveArtifactInput } from './archive/index.js';
@@ -66,8 +67,16 @@ export {
   notFoundProblem,
   unknownDocumentTypeProblem,
 } from './problem.js';
-export { composeRenderArchiveAndEnqueue, defaultRetentionUntil } from './composition.js';
-export type { CompositionDeps, CompositionOutcome } from './composition.js';
+export { composeRenderArchiveAndEnqueue, defaultRetentionUntil, resumeStrandedCompositions } from './composition.js';
+export type { CompositionDeps, CompositionOutcome, ResumeOutcome } from './composition.js';
+export { createOutput } from './embed/create-output.js';
+export type {
+  CreateOutputDeps,
+  OutputPort,
+  SubmitEventInput,
+  SubmitEventResult,
+  SubmitResolutionResult,
+} from './embed/create-output.js';
 export { drainOnce, startWorker } from './worker.js';
 export type { Worker } from './worker.js';
 export { getTemplateContent } from './render/template-content.js';

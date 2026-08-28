@@ -38,6 +38,7 @@ import type {
   DocumentRegistryRow,
   DocumentState,
   GetOrCreateResult,
+  OutboxEntry,
   RegistryStore,
   ResolutionEventKey,
 } from './registry-store.js';
@@ -129,6 +130,78 @@ export class SqliteRegistryStore implements RegistryStore {
       throw new Error(`Registry insert for docId ${docId} did not become readable.`);
     }
     return { row: this.toRow(created), created: true };
+  }
+
+  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown): GetOrCreateResult {
+    const existing = this.selectByResolutionKey(key);
+    if (existing !== undefined) {
+      return { row: this.toRow(existing), created: false };
+    }
+
+    const docId = randomUUID();
+    const now = new Date().toISOString();
+    // Mint the registry row and its outbox row in ONE transaction (see
+    // migrations/0005_add_composition_outbox.sql) — either both are
+    // durable or neither is, so a crash right after this call returns
+    // always leaves `resumeStrandedCompositions` something to find.
+    this.db.exec('BEGIN');
+    try {
+      this.db
+        .prepare(
+          `INSERT INTO document_registry
+             (doc_id, business_object, business_object_id, event, template_version, rule_id, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+        )
+        .run(docId, key.businessObject, key.businessObjectId, key.event, key.templateVersion, key.ruleId, now, now);
+      this.db
+        .prepare('INSERT INTO composition_outbox (doc_id, resolution, data, created_at) VALUES (?, ?, ?, ?)')
+        .run(docId, JSON.stringify(resolution), JSON.stringify(data), now);
+      this.db.exec('COMMIT');
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      // Concurrent first-sighting lost the race to the UNIQUE index on the
+      // five-tuple (see getOrCreateByResolutionKey's identical guard) — the
+      // row now exists (minted by the winner, with its own outbox row);
+      // return it rather than treating this as a failure.
+      const raced = this.selectByResolutionKey(key);
+      if (raced !== undefined) {
+        return { row: this.toRow(raced), created: false };
+      }
+      throw err;
+    }
+
+    const created = this.selectByDocId(docId);
+    if (created === undefined) {
+      throw new Error(`Registry insert for docId ${docId} did not become readable.`);
+    }
+    return { row: this.toRow(created), created: true };
+  }
+
+  getOutboxEntry(docId: string): OutboxEntry | undefined {
+    const row = this.db
+      .prepare('SELECT doc_id, resolution, data, created_at FROM composition_outbox WHERE doc_id = ?')
+      .get(docId) as { doc_id: string; resolution: string; data: string; created_at: string } | undefined;
+    return row === undefined ? undefined : this.toOutboxEntry(row);
+  }
+
+  listOutboxEntries(): OutboxEntry[] {
+    const rows = this.db
+      .prepare('SELECT doc_id, resolution, data, created_at FROM composition_outbox ORDER BY created_at ASC')
+      .all() as unknown as Array<{ doc_id: string; resolution: string; data: string; created_at: string }>;
+    return rows.map((row) => this.toOutboxEntry(row));
+  }
+
+  clearOutboxEntry(docId: string): void {
+    this.db.prepare('DELETE FROM composition_outbox WHERE doc_id = ?').run(docId);
+  }
+
+  private toOutboxEntry(row: { doc_id: string; resolution: string; data: string; created_at: string }): OutboxEntry {
+    return {
+      docId: row.doc_id,
+      resolution: JSON.parse(row.resolution) as unknown,
+      data: JSON.parse(row.data) as unknown,
+      createdAt: row.created_at,
+    };
   }
 
   getByDocId(docId: string): DocumentRegistryRow | undefined {
