@@ -12,12 +12,14 @@
  * see worker.ts's header comment) instead of waiting on `startWorker`'s
  * setInterval loop.
  *
- * Covers both halves of the arb-chair ruling this task followed:
- *  - purchase-order (`po-global-v1`) has real content -> rendered, archived,
- *    delivered, full audit trail.
- *  - invoice (`invoice-global-v1`) resolves fine through determination but
- *    has NO content -> an honest `'no-template-content'` outcome, never a
- *    crash, never a fabricated artifact.
+ * Originally covered both halves of the Stage 3 arb-chair ruling: purchase-
+ * order rendered, invoice was honestly content-less. ROADMAP Stage 4
+ * ("Invoice: tax/multi-currency contract + template") wired real content
+ * for `invoice-global-v1` (packages/runtime/src/render/template-content.ts,
+ * tree reused verbatim from test/corpus/invoice/template.ts) — invoice now
+ * renders, archives, and delivers exactly like purchase-order below.
+ * payslip (`payslip-global-v1`) remains the one documentType still on the
+ * honest `'no-template-content'` path, deferred to its own Stage 4 task.
  */
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
@@ -143,7 +145,7 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
   );
 
   it(
-    'invoice: fan-out resolutions still get a rule trace + docId, but rendering is honestly absent (no crash, no fabricated artifact)',
+    'invoice: fan-out resolutions each get a rule trace + docId, and now render + archive for real (Stage 4)',
     async () => {
       const payload = withBusinessEvent(
         validInvoice(),
@@ -156,15 +158,18 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
 
       expect(json.resolutions.length).toBeGreaterThanOrEqual(1);
       for (const resolution of json.resolutions) {
-        expect(resolution.composition).toMatchObject({
-          outcome: 'no-template-content',
-          templateId: 'invoice-global-v1',
-        });
+        expect(resolution.composition).toMatchObject({ outcome: 'rendered' });
+        const archiveRef: string = resolution.composition.archiveRef;
+        expect(typeof archiveRef).toBe('string');
+
+        const archivedBytes = await deps.archiveStore.retrieve(archiveRef);
+        expect(archivedBytes.length).toBeGreaterThan(0);
+        expect(Buffer.from(archivedBytes.slice(0, 5)).toString('latin1')).toBe('%PDF-');
+        expect(countPdfPages(archivedBytes)).toBeGreaterThanOrEqual(1);
+
         const row = deps.registryStore.getByDocId(resolution.docId);
-        // No archive attempt happened — the row stays DRAFT, never a
-        // fabricated ORIGINAL for content that was never actually rendered.
-        expect(row?.state).toBe('DRAFT');
-        expect(row?.archiveRef).toBeNull();
+        expect(row?.state).toBe('ORIGINAL');
+        expect(row?.archiveRef).toBe(archiveRef);
       }
     },
     30_000,
