@@ -11,6 +11,37 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3 exit gate verified PASS (machine-checkable criteria)
+- Did: a second, independent corpus-qa gate-check (real commands, fresh
+  /tmp state) confirmed the Stage 3 exit gate: POST /event on a real
+  purchase-order -> 0.157s response with a matched rule trace; real
+  PDF/A-2b archived on disk; delivery byte-identical to the archived
+  artifact ~3s later; registry state ORIGINAL; delivery_history
+  'delivered'; all three console routes return real HTML for the docId.
+  177/177 tests, typecheck clean. Also demonstrated live in-session
+  (twice: locally and inside a fresh podman container built from a new
+  Dockerfile) with screenshots sent to the maintainer — the exit gate
+  isn't just test-asserted, it's been watched working.
+  Added GATE-S3-THESIS-CHECK to docs/HUMAN-GATES-LOG.md (corpus-qa
+  flagged this was the one human-blocking item not logged there like
+  every other one). Maintainer also asked to reduce approval-asks:
+  CLAUDE.md now pre-authorizes brew install for the established
+  GATE-*-INSTALL pattern (bounded: local dev-tool binaries only, still
+  logged, nothing scripted/sudo/other-package-managers) — everything else
+  this session (dozens of build tasks, several arb-chair rulings) already
+  ran without asking; only 4 things ever needed the maintainer's input
+  (ADR-003/004/007, the verapdf install).
+- Open: Stage 3 is not fully closed — GATE-S3-THESIS-CHECK
+  (docs/HUMAN-GATES-LOG.md, open) is the one remaining task, genuinely
+  human-only: show the demo to 5 real operators, write up
+  docs/PREMORTEM.md. Every other Stage 3 task and this exit gate's own
+  machine-checkable criteria are done.
+- Next: Stage 4 ("Second and third documents") is buildable in parallel
+  with the maintainer doing the thesis check whenever convenient — read
+  ROADMAP.md's Stage 4 section before starting. GATE-S3-THESIS-CHECK
+  doesn't block Stage 4's own tasks the way it blocks Stage 3's own
+  literal closure.
+
 ## 2026-08-28 — Stage 3: embeddable module (createOutput + outbox)
 - Did: ADR-007 accepted directly by the maintainer in chat (recommendation
   adopted as drafted). arb-chair scope ruling: no PostgresRegistryStore

@@ -131,9 +131,23 @@ to exist.
 - [ ] **[HUMAN]** Thesis check: show the two-minute demo to 5 real operators — DoD: notes in `docs/PREMORTEM.md`; feeds C2 — **cannot be completed by Claude; needs the maintainer**
 - [x] ADR-003 (rule storage) + ADR-004 (queue) closed — DoD: Status: Accepted *(2026-08-28: ADR-003 Option 1 files-first, ADR-004 Option 1 SQLite-backed embedded queue — both decided directly by the maintainer in chat)*
 
-### Exit gate — `/gate-check 3`
+### Exit gate — `/gate-check 3`  — **PASS, 2026-08-28 (machine-checkable criteria)**
 Event → rule trace → render → email → archived artifact → complete audit
 trail, demonstrated end-to-end in under two minutes on the single-process build.
+Independently verified by a corpus-qa gate-check (real commands, fresh
+`/tmp` state, not self-asserted): `POST /event` on a real purchase-order
+→ 0.157s response with a full matched rule trace; real PDF/A-2b archived
+on disk; delivery byte-identical (`cmp`) to the archived artifact,
+~3s later; registry row `state = ORIGINAL`; `delivery_history` row
+`status = delivered`; all three console routes return real HTML for the
+docId. 177/177 tests, typecheck clean.
+
+Stage 3 is **not fully closed**: the one remaining task,
+`[HUMAN] Thesis check` (docs/HUMAN-GATES-LOG.md, `GATE-S3-THESIS-CHECK`,
+open), genuinely cannot be done by Claude — it requires the maintainer to
+show the demo to 5 real operators and write up `docs/PREMORTEM.md`. Every
+other Stage 3 task and this exit gate's own machine-checkable criteria
+are done.
 
 ---
 
