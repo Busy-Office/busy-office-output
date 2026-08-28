@@ -11,6 +11,21 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: channels (email + object-store)
+- Did: EmailChannelSender (nodemailer) and ObjectStoreChannelSender
+  (@aws-sdk/client-s3) both implement the ChannelSender port, wired via a
+  ChannelRouter that dispatches on the resolution's channel string and
+  throws (never silently no-ops) on an unrecognized channel. Both
+  mock-tested only, no live SMTP/S3. Object-store delivery writes to a
+  distinct location from the archive store (structural separation only,
+  not runtime-enforced).
+- Open: single-process serve, embeddable module + outbox, minimal
+  console, [HUMAN] thesis check (permanently open).
+- Next: single-process serve — wires ingress + determination +
+  idempotency + registry + archive + delivery queue + channels into one
+  `serve` command, the last piece needed to actually run the Stage 3 exit
+  gate's end-to-end demo.
+
 ## 2026-08-28 — Stage 3: delivery queue (retry/backoff/poison)
 - Did: packages/runtime/src/delivery/ — DeliveryQueue port + SqliteDeliveryQueue
   (ADR-004, SQLite-backed embedded), migrations/0004_add_delivery_queue.sql,
