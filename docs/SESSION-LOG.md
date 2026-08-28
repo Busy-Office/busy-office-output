@@ -11,6 +11,23 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 4: retention per doc type, expiry enforcement
+- Did: per-document-type retention policy (invoice 10y, payslip 6y,
+  purchase-order 3y — non-legal defaults, documented as such). Real
+  enforcement: ArchiveStore.purge() (idempotent), enforceRetention()
+  purges bytes then marks the registry row (crash-safe ordering — never
+  claims purged bytes that still exist), row survives forever with a
+  legible purged signal (archiveRef null + purgedAt set, distinct from
+  never-archived and still-archived). Directly callable, no new
+  background loop — a future worker/cron task's job to wire.
+- Open: template-from-sample on redacted samples (blocked, no real
+  samples available), document-level authorization, bursting/second-
+  renderer (ADR-002 still Proposed), operations console page. Stage 3's
+  GATE-S3-THESIS-CHECK remains open (human-only).
+- Next: document-level authorization or the operations console page are
+  the two remaining independent Stage 4 tasks; bursting/second-renderer
+  needs ADR-002 decided first.
+
 ## 2026-08-28 — Stage 4: PDF attachment concatenation
 - Did: packages/render-typst/src/merge-pdf.ts (pdf-lib, new dependency,
   packages/schema untouched) — page-level concatenation (cover sheet +
