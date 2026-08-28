@@ -3,12 +3,16 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stages 0, 1, and 2 all closed 2026-08-27** (exit gates passed,
-see ROADMAP.md); Stage 3 not yet started. Path B (Carbone) tasks stayed
-out of scope per ADR-000 in every stage. Renderer for the purchase-order
-document type is `@busy-office/render-typst` (ADR-001, PDF/A-2b, veraPDF
-in the corpus gate). One part-time maintainer; sessions are short — leave
-everything in a resumable state.
+Status: **Stages 0, 1, and 2 closed**; **Stage 3 essentially complete
+2026-08-28** — every buildable task done (ingress, determination + TRACE,
+fan-out, idempotency, registry, archive, delivery queue, channels,
+single-process `serve`, embeddable module + outbox, minimal console; ADRs
+003/004/007 Accepted). Only `[HUMAN] Thesis check` remains, genuinely
+human-only (show the demo to 5 real operators). Path B (Carbone) tasks
+stayed out of scope per ADR-000 in every stage. Renderer for the
+purchase-order document type is `@busy-office/render-typst` (ADR-001,
+PDF/A-2b, veraPDF in the corpus gate). One part-time maintainer; sessions
+are short — leave everything in a resumable state.
 
 ## Read order at session start
 1. `ROADMAP.md` — find the current stage and its first unchecked task
@@ -72,6 +76,21 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
   before either becomes an actual CI gate.
   (pattern preserved in git history; see `docs/RESULTS.md` for the
   measurements it produced)
+- **Pre-authorized system installs**: Claude may run `brew install <tool>`
+  without asking first when — and only when — ALL of these hold: (1) the
+  tool is a local dev-machine binary this project shells out to (matches
+  the pattern above — `typst`, `verapdf`, `pdftotext`/poppler-utils, and
+  any future tool logged the same way), never a language runtime swap,
+  package-manager change, or anything touching system security/network
+  config; (2) it's already named in an open `GATE-*-INSTALL` entry in
+  `docs/HUMAN-GATES-LOG.md`, or is being added as a new one in the same
+  session (log it either way — this doesn't skip the gate-log paper
+  trail, it only skips the *ask*); (3) the install is a plain `brew
+  install`/`brew upgrade`, nothing scripted from an untrusted URL. Log the
+  install (what, when, `brew` output) in the gate entry same as before.
+  Anything outside these bounds (a different package manager, sudo, a
+  non-dev-tool, anything that could affect other software on the machine)
+  still asks first.
 
 ## Session protocol
 1. **Start:** read the three files above; state the one task you will do.
