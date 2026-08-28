@@ -11,3 +11,4 @@ export { diffPdfBytes, formatStructuralDiff } from './diff/structural-diff.js';
 export type { StructuralDiff, PageDiff, WordDiffOp, Point } from './diff/structural-diff.js';
 export { verifyPdfA, VeraPdfError } from './verify-pdfa.js';
 export type { PdfaFlavour, PdfaRuleFailure, PdfaValidationResult } from './verify-pdfa.js';
+export { mergePdfs } from './merge-pdf.js';

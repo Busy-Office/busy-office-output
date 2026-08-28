@@ -67,8 +67,15 @@ export {
   notFoundProblem,
   unknownDocumentTypeProblem,
 } from './problem.js';
-export { composeRenderArchiveAndEnqueue, defaultRetentionUntil, resumeStrandedCompositions } from './composition.js';
+export {
+  composeRenderArchiveAndEnqueue,
+  composeConcatenatedRenderArchiveAndEnqueue,
+  defaultRetentionUntil,
+  resumeStrandedCompositions,
+} from './composition.js';
 export type { CompositionDeps, CompositionOutcome, ResumeOutcome } from './composition.js';
+export { renderCoverSheet, coverSheetTemplate, coverSheetData, COVER_SHEET_DOC_TYPE } from './render/cover-sheet.js';
+export type { CoverSheetHeader } from './render/cover-sheet.js';
 export { createOutput } from './embed/create-output.js';
 export type {
   CreateOutputDeps,

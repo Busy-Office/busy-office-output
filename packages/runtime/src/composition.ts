@@ -15,12 +15,14 @@
  * here again.
  */
 import type { DataContractEnvelope, Renderer } from '@busy-office/output-schema';
+import { mergePdfs } from '@busy-office/render-typst';
 import type { RegistryStore } from './registry/registry-store.js';
 import type { ArchiveStore } from './archive/archive-store.js';
 import { archiveArtifact } from './archive/index.js';
 import type { DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Resolution } from './determination/index.js';
 import { getTemplateContent } from './render/template-content.js';
+import { renderCoverSheet } from './render/cover-sheet.js';
 
 export interface CompositionDeps {
   registryStore: RegistryStore;
@@ -90,6 +92,74 @@ export async function composeRenderArchiveAndEnqueue(
       docId,
       bytes: artifact.bytes,
       mediaType: artifact.mediaType,
+      retentionUntil,
+    });
+
+    const job = deps.deliveryQueue.enqueue({
+      docId,
+      channel: resolution.channel,
+      recipients: resolution.recipients,
+    });
+
+    return { outcome: 'rendered', archiveRef, retentionUntil, deliveryJobId: job.id };
+  } catch (err) {
+    return {
+      outcome: 'render-failed',
+      templateId: resolution.templateId,
+      error: err instanceof Error ? err.message : String(err),
+    };
+  }
+}
+
+/**
+ * Render + PAGE-MERGE + archive + enqueue for one resolution (ROADMAP
+ * Stage 4, "PDF attachment concatenation" — DoD: "merged artifact archived
+ * as one document, page counts asserted"). A separate, opt-in entry point
+ * next to `composeRenderArchiveAndEnqueue`, not a change to its default
+ * behavior: concatenation is not wired as every document's default
+ * path — it is document-type/business-decision-specific which resolved
+ * templates should ship with a cover sheet and/or appended T&Cs, and no
+ * such per-template signal exists yet (that's a future, narrower task —
+ * see this task's report). This function proves the mechanism end-to-end
+ * for a caller that opts in: cover sheet (render/cover-sheet.ts) + the
+ * main rendered document + a terms-and-conditions PDF (caller-supplied
+ * bytes — see test/fixtures/terms-and-conditions.pdf for the fixture used
+ * in this task's own test) are merged page-for-page (render-typst's
+ * `mergePdfs`, which also re-attaches PDF/A-2b `/OutputIntents` +
+ * `/Metadata` so the merge stays compliant) into ONE PDF, archived as ONE
+ * registry row/artifact — never three.
+ *
+ * Same "never throws" contract as `composeRenderArchiveAndEnqueue`: any
+ * failure (no template content, render, merge, or archive) comes back as
+ * a `CompositionOutcome`, not a thrown error.
+ */
+export async function composeConcatenatedRenderArchiveAndEnqueue(
+  deps: CompositionDeps,
+  docId: string,
+  resolution: Resolution,
+  data: DataContractEnvelope,
+  termsAndConditionsBytes: Uint8Array,
+): Promise<CompositionOutcome> {
+  const docNode = getTemplateContent(resolution.templateId);
+  if (docNode === undefined) {
+    return { outcome: 'no-template-content', templateId: resolution.templateId };
+  }
+
+  try {
+    const [coverBytes, mainArtifact] = await Promise.all([
+      renderCoverSheet(deps.renderer, docId),
+      deps.renderer.render({ kind: 'ir', ir: { irVersion: '1', root: docNode, data } }),
+    ]);
+
+    const mergedBytes = await mergePdfs([coverBytes, mainArtifact.bytes, termsAndConditionsBytes]);
+
+    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)();
+    const archiveRef = await archiveArtifact({
+      archiveStore: deps.archiveStore,
+      registryStore: deps.registryStore,
+      docId,
+      bytes: mergedBytes,
+      mediaType: mainArtifact.mediaType,
       retentionUntil,
     });
 
