@@ -11,6 +11,27 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 4: PDF attachment concatenation
+- Did: packages/render-typst/src/merge-pdf.ts (pdf-lib, new dependency,
+  packages/schema untouched) — page-level concatenation (cover sheet +
+  rendered document + T&C fixture), not ISO 19005-3 embedded-file
+  attachment (deliberately deferred, Tier 3). Re-attaches PDF/A-2b
+  OutputIntents/Metadata/trailer ID that pdf-lib's bare PDFDocument.create
+  loses, verified against real verapdf not assumed.
+  composeConcatenatedRenderArchiveAndEnqueue() added standalone,
+  deliberately not wired into any document type's default render path —
+  no per-template/per-rule trigger exists yet to decide when
+  concatenation should apply automatically.
+- Open: template-from-sample on redacted samples, document-level
+  authorization, retention per doc type, bursting/second-renderer
+  (ADR-002 still Proposed), operations console page. Stage 3's
+  GATE-S3-THESIS-CHECK remains open (human-only).
+- Next: wiring concatenation into a real document type's default flow
+  (e.g. always-on for invoices, or a template-level flag) is a natural
+  follow-up whenever a real trigger is decided — not blocking anything
+  else. Document-level authorization or retention-per-doc-type are also
+  independent next tasks.
+
 ## 2026-08-28 — Stage 4: payslip compact template + PII posture
 - Did: payslip gets real render content (payslip-global-v1 DocNode,
   compact: identity block + earnings/deductions table + totals) — third
