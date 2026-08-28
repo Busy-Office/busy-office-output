@@ -7,7 +7,7 @@
  * client is injectable specifically so retentionUntil validation, key
  * construction, and error handling can be proven without one.
  */
-import { GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { describe, expect, it, vi } from 'vitest';
 import { S3ArchiveStore } from './s3-archive-store.js';
 import type { S3ClientLike } from './s3-archive-store.js';
@@ -48,6 +48,14 @@ function fakeS3Client() {
             transformToByteArray: async () => found.body,
           },
         };
+      }
+      if (command instanceof DeleteObjectCommand) {
+        const input = command.input;
+        // Real S3 DeleteObject is itself idempotent — deleting an
+        // already-absent key is not an error — so the fake mirrors that:
+        // it never throws here, whether or not the key was present.
+        objects.delete(`${input.Bucket}/${input.Key}`);
+        return {};
       }
       throw new Error(`fakeS3Client: unexpected command ${(command as { constructor: { name: string } }).constructor.name}`);
     }) as unknown as S3ClientLike['send'],
@@ -123,5 +131,28 @@ describe('S3ArchiveStore', () => {
       store.archive({ bytes: new Uint8Array(0), mediaType: 'application/pdf', retentionUntil: '2030-01-01T00:00:00Z' }),
     ).rejects.toThrow(TypeError);
     expect(client.send).not.toHaveBeenCalled();
+  });
+
+  it('purge() deletes the object; retrieve() afterward rejects (ROADMAP Stage 4)', async () => {
+    const { client } = fakeS3Client();
+    const store = new S3ArchiveStore({ bucket: 'artifacts', client });
+    const bytes = new TextEncoder().encode('fake pdf bytes to purge');
+
+    const ref = await store.archive({ bytes, mediaType: 'application/pdf', retentionUntil: '2030-01-01T00:00:00Z' });
+    await expect(store.retrieve(ref)).resolves.toBeInstanceOf(Uint8Array);
+
+    await store.purge(ref);
+
+    await expect(store.retrieve(ref)).rejects.toThrow('NoSuchKey');
+  });
+
+  it('purge() is idempotent: purging an already-purged object does not throw', async () => {
+    const { client } = fakeS3Client();
+    const store = new S3ArchiveStore({ bucket: 'artifacts', client });
+    const bytes = new TextEncoder().encode('fake pdf bytes');
+
+    const ref = await store.archive({ bytes, mediaType: 'application/pdf', retentionUntil: '2030-01-01T00:00:00Z' });
+    await store.purge(ref);
+    await expect(store.purge(ref)).resolves.toBeUndefined();
   });
 });

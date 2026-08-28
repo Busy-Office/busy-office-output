@@ -59,6 +59,7 @@ interface DocumentRow {
   output_hash: string | null;
   archive_ref: string | null;
   retention_until: string | null;
+  purged_at: string | null;
   rule_id: string;
   document_type: string;
   state: string;
@@ -261,6 +262,28 @@ export class SqliteRegistryStore implements RegistryStore {
     }
   }
 
+  listArchivedExpiring(now: string): DocumentRegistryRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM document_registry
+         WHERE archive_ref IS NOT NULL AND purged_at IS NULL
+           AND retention_until IS NOT NULL AND retention_until <= ?
+         ORDER BY retention_until ASC`,
+      )
+      .all(now) as unknown as DocumentRow[];
+    return rows.map((row) => this.toRow(row));
+  }
+
+  markPurged(docId: string, purgedAt: string): void {
+    const now = new Date().toISOString();
+    const result = this.db
+      .prepare('UPDATE document_registry SET archive_ref = NULL, purged_at = ?, updated_at = ? WHERE doc_id = ?')
+      .run(purgedAt, now, docId);
+    if (result.changes === 0) {
+      throw new Error(`Cannot mark purged: no registry row for docId ${docId}.`);
+    }
+  }
+
   appendDeliveryEvent(docId: string, event: DeliveryHistoryEvent): void {
     const doc = this.selectByDocId(docId);
     if (doc === undefined) {
@@ -354,6 +377,7 @@ export class SqliteRegistryStore implements RegistryStore {
       outputHash: doc.output_hash,
       archiveRef: doc.archive_ref,
       retentionUntil: doc.retention_until,
+      purgedAt: doc.purged_at,
       ruleId: doc.rule_id,
       documentType: doc.document_type,
       state: doc.state as DocumentState,

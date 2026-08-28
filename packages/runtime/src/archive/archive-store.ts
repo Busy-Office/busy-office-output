@@ -15,12 +15,16 @@
  * upstream cast, a test) still fails loudly instead of silently archiving
  * an artifact nothing will ever purge.
  *
- * Explicitly NOT here: retention *enforcement* (actually purging expired
- * artifacts) — that is ROADMAP Stage 4's "Retention per doc type enforced
- * end-to-end". This task only guarantees the value is captured and
- * rejects its absence; a later task reads it back and acts on it.
- * Also NOT here: delivery, channels, rule determination — separate,
- * later Stage 3 tasks.
+ * `purge` (added for ROADMAP Stage 4's "Retention per doc type enforced
+ * end-to-end") is the enforcement half: it deletes the bytes an
+ * `archiveRef` points to, for a caller (`archive/retention-enforcement.ts`)
+ * that has already decided — by reading `retentionUntil` back off the
+ * registry row, never off this port — that they are past their retention
+ * deadline. This port stays a dumb bytes-store: it does not read clocks,
+ * does not decide who is expired, and does not touch the registry; all of
+ * that judgment lives in `retention-enforcement.ts`.
+ * NOT here: delivery, channels, rule determination — separate, later
+ * Stage 3 tasks.
  *
  * No payloads in logs (CLAUDE.md golden rule: payslips = PII) — nothing in
  * this file or its implementations logs artifact bytes; only refs/hashes
@@ -89,4 +93,14 @@ export interface ArchiveStore {
   /** Fetch back the bytes previously archived under `archiveRef`. Rejects
    * if `archiveRef` does not resolve to anything this store archived. */
   retrieve(archiveRef: string): Promise<Uint8Array>;
+
+  /**
+   * Permanently delete the bytes previously archived under `archiveRef`
+   * (ROADMAP Stage 4 retention enforcement). Idempotent: purging an
+   * `archiveRef` that no longer exists (already purged, or never existed)
+   * must NOT reject — a caller retrying a partially-completed purge run
+   * must be able to call this again safely. Does not touch any registry
+   * row; the caller is responsible for recording that the purge happened.
+   */
+  purge(archiveRef: string): Promise<void>;
 }

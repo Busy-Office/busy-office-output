@@ -19,6 +19,7 @@ import { mergePdfs } from '@busy-office/render-typst';
 import type { RegistryStore } from './registry/registry-store.js';
 import type { ArchiveStore } from './archive/archive-store.js';
 import { archiveArtifact } from './archive/index.js';
+import { retentionUntilFor } from './archive/retention-policy.js';
 import type { DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Resolution } from './determination/index.js';
 import { getTemplateContent } from './render/template-content.js';
@@ -30,10 +31,11 @@ export interface CompositionDeps {
   deliveryQueue: DeliveryQueue;
   renderer: Renderer;
   /** Returns an RFC 3339 timestamp for a freshly-archived artifact's
-   * mandatory retentionUntil. Defaults to `defaultRetentionUntil` below.
-   * Injectable so tests can assert an exact value without depending on
-   * wall-clock time. */
-  retentionUntil?: () => string;
+   * mandatory retentionUntil, given the resolved `documentType`. Defaults
+   * to `retentionUntilFor` (archive/retention-policy.ts) — the
+   * per-document-type policy. Injectable so tests can assert an exact
+   * value without depending on wall-clock time or the real policy table. */
+  retentionUntil?: (documentType: string) => string;
 }
 
 export type CompositionOutcome =
@@ -42,22 +44,16 @@ export type CompositionOutcome =
   | { outcome: 'render-failed'; templateId: string; error: string };
 
 /**
- * Retention-until stand-in (ROADMAP Stage 3 scope boundary: "a fixed
- * default retentionUntil for this task's rendered artifacts is enough" —
- * per-doc-type retention *policy* is explicitly ROADMAP Stage 4's "Retention
- * per doc type enforced end-to-end", not built here). Ten years from archive
- * time: long enough to be a plausible stand-in for every document type this
- * task can actually render content for (purchase orders only, per the
- * arb-chair ruling), short enough not to read as a real regulatory
- * decision. This is a reasonable placeholder, not a policy call — replace
- * per-document-type once Stage 4 lands.
+ * Retention-until, per document type (ROADMAP Stage 4, "Retention per doc
+ * type enforced end-to-end"). This used to be a single fixed 10-year
+ * stand-in (ROADMAP Stage 3 scope boundary) applied to every document
+ * type alike; it now defers to `retentionUntilFor`
+ * (archive/retention-policy.ts), which genuinely varies by
+ * `documentType` — see that module for the periods chosen and why they
+ * are not a real legal/regulatory decision.
  */
-const DEFAULT_RETENTION_YEARS = 10;
-
-export function defaultRetentionUntil(): string {
-  const d = new Date();
-  d.setUTCFullYear(d.getUTCFullYear() + DEFAULT_RETENTION_YEARS);
-  return d.toISOString();
+export function defaultRetentionUntil(documentType: string): string {
+  return retentionUntilFor(documentType);
 }
 
 /**
@@ -85,7 +81,7 @@ export async function composeRenderArchiveAndEnqueue(
       ir: { irVersion: '1', root: docNode, data },
     });
 
-    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)();
+    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)(data.documentType);
     const archiveRef = await archiveArtifact({
       archiveStore: deps.archiveStore,
       registryStore: deps.registryStore,
@@ -153,7 +149,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
 
     const mergedBytes = await mergePdfs([coverBytes, mainArtifact.bytes, termsAndConditionsBytes]);
 
-    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)();
+    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)(data.documentType);
     const archiveRef = await archiveArtifact({
       archiveStore: deps.archiveStore,
       registryStore: deps.registryStore,

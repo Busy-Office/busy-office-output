@@ -23,7 +23,7 @@
  * FS backend's bare relative-path convention.
  */
 import { randomUUID } from 'node:crypto';
-import { GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import type { GetObjectCommandOutput } from '@aws-sdk/client-s3';
 import { assertValidRetentionUntil } from './archive-store.js';
 import type { ArchiveInput, ArchiveStore } from './archive-store.js';
@@ -112,6 +112,15 @@ export class S3ArchiveStore implements ArchiveStore {
     // machinery.
     const body = result.Body as { transformToByteArray: () => Promise<Uint8Array> };
     return await body.transformToByteArray();
+  }
+
+  /** Deletes the object `archiveRef` points to. S3's `DeleteObject` is
+   * itself idempotent — deleting an already-absent key is not an error —
+   * so this needs no extra existence check to satisfy `ArchiveStore.purge`'s
+   * idempotency contract. */
+  async purge(archiveRef: string): Promise<void> {
+    const key = this.parseKey(archiveRef);
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 
   private parseKey(archiveRef: string): string {

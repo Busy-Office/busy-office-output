@@ -28,7 +28,7 @@
  * insurance, not the source of truth.)
  */
 import { randomUUID } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { assertValidRetentionUntil } from './archive-store.js';
 import type { ArchiveInput, ArchiveStore } from './archive-store.js';
@@ -69,5 +69,24 @@ export class FsArchiveStore implements ArchiveStore {
     const fullPath = join(this.rootDir, archiveRef);
     const buf = await readFile(fullPath);
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
+  }
+
+  /** Deletes the bytes file and its `.meta.json` sidecar. Idempotent —
+   * ENOENT on either is swallowed, since "already gone" is exactly the
+   * post-condition a purge is trying to reach. */
+  async purge(archiveRef: string): Promise<void> {
+    const fullPath = join(this.rootDir, archiveRef);
+    const metaPath = `${fullPath}.meta.json`;
+    await Promise.all([this.unlinkIfExists(fullPath), this.unlinkIfExists(metaPath)]);
+  }
+
+  private async unlinkIfExists(path: string): Promise<void> {
+    try {
+      await unlink(path);
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code !== 'ENOENT') {
+        throw err;
+      }
+    }
   }
 }

@@ -24,8 +24,24 @@ export type {
   GetOrCreateResult,
   OutboxEntry,
 } from './registry/index.js';
-export { FsArchiveStore, S3ArchiveStore, assertValidRetentionUntil, archiveArtifact } from './archive/index.js';
-export type { ArchiveStore, ArchiveInput, S3ArchiveStoreOptions, S3ClientLike, ArchiveArtifactInput } from './archive/index.js';
+export {
+  FsArchiveStore,
+  S3ArchiveStore,
+  assertValidRetentionUntil,
+  archiveArtifact,
+  retentionUntilFor,
+  retentionYearsFor,
+  enforceRetention,
+} from './archive/index.js';
+export type {
+  ArchiveStore,
+  ArchiveInput,
+  S3ArchiveStoreOptions,
+  S3ClientLike,
+  ArchiveArtifactInput,
+  RetentionEnforcementDeps,
+  RetentionPurgeResult,
+} from './archive/index.js';
 export {
   DEFAULT_BACKOFF_POLICY,
   computeBackoffMs,

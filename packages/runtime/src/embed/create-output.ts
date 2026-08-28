@@ -58,9 +58,10 @@ export interface CreateOutputDeps {
   deliveryQueue: DeliveryQueue;
   renderer: Renderer;
   /** Returns an RFC 3339 timestamp for a freshly-archived artifact's
-   * mandatory retentionUntil. Passed straight through to
-   * `composeRenderArchiveAndEnqueue` — see composition.ts for the default. */
-  retentionUntil?: () => string;
+   * mandatory retentionUntil, given the resolved `documentType`. Passed
+   * straight through to `composeRenderArchiveAndEnqueue` — see
+   * composition.ts for the per-document-type default. */
+  retentionUntil?: (documentType: string) => string;
   /** Override the files-first rule/template sources (ADR-003 default:
    * `loadOutputRules()` / `loadTemplateCandidates()`, the same
    * `packages/runtime/rules/*` files `server.ts` reads). Mainly for tests

@@ -1,0 +1,26 @@
+-- Retention enforcement's audit signal (ROADMAP Stage 4, "Retention per
+-- doc type enforced end-to-end" — DoD: "expiry test purges artifact,
+-- registry row survives"). The registry row is CLAUDE.md's "one row per
+-- artifact, forever" audit trail; a purge must never delete or blank out
+-- the row itself, only prove — from the row alone — that the artifact
+-- existed, was archived, and was purged on schedule.
+--
+-- purged_at: RFC 3339 timestamp, set the moment retention-enforcement.ts
+-- deletes the archived bytes; NULL for every row that has never been
+-- purged (including rows never archived at all). Deliberately a separate
+-- column rather than overloading `state` (HLD §3's DocumentState enum —
+-- ORIGINAL/COPY/DUPLICATE/REPRINT/CANCELLED/DRAFT — is a fixed,
+-- HLD-documented set; a purge is an orthogonal fact about the artifact's
+-- bytes, not a new lifecycle state, so a row's `state` is left exactly as
+-- it was, e.g. still ORIGINAL, after purge) and rather than deleting
+-- `archive_ref` with no explanation (deleting it alone would look
+-- indistinguishable from a row that was simply never archived).
+--
+-- `archive_ref` IS still cleared to NULL at purge time (in application
+-- code, alongside setting purged_at) since it would otherwise point at
+-- bytes that no longer exist — a caller calling `retrieve()` on a stale
+-- ref should get "there is no archiveRef" from the row, not a live
+-- pointer to nothing. `retention_until` is left untouched: it is the
+-- historical record of what the deadline WAS, still meaningful after
+-- purge.
+ALTER TABLE document_registry ADD COLUMN purged_at TEXT;

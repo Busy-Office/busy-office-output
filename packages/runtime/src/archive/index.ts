@@ -19,6 +19,9 @@ export { assertValidRetentionUntil } from './archive-store.js';
 export { FsArchiveStore } from './fs-archive-store.js';
 export { S3ArchiveStore } from './s3-archive-store.js';
 export type { S3ArchiveStoreOptions, S3ClientLike } from './s3-archive-store.js';
+export { retentionUntilFor, retentionYearsFor } from './retention-policy.js';
+export { enforceRetention } from './retention-enforcement.js';
+export type { RetentionEnforcementDeps, RetentionPurgeResult } from './retention-enforcement.js';
 
 export interface ArchiveArtifactInput {
   archiveStore: ArchiveStore;

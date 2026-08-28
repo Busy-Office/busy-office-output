@@ -98,8 +98,17 @@ export interface DocumentRegistryRow {
   /** Pointer into the archive store (src/archive/). Null until archived. */
   archiveRef: string | null;
   /** RFC 3339 timestamp: mandatory once archived, null until then. See
-   * migrations/0002_add_retention_until.sql. */
+   * migrations/0002_add_retention_until.sql. Left untouched by a purge —
+   * it stays the historical deadline that was in force, even after the
+   * bytes are gone. */
   retentionUntil: string | null;
+  /** RFC 3339 timestamp the archived bytes were purged at (ROADMAP Stage 4
+   * retention enforcement), or null if this artifact has never been
+   * purged — including rows never archived at all. See
+   * migrations/0008_add_purged_at.sql and `markPurged` below for why this
+   * is a separate column rather than a new `state` value or a silently
+   * blanked `archiveRef`. */
+  purgedAt: string | null;
   /**
    * The firing `OutputRule.id` that produced this resolution (see
    * `ResolutionEventKey` above). `''` for rows minted via the plain
@@ -243,6 +252,26 @@ export interface RegistryStore {
    * even written).
    */
   updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void;
+
+  /**
+   * Every archived row (`archiveRef` set, not yet purged) whose
+   * `retentionUntil` is at or before `now` (ROADMAP Stage 4, "Retention
+   * per doc type enforced end-to-end") — the read side
+   * `retention-enforcement.ts`'s `enforceRetention` scans to decide what
+   * to purge. `now`: RFC 3339 timestamp, so callers can drive this
+   * deterministically in tests without depending on wall-clock time.
+   */
+  listArchivedExpiring(now: string): DocumentRegistryRow[];
+
+  /**
+   * Record that `docId`'s archived bytes were purged at `purgedAt`
+   * (ROADMAP Stage 4 retention enforcement): clears `archiveRef` to null
+   * (the bytes it pointed to no longer exist) and sets `purgedAt` — never
+   * deletes the row, never touches `state` or `retentionUntil` (see
+   * migrations/0008_add_purged_at.sql for the full reasoning). Throws if
+   * `docId` does not exist.
+   */
+  markPurged(docId: string, purgedAt: string): void;
 
   /**
    * Every registry row, most-recent-created first (ROADMAP Stage 3

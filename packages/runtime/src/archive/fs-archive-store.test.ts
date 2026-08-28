@@ -83,4 +83,42 @@ describe('FsArchiveStore', () => {
     const store = new FsArchiveStore(tempRootDir());
     await expect(store.retrieve('ab/never-existed')).rejects.toThrow();
   });
+
+  it('purge() deletes the bytes and its sidecar; retrieve() afterward rejects (ROADMAP Stage 4)', async () => {
+    const root = tempRootDir();
+    const store = new FsArchiveStore(root);
+    const bytes = new TextEncoder().encode('%PDF-1.7 fake artifact bytes to purge');
+
+    const archiveRef = await store.archive({
+      bytes,
+      mediaType: 'application/pdf',
+      retentionUntil: '2030-01-01T00:00:00Z',
+    });
+    await expect(store.retrieve(archiveRef)).resolves.toBeInstanceOf(Uint8Array);
+
+    await store.purge(archiveRef);
+
+    await expect(store.retrieve(archiveRef)).rejects.toThrow();
+
+    // No leftover sidecar or bytes file anywhere under root.
+    const shardDir = join(root, archiveRef.split('/')[0]);
+    const remaining = existsSync(shardDir) ? await readdir(shardDir) : [];
+    expect(remaining).toEqual([]);
+  });
+
+  it('purge() is idempotent: purging an already-purged (or never-existed) archiveRef does not throw', async () => {
+    const root = tempRootDir();
+    const store = new FsArchiveStore(root);
+    const bytes = new TextEncoder().encode('%PDF-1.7 fake artifact bytes');
+
+    const archiveRef = await store.archive({
+      bytes,
+      mediaType: 'application/pdf',
+      retentionUntil: '2030-01-01T00:00:00Z',
+    });
+
+    await store.purge(archiveRef);
+    await expect(store.purge(archiveRef)).resolves.toBeUndefined();
+    await expect(store.purge('ab/never-existed-either')).resolves.toBeUndefined();
+  });
 });
