@@ -10,13 +10,22 @@
  * `invoiceTemplate`). Do not "improve" or re-derive either tree here — they
  * are proven content; their corpora already gate them.
  *
- * This is explicitly NOT a general template-content registry/loader.
- * Payslip (`payslip-global-v1`) resolves fine through determination (its
- * TemplateMeta row exists in packages/runtime/rules/templates/) but has NO
- * entry here on purpose — `composition.ts`'s
- * `composeRenderArchiveAndEnqueue` treats a missing lookup as an honest,
- * non-crashing `'no-template-content'` outcome, never a 500 and never
- * invented content.
+ * ROADMAP Stage 4 "Payslip: compact template + PII posture" added the
+ * third entry: the `DocNode` tree for `TemplateMeta.id "payslip-global-v1"`
+ * (packages/runtime/rules/templates/payslip-global.json), reused VERBATIM
+ * from `test/corpus/payslip/template.ts`. "Compact" here means: header
+ * identity block, one earnings/deductions line table, a totals block —
+ * no per-document-type node kinds beyond the frozen nine, same as PO/
+ * invoice. The PII posture is enforced everywhere else in the pipeline
+ * (determination, composition, delivery, archive — CLAUDE.md, docs/POLICY.md);
+ * this file only ever holds template STRUCTURE (field paths as expressions,
+ * never literal data), so it carries no PII exposure of its own.
+ *
+ * This is explicitly NOT a general template-content registry/loader. Any
+ * future documentType with a TemplateMeta row but no entry here resolves
+ * fine through determination but composes to an honest, non-crashing
+ * `'no-template-content'` outcome (`composition.ts`'s
+ * `composeRenderArchiveAndEnqueue`) — never a 500 and never invented content.
  */
 import type { DocNode } from '@busy-office/output-schema';
 
@@ -135,9 +144,67 @@ const purchaseOrderTemplate: DocNode = {
   ],
 };
 
+const payslipTemplate: DocNode = {
+  kind: 'document',
+  page: { size: 'A4', margin: [40, 40, 40, 40] },
+  children: [
+    {
+      kind: 'header',
+      children: [
+        { kind: 'text', value: 'header.payslipNumber', style: 'title' },
+        {
+          kind: 'fieldGrid',
+          columns: 2,
+          fields: [
+            { label: 'Pay period start', value: 'header.payPeriodStart' },
+            { label: 'Pay period end', value: 'header.payPeriodEnd' },
+            { label: 'Pay date', value: 'header.payDate' },
+            { label: 'Currency', value: 'header.currency' },
+            { label: 'Employer', value: 'header.employer.name' },
+            { label: 'Employee', value: 'header.employeeName' },
+            { label: 'Employee ID', value: 'header.employeeId' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'section',
+      children: [
+        {
+          kind: 'table',
+          bind: 'lines',
+          repeatHeader: true,
+          carryForward: 'amount.amount',
+          columns: [
+            { key: 'lineNumber', width: 'flex', align: 'r', label: '#' },
+            { key: 'code', width: 'flex', align: 'l', label: 'Code' },
+            { key: 'description', width: 'flex', align: 'l', label: 'Description' },
+            { key: 'type', width: 'flex', align: 'c', label: 'Type' },
+            { key: 'amount.amount', width: 'flex', align: 'r', label: 'Amount' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'totals',
+      keepTogether: true,
+      rows: [
+        { label: 'Gross pay', value: 'totals.grossPay.amount' },
+        { label: 'Total deductions', value: 'totals.totalDeductions.amount' },
+        { label: 'Net pay', value: 'totals.netPay.amount' },
+      ],
+    },
+    {
+      kind: 'footer',
+      children: [{ kind: 'pageNumber', format: 'Page {page} of {pages}' }],
+    },
+  ],
+};
+
 const TEMPLATE_CONTENT: Readonly<Record<string, DocNode>> = {
   'po-global-v1': purchaseOrderTemplate,
   'invoice-global-v1': invoiceTemplate,
+  'payslip-global-v1': payslipTemplate,
 };
 
 /** Returns the hardcoded `DocNode` tree for `templateId`, or `undefined` if
