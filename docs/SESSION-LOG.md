@@ -11,6 +11,21 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: delivery queue (retry/backoff/poison)
+- Did: packages/runtime/src/delivery/ — DeliveryQueue port + SqliteDeliveryQueue
+  (ADR-004, SQLite-backed embedded), migrations/0004_add_delivery_queue.sql,
+  exponential backoff capped (default 5 attempts). Core guarantee proven
+  directly by test: kill the channel via a fake ChannelSender, drive to
+  poison, confirm delivery_history has one row per attempt and
+  ArchiveStore.retrieve returns byte-identical bytes before/after every
+  attempt — delivery failure never re-renders, never re-archives. Real
+  channels are the next task; this task's sender is fake/injectable only.
+- Open: channels (email + object-store), single-process serve, embeddable
+  module + outbox, minimal console, [HUMAN] thesis check (permanently
+  open — needs the maintainer).
+- Next: channels is the natural next task — it gives DeliveryQueue a real
+  ChannelSender implementation instead of the test fake.
+
 ## 2026-08-28 — Stage 3: fan-out (one event → N resolutions)
 - Did: determine() now returns resolutions: Resolution[] (>=1). Rule
   co-firing is opt-in (OutputRule.fanOut, default false) — non-fan-out
