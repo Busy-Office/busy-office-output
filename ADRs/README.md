@@ -9,7 +9,7 @@
 | 004 | Queue backend (embedded vs external) | **Accepted** — Option 1 (SQLite-backed embedded, adapter reserved) | end of Stage 3 |
 | 005 | AI-native template lifecycle | Proposed — skill tasks proceed | Stage 7 entry |
 | 006 | Standards-first output (tiered) | **Accepted** — maintainer directive | — |
-| 007 | Packaging and embedding (T1/T2/T3, outbox) | Proposed — recommendation drafted | Stage 3 start |
+| 007 | Packaging and embedding (T1/T2/T3, outbox) | **Accepted** — recommendation adopted as drafted | end of Stage 3 |
 | 008 | Licence and business model (Sidekiq line) | Proposed — human decides | before public release |
 
 A stage does not close with its ADRs open.

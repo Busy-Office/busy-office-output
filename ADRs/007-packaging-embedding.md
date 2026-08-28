@@ -1,6 +1,8 @@
 # ADR-007 — Packaging and embedding model
 
-**Status:** Proposed — recommendation drafted; closes when Stage 3 begins.
+**Status:** Accepted 2026-08-28 — recommendation adopted as drafted, decided
+directly by the maintainer in chat, no new evidence against the original
+recommendation.
 
 ## Context
 Busy Office Output will be consumed standalone and inside busy-office-erp.
