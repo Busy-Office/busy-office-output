@@ -16,11 +16,20 @@
  *   - updateArchiveRef: record where the archived bytes live and the
  *     mandatory retentionUntil deadline for them (added for the Archive
  *     store task — see src/archive/archive-store.ts).
+ * Extended for ROADMAP Stage 3 "Minimal console, read-only"
+ * (migrations/0006_add_document_type.sql, 0007_add_trace_log.sql):
+ *   - every mint method (getOrCreateByEventKey / getOrCreateByResolutionKey
+ *     / mintWithOutbox) takes an optional `documentType`, persisted on the
+ *     row for the Registry screen's payslip-lock gating.
+ *   - appendTraceLog / getTraceLog: a minimal, separate append-only log of
+ *     persisted DeterminationTrace rows, for the Rule trace screen.
+ *   - listDocuments: the Registry screen's read model — most-recent-first,
+ *     with server-side search + limit/offset (no other pagination chrome
+ *     per docs/UI-DESIGN.md).
  * Explicitly NOT here: archiving bytes (that's ArchiveStore's job — this
  * port only records the resulting pointer), retention *enforcement*
- * (Stage 4), actually delivering anything, rule TRACE, fan-out — those are
- * separate, later ROADMAP tasks and must not be speculatively added to
- * this port.
+ * (Stage 4), actually delivering anything — those are separate, later
+ * ROADMAP tasks and must not be speculatively added to this port.
  *
  * Backend-agnostic on purpose: this interface has no SQLite (or Postgres)
  * in its signatures. `SqliteRegistryStore` (sqlite-registry-store.ts) is the
@@ -29,6 +38,7 @@
  * anyway"). Nothing here should make that later implementation awkward.
  */
 import type { BusinessEventKey } from '@busy-office/output-schema';
+import type { DeterminationTrace } from '../determination/trace.js';
 
 /**
  * The idempotency key for ONE resolution (ROADMAP Stage 3 "Fan-out: one
@@ -98,10 +108,35 @@ export interface DocumentRegistryRow {
    * so it composes cleanly with the unique index's NOT NULL column.
    */
   ruleId: string;
+  /**
+   * The documentType this artifact was determined for (e.g.
+   * "purchase-order", "payslip"). `''` for rows minted before
+   * migrations/0006_add_document_type.sql, or via any caller that omits
+   * the optional `documentType` argument to a mint method — never `null`,
+   * same NOT-NULL-DEFAULT-'' reasoning as `ruleId` above. The Registry
+   * console screen gates its payslip lock glyph strictly on
+   * `documentType === 'payslip'`.
+   */
+  documentType: string;
   state: DocumentState;
   createdAt: string;
   updatedAt: string;
   deliveryHistory: DeliveryHistoryEvent[];
+}
+
+/** `RegistryStore.listDocuments`'s query shape — the Registry console
+ * screen's one search box plus its "load more" link, nothing else
+ * (docs/UI-DESIGN.md: no sortable columns/filter dropdowns beside the one
+ * search box, no pagination widget beyond an optional simple "load more"
+ * link). */
+export interface ListDocumentsQuery {
+  /** Case-insensitive substring match over docId / businessObjectId /
+   * event / templateVersion. Empty or omitted: no filter. */
+  search?: string;
+  /** Max rows to return. Defaults to a store-chosen page size. */
+  limit?: number;
+  /** Rows to skip, most-recent-first — what "load more" advances. */
+  offset?: number;
 }
 
 export interface GetOrCreateResult {
@@ -130,8 +165,12 @@ export interface RegistryStore {
    * docId and inserts a DRAFT row, returning { created: true }. Any later
    * call with an equal four-tuple returns the SAME row, unchanged, with
    * { created: false } — no new work, no new row.
+   *
+   * `documentType` (optional, default `''`) is persisted on a newly minted
+   * row only — ignored on replay, since the row (and its documentType)
+   * already exists. See `DocumentRegistryRow.documentType`.
    */
-  getOrCreateByEventKey(key: BusinessEventKey): GetOrCreateResult;
+  getOrCreateByEventKey(key: BusinessEventKey, documentType?: string): GetOrCreateResult;
 
   /**
    * The fan-out-aware idempotency lookup (see `ResolutionEventKey` above):
@@ -141,8 +180,10 @@ export interface RegistryStore {
    * this method called with `ruleId: ''` — the two share one
    * implementation and one unique index, so a plain four-tuple lookup and
    * a ruleId-disambiguated lookup can never disagree about identity.
+   *
+   * `documentType` (optional, default `''`): see `getOrCreateByEventKey`.
    */
-  getOrCreateByResolutionKey(key: ResolutionEventKey): GetOrCreateResult;
+  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string): GetOrCreateResult;
 
   /**
    * The transactional-outbox-aware mint (ROADMAP Stage 3 "Embeddable
@@ -157,7 +198,7 @@ export interface RegistryStore {
    * composition work is still pending (stranded by a crash) and needs
    * redriving before treating this as a pure replay.
    */
-  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown): GetOrCreateResult;
+  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown, documentType?: string): GetOrCreateResult;
 
   /** The pending outbox entry for `docId`, or undefined if none exists
    * (composition already completed for it, or it was never minted via
@@ -202,6 +243,25 @@ export interface RegistryStore {
    * even written).
    */
   updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void;
+
+  /**
+   * Every registry row, most-recent-created first (ROADMAP Stage 3
+   * "Minimal console, read-only" — Registry screen's read model). See
+   * `ListDocumentsQuery` for the search/limit/offset shape.
+   */
+  listDocuments(query?: ListDocumentsQuery): DocumentRegistryRow[];
+
+  /**
+   * Append one persisted `DeterminationTrace` row (migrations/
+   * 0007_add_trace_log.sql — Rule trace console screen's read model). `id`
+   * is a docId for a matched determination, or a generated id otherwise —
+   * see the migration's own comment for the full id convention and the
+   * duplicate-id-is-a-no-op judgment call.
+   */
+  appendTraceLog(id: string, trace: DeterminationTrace): void;
+
+  /** Fetch a persisted trace by its id (see `appendTraceLog`). Undefined if none exists. */
+  getTraceLog(id: string): DeterminationTrace | undefined;
 
   /** Release the underlying connection/handle. Safe to call once, at shutdown. */
   close(): void;

@@ -1,0 +1,20 @@
+-- Persist the resolved documentType on the registry row (ROADMAP Stage 3,
+-- "Minimal console, read-only": the Registry screen (GET /output/documents)
+-- must gate its payslip lock glyph strictly on `documentType === 'payslip'`
+-- — docs/UI-DESIGN.md's "payslip rows carry their ACL visibly (lock)" —
+-- and no existing registry column carries documentType at all.
+--
+-- Determination already computes documentType before every mint call
+-- (server.ts's handleEvent builds `determinationContext.documentType` from
+-- the validated contract payload, ahead of the idempotency/mint step) —
+-- this column just persists what was already known at mint time, not a
+-- new capability.
+--
+-- NOT NULL DEFAULT '': same reasoning as migrations/0003's rule_id column
+-- — existing rows (minted before this migration, or by any caller that
+-- omits the new optional documentType argument) get a real, stable value
+-- rather than NULL. document_type is deliberately NOT part of any unique
+-- index / the idempotency key (BusinessEventKey / ResolutionEventKey are
+-- unchanged by this migration) — it is descriptive metadata the console
+-- reads back, never an identity field.
+ALTER TABLE document_registry ADD COLUMN document_type TEXT NOT NULL DEFAULT '';

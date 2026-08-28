@@ -38,10 +38,15 @@ import type {
   DocumentRegistryRow,
   DocumentState,
   GetOrCreateResult,
+  ListDocumentsQuery,
   OutboxEntry,
   RegistryStore,
   ResolutionEventKey,
 } from './registry-store.js';
+import type { DeterminationTrace } from '../determination/trace.js';
+
+/** Default page size for `listDocuments` when `query.limit` is omitted. */
+const DEFAULT_LIST_DOCUMENTS_LIMIT = 50;
 
 interface DocumentRow {
   doc_id: string;
@@ -55,6 +60,7 @@ interface DocumentRow {
   archive_ref: string | null;
   retention_until: string | null;
   rule_id: string;
+  document_type: string;
   state: string;
   created_at: string;
   updated_at: string;
@@ -89,14 +95,14 @@ export class SqliteRegistryStore implements RegistryStore {
     runMigrations(this.db);
   }
 
-  getOrCreateByEventKey(key: BusinessEventKey): GetOrCreateResult {
+  getOrCreateByEventKey(key: BusinessEventKey, documentType = ''): GetOrCreateResult {
     // The plain four-tuple lookup is the fan-out-aware lookup with an
     // explicit '' ruleId — one implementation, one unique index, see
     // registry-store.ts's `ResolutionEventKey` / `rule_id` column doc.
-    return this.getOrCreateByResolutionKey({ ...key, ruleId: '' });
+    return this.getOrCreateByResolutionKey({ ...key, ruleId: '' }, documentType);
   }
 
-  getOrCreateByResolutionKey(key: ResolutionEventKey): GetOrCreateResult {
+  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType = ''): GetOrCreateResult {
     const existing = this.selectByResolutionKey(key);
     if (existing !== undefined) {
       return { row: this.toRow(existing), created: false };
@@ -108,10 +114,20 @@ export class SqliteRegistryStore implements RegistryStore {
       this.db
         .prepare(
           `INSERT INTO document_registry
-             (doc_id, business_object, business_object_id, event, template_version, rule_id, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
         )
-        .run(docId, key.businessObject, key.businessObjectId, key.event, key.templateVersion, key.ruleId, now, now);
+        .run(
+          docId,
+          key.businessObject,
+          key.businessObjectId,
+          key.event,
+          key.templateVersion,
+          documentType,
+          key.ruleId,
+          now,
+          now,
+        );
     } catch (err) {
       // Concurrent first-sighting (or a re-entrant call) lost the race to
       // the UNIQUE index on the five-tuple — the row now exists; return it
@@ -132,7 +148,7 @@ export class SqliteRegistryStore implements RegistryStore {
     return { row: this.toRow(created), created: true };
   }
 
-  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown): GetOrCreateResult {
+  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown, documentType = ''): GetOrCreateResult {
     const existing = this.selectByResolutionKey(key);
     if (existing !== undefined) {
       return { row: this.toRow(existing), created: false };
@@ -149,10 +165,20 @@ export class SqliteRegistryStore implements RegistryStore {
       this.db
         .prepare(
           `INSERT INTO document_registry
-             (doc_id, business_object, business_object_id, event, template_version, rule_id, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
         )
-        .run(docId, key.businessObject, key.businessObjectId, key.event, key.templateVersion, key.ruleId, now, now);
+        .run(
+          docId,
+          key.businessObject,
+          key.businessObjectId,
+          key.event,
+          key.templateVersion,
+          documentType,
+          key.ruleId,
+          now,
+          now,
+        );
       this.db
         .prepare('INSERT INTO composition_outbox (doc_id, resolution, data, created_at) VALUES (?, ?, ?, ?)')
         .run(docId, JSON.stringify(resolution), JSON.stringify(data), now);
@@ -245,6 +271,49 @@ export class SqliteRegistryStore implements RegistryStore {
       .run(docId, event.channel, event.status, event.occurredAt, event.detail ?? null);
   }
 
+  listDocuments(query: ListDocumentsQuery = {}): DocumentRegistryRow[] {
+    const search = query.search?.trim() ?? '';
+    const limit = query.limit ?? DEFAULT_LIST_DOCUMENTS_LIMIT;
+    const offset = query.offset ?? 0;
+
+    const rows =
+      search === ''
+        ? (this.db
+            .prepare('SELECT * FROM document_registry ORDER BY created_at DESC LIMIT ? OFFSET ?')
+            .all(limit, offset) as unknown as DocumentRow[])
+        : (() => {
+            const like = `%${search}%`;
+            return this.db
+              .prepare(
+                `SELECT * FROM document_registry
+                 WHERE doc_id LIKE ? OR business_object_id LIKE ? OR event LIKE ? OR template_version LIKE ?
+                 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
+              )
+              .all(like, like, like, like, limit, offset) as unknown as DocumentRow[];
+          })();
+
+    return rows.map((row) => this.toRow(row));
+  }
+
+  appendTraceLog(id: string, trace: DeterminationTrace): void {
+    // INSERT OR IGNORE: a replay of the same event re-runs determine()
+    // (server.ts: determination happens before the idempotency lookup),
+    // producing an id (the docId) that may already have a row. determine()
+    // is a pure function of its inputs, so the replay's trace is
+    // byte-identical to what is already stored — a no-op, not an error or
+    // a second row. See migrations/0007_add_trace_log.sql.
+    this.db
+      .prepare('INSERT OR IGNORE INTO trace_log (id, trace, created_at) VALUES (?, ?, ?)')
+      .run(id, JSON.stringify(trace), new Date().toISOString());
+  }
+
+  getTraceLog(id: string): DeterminationTrace | undefined {
+    const row = this.db.prepare('SELECT trace FROM trace_log WHERE id = ?').get(id) as
+      | { trace: string }
+      | undefined;
+    return row === undefined ? undefined : (JSON.parse(row.trace) as DeterminationTrace);
+  }
+
   close(): void {
     this.db.close();
   }
@@ -286,6 +355,7 @@ export class SqliteRegistryStore implements RegistryStore {
       archiveRef: doc.archive_ref,
       retentionUntil: doc.retention_until,
       ruleId: doc.rule_id,
+      documentType: doc.document_type,
       state: doc.state as DocumentState,
       createdAt: doc.created_at,
       updatedAt: doc.updated_at,

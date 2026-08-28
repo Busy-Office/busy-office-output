@@ -158,6 +158,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
     businessEvent: BusinessEventKey,
     resolution: Resolution,
     data: DataContractEnvelope,
+    documentType: DocumentType,
   ): Promise<SubmitResolutionResult> {
     // Transactional outbox (registry/registry-store.ts's `mintWithOutbox`,
     // migrations/0005_add_composition_outbox.sql): mint the docId AND
@@ -169,6 +170,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       { ...businessEvent, ruleId: resolution.ruleId },
       resolution,
       data,
+      documentType,
     );
 
     let composed: CompositionOutcome | { outcome: 'replayed' };
@@ -233,7 +235,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
 
       const resolutions = await Promise.all(
         determination.resolutions.map((resolution) =>
-          submitOneResolution(input.businessEvent, resolution, input.payload as DataContractEnvelope),
+          submitOneResolution(input.businessEvent, resolution, input.payload as DataContractEnvelope, documentType),
         ),
       );
 

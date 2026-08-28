@@ -56,7 +56,11 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
     const dbDir = tempDir('e2e-registry-');
     outboxDir = tempDir('e2e-outbox-');
     deps = createRuntimeDeps(join(dbDir, 'registry.db'), tempDir('e2e-archive-'), outboxDir);
-    server = createIngressServer({ idempotencyStore: deps.idempotencyStore, composition: deps.composition });
+    server = createIngressServer({
+      idempotencyStore: deps.idempotencyStore,
+      registryStore: deps.registryStore,
+      composition: deps.composition,
+    });
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const { port } = server.address() as AddressInfo;
     baseUrl = `http://127.0.0.1:${port}`;

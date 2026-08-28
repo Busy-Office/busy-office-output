@@ -179,7 +179,11 @@ export function createRuntimeDeps(
  */
 export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
   const deps = createRuntimeDeps(dbPath);
-  const server = createIngressServer({ idempotencyStore: deps.idempotencyStore, composition: deps.composition });
+  const server = createIngressServer({
+    idempotencyStore: deps.idempotencyStore,
+    registryStore: deps.registryStore,
+    composition: deps.composition,
+  });
   const worker: Worker = startWorker(deps.deliveryQueue, deps.channelSender);
   server.listen(port);
   return Object.assign(server, { worker });

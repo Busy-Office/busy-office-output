@@ -143,6 +143,128 @@ describe('SqliteRegistryStore (:memory:)', () => {
   });
 });
 
+describe('SqliteRegistryStore documentType (ROADMAP Stage 3 "Minimal console, read-only")', () => {
+  it('getOrCreateByEventKey persists the given documentType; omitting it defaults to \'\'', () => {
+    const store = createSqliteRegistryStore(':memory:');
+
+    const withType = store.getOrCreateByEventKey(key({ businessObjectId: '1' }), 'purchase-order');
+    expect(withType.row.documentType).toBe('purchase-order');
+
+    const withoutType = store.getOrCreateByEventKey(key({ businessObjectId: '2' }));
+    expect(withoutType.row.documentType).toBe('');
+
+    store.close();
+  });
+
+  it('getOrCreateByResolutionKey and mintWithOutbox both persist documentType', () => {
+    const store = createSqliteRegistryStore(':memory:');
+
+    const a = store.getOrCreateByResolutionKey({ ...key({ businessObjectId: '3' }), ruleId: 'r1' }, 'invoice');
+    expect(a.row.documentType).toBe('invoice');
+
+    const b = store.mintWithOutbox({ ...key({ businessObjectId: '4' }), ruleId: 'r2' }, { some: 'resolution' }, { some: 'data' }, 'payslip');
+    expect(b.row.documentType).toBe('payslip');
+    expect(store.getByDocId(b.row.docId)?.documentType).toBe('payslip');
+
+    store.close();
+  });
+
+  it('documentType is not part of the idempotency key: replay ignores a different documentType argument', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const first = store.getOrCreateByEventKey(key({ businessObjectId: '5' }), 'purchase-order');
+    const replay = store.getOrCreateByEventKey(key({ businessObjectId: '5' }), 'invoice');
+
+    expect(replay.created).toBe(false);
+    expect(replay.row.docId).toBe(first.row.docId);
+    expect(replay.row.documentType).toBe('purchase-order'); // unchanged by the replay's argument
+
+    store.close();
+  });
+});
+
+describe('SqliteRegistryStore.listDocuments', () => {
+  it('returns rows most-recently-created first', async () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const a = store.getOrCreateByEventKey(key({ businessObjectId: 'list-a' }));
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    const b = store.getOrCreateByEventKey(key({ businessObjectId: 'list-b' }));
+
+    const rows = store.listDocuments();
+    const ids = rows.map((r) => r.docId);
+    expect(ids.indexOf(b.row.docId)).toBeLessThan(ids.indexOf(a.row.docId));
+
+    store.close();
+  });
+
+  it('search filters by businessObjectId substring', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const target = store.getOrCreateByEventKey(key({ businessObjectId: 'needle-xyz' }));
+    store.getOrCreateByEventKey(key({ businessObjectId: 'unrelated' }));
+
+    const rows = store.listDocuments({ search: 'needle' });
+    expect(rows).toHaveLength(1);
+    expect(rows[0].docId).toBe(target.row.docId);
+
+    store.close();
+  });
+
+  it('limit/offset page through results', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    for (let i = 0; i < 5; i++) {
+      store.getOrCreateByEventKey(key({ businessObjectId: `page-${i}` }));
+    }
+
+    const page1 = store.listDocuments({ search: 'page-', limit: 2, offset: 0 });
+    const page2 = store.listDocuments({ search: 'page-', limit: 2, offset: 2 });
+    expect(page1).toHaveLength(2);
+    expect(page2).toHaveLength(2);
+    expect(page1.map((r) => r.docId)).not.toEqual(page2.map((r) => r.docId));
+
+    store.close();
+  });
+});
+
+describe('SqliteRegistryStore trace log (ROADMAP Stage 3 "Minimal console, read-only")', () => {
+  it('appendTraceLog + getTraceLog round-trip a DeterminationTrace by id', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const trace = {
+      documentType: 'purchase-order',
+      businessObject: 'EKKO',
+      event: 'po.released',
+      rules: [],
+      resolutions: [],
+      outcome: 'matched' as const,
+      firingRuleIds: ['r1'],
+    };
+
+    store.appendTraceLog('some-id', trace);
+    expect(store.getTraceLog('some-id')).toEqual(trace);
+    expect(store.getTraceLog('unknown-id')).toBeUndefined();
+
+    store.close();
+  });
+
+  it('a second appendTraceLog under the same id is a silent no-op, not an error', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const first = {
+      documentType: 'purchase-order',
+      businessObject: 'EKKO',
+      event: 'po.released',
+      rules: [],
+      resolutions: [],
+      outcome: 'matched' as const,
+      firingRuleIds: ['r1'],
+    };
+    const second = { ...first, firingRuleIds: ['r1', 'r2'] };
+
+    store.appendTraceLog('dup-id', first);
+    expect(() => store.appendTraceLog('dup-id', second)).not.toThrow();
+    expect(store.getTraceLog('dup-id')).toEqual(first); // first write wins
+
+    store.close();
+  });
+});
+
 describe('SqliteRegistryStore persistence across a process restart', () => {
   it('a docId minted before "restart" is returned unchanged after reopening the same file', () => {
     const dbPath = tempDbPath();

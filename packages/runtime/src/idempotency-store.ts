@@ -27,9 +27,11 @@ export interface IdempotencyStore {
    * First sighting of `key`: mints a new docId (via a new DRAFT registry
    * row), returns { docId, replayed: false }. Any later call with an equal
    * four-tuple returns the SAME docId with { replayed: true } — no new row,
-   * no new work.
+   * no new work. `documentType` (optional, default `''`) is persisted on a
+   * newly minted row only (ROADMAP Stage 3 "Minimal console, read-only" —
+   * see `RegistryStore.getOrCreateByEventKey`).
    */
-  getOrCreate(key: BusinessEventKey): IdempotencyResult;
+  getOrCreate(key: BusinessEventKey, documentType?: string): IdempotencyResult;
 
   /**
    * The fan-out-aware sibling of `getOrCreate` (ROADMAP Stage 3 "Fan-out"
@@ -39,20 +41,21 @@ export interface IdempotencyStore {
    * four-tuple (same businessObject/businessObjectId/event/templateVersion)
    * still get distinct docIds, one per firing rule, while a replay of the
    * exact same event+rule combo still returns the same docId (see
-   * registry/registry-store.ts's `ResolutionEventKey`).
+   * registry/registry-store.ts's `ResolutionEventKey`). `documentType`:
+   * see `getOrCreate` above.
    */
-  getOrCreateForResolution(key: BusinessEventKey, ruleId: string): IdempotencyResult;
+  getOrCreateForResolution(key: BusinessEventKey, ruleId: string, documentType?: string): IdempotencyResult;
 }
 
 /** Wraps a `RegistryStore` to satisfy the `IdempotencyStore` contract. */
 export function createRegistryIdempotencyStore(registryStore: RegistryStore): IdempotencyStore {
   return {
-    getOrCreate(key: BusinessEventKey): IdempotencyResult {
-      const { row, created } = registryStore.getOrCreateByEventKey(key);
+    getOrCreate(key: BusinessEventKey, documentType?: string): IdempotencyResult {
+      const { row, created } = registryStore.getOrCreateByEventKey(key, documentType);
       return { docId: row.docId, replayed: !created };
     },
-    getOrCreateForResolution(key: BusinessEventKey, ruleId: string): IdempotencyResult {
-      const { row, created } = registryStore.getOrCreateByResolutionKey({ ...key, ruleId });
+    getOrCreateForResolution(key: BusinessEventKey, ruleId: string, documentType?: string): IdempotencyResult {
+      const { row, created } = registryStore.getOrCreateByResolutionKey({ ...key, ruleId }, documentType);
       return { docId: row.docId, replayed: !created };
     },
   };

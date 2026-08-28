@@ -16,6 +16,7 @@
  * from the start.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import type { BusinessEventKey, DataContractEnvelope } from '@busy-office/output-schema';
 import {
   isKnownDocumentType,
@@ -27,6 +28,7 @@ import {
   type IdempotencyStore,
 } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
+import type { RegistryStore } from './registry/registry-store.js';
 import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
 import { composeRenderArchiveAndEnqueue, type CompositionDeps } from './composition.js';
 import {
@@ -39,28 +41,11 @@ import {
   noTemplateMatchProblem,
   notFoundProblem,
   unknownDocumentTypeProblem,
-  type ProblemDetails,
 } from './problem.js';
+import { sendJson, sendProblem } from './http-helpers.js';
+import { handleConsoleRequest, isConsolePath } from './console.js';
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MiB — guards against unbounded body reads
-
-function sendProblem(res: ServerResponse, problem: ProblemDetails): void {
-  const body = JSON.stringify(problem);
-  res.writeHead(problem.status, {
-    'Content-Type': 'application/problem+json',
-    'Content-Length': Buffer.byteLength(body),
-  });
-  res.end(body);
-}
-
-function sendJson(res: ServerResponse, status: number, payload: unknown): void {
-  const body = JSON.stringify(payload);
-  res.writeHead(status, {
-    'Content-Type': 'application/json',
-    'Content-Length': Buffer.byteLength(body),
-  });
-  res.end(body);
-}
 
 async function readBody(req: IncomingMessage): Promise<string> {
   const chunks: Buffer[] = [];
@@ -196,6 +181,7 @@ async function handleEvent(
   req: IncomingMessage,
   res: ServerResponse,
   idempotencyStore: IdempotencyStore,
+  registryStore: RegistryStore,
   composition?: CompositionDeps,
 ): Promise<void> {
   let raw: string;
@@ -274,11 +260,18 @@ async function handleEvent(
     ...extractDeterminationContext(payload),
   };
   const determination = determine(determinationContext, loadOutputRules(), loadTemplateCandidates());
+  // Persist the TRACE for every determine() call, match or no-match
+  // (ROADMAP Stage 3 "Minimal console, read-only" — the Rule trace console
+  // screen's read model, migrations/0007_add_trace_log.sql). No docId
+  // exists yet for a non-match, so it gets a freshly generated id instead
+  // — see the migration's own comment for the full id convention.
   if (determination.outcome === 'no-rule-match') {
+    registryStore.appendTraceLog(randomUUID(), determination.trace);
     sendProblem(res, noRuleMatchProblem(determination.trace));
     return;
   }
   if (determination.outcome === 'no-template-match') {
+    registryStore.appendTraceLog(randomUUID(), determination.trace);
     sendProblem(res, noTemplateMatchProblem(determination.trace));
     return;
   }
@@ -303,7 +296,11 @@ async function handleEvent(
   // supplies `composition` for real single-process runs.
   const results = await Promise.all(
     determination.resolutions.map(async (resolution) => {
-      const { docId, replayed } = idempotencyStore.getOrCreateForResolution(businessEventKey, resolution.ruleId);
+      const { docId, replayed } = idempotencyStore.getOrCreateForResolution(
+        businessEventKey,
+        resolution.ruleId,
+        documentType,
+      );
       const composed =
         composition !== undefined && !replayed
           ? await composeRenderArchiveAndEnqueue(composition, docId, resolution, documentPayload as DataContractEnvelope)
@@ -327,6 +324,16 @@ async function handleEvent(
   // -byte what callers got before fan-out existed. `resolutions` carries
   // every resolution for callers that need the full fan-out set.
   const [primary] = results;
+  // One trace row per determine() CALL (i.e. per event), not one per
+  // resolution: a fan-out event yielding N resolutions/docIds still gets
+  // exactly one persisted trace, filed under the PRIMARY (first)
+  // resolution's docId. Judgment call (flagged in this task's final
+  // report): the trace itself already lists every firing rule's own
+  // resolution/template lookup (trace.resolutions), so nothing about the
+  // OTHER resolutions is lost — only their console navigability to this
+  // one trace row is (their own Document detail pages simply have no
+  // trace link, by the same id convention `getTraceLog` uses).
+  registryStore.appendTraceLog(primary.docId, determination.trace);
   sendJson(res, allReplayed ? 200 : 202, {
     status: 'accepted',
     documentType,
@@ -348,6 +355,19 @@ async function handleEvent(
 export interface IngressServerOptions {
   idempotencyStore?: IdempotencyStore;
   /**
+   * The durable registry backing `idempotencyStore` (ROADMAP Stage 3
+   * "Minimal console, read-only") — needed directly (not just through the
+   * `IdempotencyStore` facade) for trace-log persistence and for the
+   * read-only `/output/*` console routes (console.ts). Defaults to a fresh
+   * `:memory:` store when omitted, exactly like `idempotencyStore`'s own
+   * default. A caller that supplies a custom `idempotencyStore` should also
+   * supply the SAME `registryStore` it wraps (see `serve()`/`e2e.test.ts`)
+   * — otherwise the console/trace-log would read from a different,
+   * disconnected in-memory store than the one `idempotencyStore` mints
+   * docIds against.
+   */
+  registryStore?: RegistryStore;
+  /**
    * Composition + render + archive + enqueue deps (ROADMAP Stage 3,
    * "Single-process serve"). Deliberately OPTIONAL and OFF by default: a
    * bare `createIngressServer()` (what most existing tests use) never
@@ -366,12 +386,25 @@ export function createIngressServer(options: IngressServerOptions = {}) {
   // `createIngressServer()` with no setup and get their own throwaway
   // database. `index.ts`'s `serve()` overrides this with a durable,
   // on-disk-backed store for standalone single-process runs.
-  const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
+  const registryStore = options.registryStore ?? createSqliteRegistryStore(':memory:');
+  const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(registryStore);
   const composition = options.composition;
   return createServer((req, res) => {
     void (async () => {
       const url = req.url ?? '/';
       const path = url.split('?')[0];
+
+      // Read-only console (ROADMAP Stage 3 "Minimal console, read-only",
+      // docs/UI-DESIGN.md): GET-only, mounted at /output — see console.ts.
+      if (isConsolePath(path)) {
+        if (req.method !== 'GET') {
+          sendProblem(res, methodNotAllowedProblem(req.method));
+          return;
+        }
+        const query = new URL(url, 'http://localhost').searchParams;
+        handleConsoleRequest(res, path, query, registryStore);
+        return;
+      }
 
       if (path !== '/event') {
         sendProblem(res, notFoundProblem(path));
@@ -381,7 +414,7 @@ export function createIngressServer(options: IngressServerOptions = {}) {
         sendProblem(res, methodNotAllowedProblem(req.method));
         return;
       }
-      await handleEvent(req, res, idempotencyStore, composition);
+      await handleEvent(req, res, idempotencyStore, registryStore, composition);
     })().catch(() => {
       // Last-resort guard: never leak an unhandled-exception stack (which may
       // embed payload data) — respond with an opaque problem+json instead.
