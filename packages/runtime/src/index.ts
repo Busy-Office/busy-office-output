@@ -25,6 +25,25 @@ export type {
 } from './registry/index.js';
 export { FsArchiveStore, S3ArchiveStore, assertValidRetentionUntil, archiveArtifact } from './archive/index.js';
 export type { ArchiveStore, ArchiveInput, S3ArchiveStoreOptions, S3ClientLike, ArchiveArtifactInput } from './archive/index.js';
+export {
+  DEFAULT_BACKOFF_POLICY,
+  computeBackoffMs,
+  SqliteDeliveryQueue,
+  createSqliteDeliveryQueue,
+} from './delivery/index.js';
+export type {
+  BackoffPolicy,
+  ChannelSendInput,
+  ChannelSender,
+  DeliveryAttemptOutcome,
+  DeliveryAttemptResult,
+  DeliveryJob,
+  DeliveryJobStatus,
+  DeliveryQueue,
+  EnqueueDeliveryInput,
+  PoisonAlert,
+  SqliteDeliveryQueueOptions,
+} from './delivery/index.js';
 export { determine, loadOutputRules, loadTemplateCandidates } from './determination/index.js';
 export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, DeterminationTrace, DeterminationOutcome, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
 export {
