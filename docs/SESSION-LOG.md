@@ -11,6 +11,29 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 4: payslip compact template + PII posture
+- Did: payslip gets real render content (payslip-global-v1 DocNode,
+  compact: identity block + earnings/deductions table + totals) — third
+  and last Stage 1 document type; previously determination-only. test/
+  corpus/payslip/: 4 cases (single-page, earnings/deductions mix,
+  empty-lines, overflow-must-fail — no manufactured multi-page case,
+  genuinely not needed for a compact template). Real DoD:
+  payslip-log-scrub.test.ts drives a full payslip event through the real
+  pipeline with console.log/error/warn intercepted, greps every captured
+  line for the payload's own real PII values across a happy path AND a
+  forced-poison path (the latter proves the capture mechanism actually
+  intercepts real output via a genuine, non-mocked onPoisonAlert
+  console.error line, so the test isn't vacuously passing on nothing).
+  No pre-existing logging leak found.
+- Open: PDF attachment concatenation, template-from-sample on redacted
+  samples, document-level authorization, retention per doc type,
+  bursting/second-renderer (ADR-002 still Proposed), operations console
+  page. Stage 3's GATE-S3-THESIS-CHECK remains open (human-only).
+- Next: document-level authorization (reproduce/regenerate/reissue
+  evaluated per-document, HR-clerk vs employee test) is a natural next
+  task now that a real payslip exists to authorize access to. PDF
+  attachment concatenation is independent and could go first instead.
+
 ## 2026-08-28 — Stage 4: invoice contract + template + corpus
 - Did: first Stage 4 task. Invoice gets real render content
   (invoice-global-v1 DocNode tree, reused from the Stage 1 paper-test
