@@ -30,6 +30,9 @@ export {
   computeBackoffMs,
   SqliteDeliveryQueue,
   createSqliteDeliveryQueue,
+  EmailChannelSender,
+  ObjectStoreChannelSender,
+  ChannelRouter,
 } from './delivery/index.js';
 export type {
   BackoffPolicy,
@@ -43,6 +46,11 @@ export type {
   EnqueueDeliveryInput,
   PoisonAlert,
   SqliteDeliveryQueueOptions,
+  EmailChannelSenderOptions,
+  SmtpConfig,
+  TransporterLike,
+  ObjectStoreChannelSenderOptions,
+  ChannelSenderMap,
 } from './delivery/index.js';
 export { determine, loadOutputRules, loadTemplateCandidates } from './determination/index.js';
 export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, DeterminationTrace, DeterminationOutcome, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
