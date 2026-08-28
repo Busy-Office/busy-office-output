@@ -11,6 +11,28 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 4: document-level authorization
+- Did: arb-chair ruling — pure AuthorizationPort evaluator only (ADR-007's
+  already-named boundary, first concrete shape), not the live reprint
+  HTTP routes (Stage 5's job) and no console changes. hr-clerk allows any
+  payslip; employee allows only their own (new owner_id registry column,
+  migrations/0009, populated only for payslip mints via
+  extractPayslipOwnerId); every other document type default-allows, no
+  invented per-type policy. Wired into both mint call sites
+  (embed/create-output.ts AND server.ts's actual serve() HTTP path) so
+  it's not dead code in the primary runtime mode. Never logged —
+  payslip-log-scrub.test.ts re-verified still passing with teeth intact.
+- Open: template-from-sample on redacted samples (blocked, no real
+  samples), bursting/second-renderer (ADR-002 still Proposed). Every
+  fully-independent Stage 4 task is now done. Stage 3's
+  GATE-S3-THESIS-CHECK remains open (human-only).
+- Next: only ADR-002-blocked or missing-real-samples-blocked Stage 4
+  tasks remain. Bursting/second-renderer needs ADR-002 (volume renderer
+  routing) decided — same pattern as ADR-003/004/007 this session, worth
+  asking the maintainer directly. Otherwise Stage 4's exit gate
+  (8,000-recipient payroll run, ADR-002 closed) is the next real
+  milestone once that's decided.
+
 ## 2026-08-28 — Stage 4: operations console page
 - Did: console-designer ruled retry stays inert text (Stage 3 precedent,
   no DoD demanding live action). GET /output/operations — new
