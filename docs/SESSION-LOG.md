@@ -11,6 +11,41 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: single-process serve
+- Did: composition.ts (render+archive+enqueue per resolution, never
+  throws; 10-year default retentionUntil documented as a Stage-3 stand-in,
+  not Stage 4's real per-doc-type policy), render/template-content.ts (one
+  hardcoded `po-global-v1` -> DocNode lookup per arb-chair ruling —
+  invoice/payslip resolve through determination but surface an honest
+  `no-template-content` outcome, never a crash or fabricated artifact),
+  delivery/fs-channel-sender.ts (FsChannelSender, the zero-external-
+  services ChannelSender default — writes ./data/outbox/<channel>/
+  <docId>-<uuid>.bin + JSON sidecar), worker.ts (`drainOnce` — timer-free,
+  deterministic drain the e2e test calls directly; `startWorker` — thin
+  overlap-safe setInterval wrapper for real `serve()` runs), index.ts
+  (`createRuntimeDeps` assembles SQLite registry + FsArchiveStore +
+  SqliteDeliveryQueue + TypstRenderer + FsChannelSender; `serve()` wires
+  ingress + composition + worker into one function — CLAUDE.md's "API +
+  worker + embedded queue + FS archive in one command" is now true, not
+  aspirational). e2e.test.ts drives a real HTTP POST through
+  `createIngressServer` with real `typst compile` (no mocks on the
+  render/archive/delivery path) — evidence: rule trace present, PDF bytes
+  actually rendered and archived (`countPdfPages` >= 1), FsChannelSender
+  outbox file byte-identical to the archived artifact, registry
+  DRAFT->ORIGINAL with delivery_history recording the attempt; a second
+  test proves the invoice no-content path never fabricates a row. `npm run
+  verify`: 159/159 tests, 6.18s wall-clock.
+- Open: embeddable module + transactional outbox (ADR-007), minimal
+  console, [HUMAN] thesis check (permanently open). One flagged edge case,
+  out of this task's scope: if a process crashes between minting a docId
+  and finishing composition, a later replay of that same event is seen as
+  `replayed: true` and skips composition again — nothing retries the
+  stranded render/archive/enqueue. Left as-is; likely an ADR-007
+  (transactional outbox) concern, not an idempotency-semantics patch.
+- Next: embeddable module + transactional outbox (ADR-007) — the crash-
+  mid-composition gap above is exactly what that task's rollback
+  guarantees need to cover.
+
 ## 2026-08-28 — Stage 3: channels (email + object-store)
 - Did: EmailChannelSender (nodemailer) and ObjectStoreChannelSender
   (@aws-sdk/client-s3) both implement the ChannelSender port, wired via a

@@ -11,6 +11,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1119.0",
     "@busy-office/output-schema": "*",
+    "@busy-office/render-typst": "*",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "nodemailer": "^9.0.6"

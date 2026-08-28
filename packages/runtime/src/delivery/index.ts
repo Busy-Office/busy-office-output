@@ -17,3 +17,4 @@ export { ObjectStoreChannelSender } from './object-store-channel-sender.js';
 export type { ObjectStoreChannelSenderOptions } from './object-store-channel-sender.js';
 export { ChannelRouter } from './channel-router.js';
 export type { ChannelSenderMap } from './channel-router.js';
+export { FsChannelSender } from './fs-channel-sender.js';

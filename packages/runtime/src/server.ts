@@ -16,7 +16,7 @@
  * from the start.
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import type { BusinessEventKey } from '@busy-office/output-schema';
+import type { BusinessEventKey, DataContractEnvelope } from '@busy-office/output-schema';
 import {
   isKnownDocumentType,
   validateContract,
@@ -28,6 +28,7 @@ import {
 } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
+import { composeRenderArchiveAndEnqueue, type CompositionDeps } from './composition.js';
 import {
   invalidContractProblem,
   malformedCloudEventsProblem,
@@ -195,6 +196,7 @@ async function handleEvent(
   req: IncomingMessage,
   res: ServerResponse,
   idempotencyStore: IdempotencyStore,
+  composition?: CompositionDeps,
 ): Promise<void> {
   let raw: string;
   try {
@@ -290,19 +292,35 @@ async function handleEvent(
   // `getOrCreateForResolution`), so a replayed event returns the same N
   // docIds, never 2N. 202 if any resolution was newly minted this call; 200
   // only when every resolution was already seen (a pure replay).
-  const results = determination.resolutions.map((resolution) => {
-    const { docId, replayed } = idempotencyStore.getOrCreateForResolution(businessEventKey, resolution.ruleId);
-    return {
-      docId,
-      replayed,
-      ruleId: resolution.ruleId,
-      templateId: resolution.templateId,
-      templateVersion: resolution.templateVersion,
-      channel: resolution.channel,
-      recipients: resolution.recipients,
-      locale: resolution.locale,
-    };
-  });
+  // Composition + render + archive + enqueue (ROADMAP Stage 3, "Single-process
+  // serve"): only for a NEWLY minted docId this call (`!replayed`) — a
+  // replay must return the same docId without re-doing work already done
+  // (docs/POLICY.md: the archive is the reproduction, never re-rendered).
+  // Only runs at all when `composition` deps were supplied to
+  // `createIngressServer` — a bare `createIngressServer()` (what most tests
+  // use) keeps behaving exactly as before: determination + idempotency
+  // only, no filesystem/renderer side effects. `serve()` (index.ts) always
+  // supplies `composition` for real single-process runs.
+  const results = await Promise.all(
+    determination.resolutions.map(async (resolution) => {
+      const { docId, replayed } = idempotencyStore.getOrCreateForResolution(businessEventKey, resolution.ruleId);
+      const composed =
+        composition !== undefined && !replayed
+          ? await composeRenderArchiveAndEnqueue(composition, docId, resolution, documentPayload as DataContractEnvelope)
+          : undefined;
+      return {
+        docId,
+        replayed,
+        ruleId: resolution.ruleId,
+        templateId: resolution.templateId,
+        templateVersion: resolution.templateVersion,
+        channel: resolution.channel,
+        recipients: resolution.recipients,
+        locale: resolution.locale,
+        ...(composed !== undefined ? { composition: composed } : {}),
+      };
+    }),
+  );
   const allReplayed = results.every((r) => r.replayed);
   // Back-compat primary fields (docId/determination) mirror the FIRST
   // resolution — for the common single-rule-fires case this is byte-for-
@@ -327,13 +345,29 @@ async function handleEvent(
   });
 }
 
-export function createIngressServer(options: { idempotencyStore?: IdempotencyStore } = {}) {
+export interface IngressServerOptions {
+  idempotencyStore?: IdempotencyStore;
+  /**
+   * Composition + render + archive + enqueue deps (ROADMAP Stage 3,
+   * "Single-process serve"). Deliberately OPTIONAL and OFF by default: a
+   * bare `createIngressServer()` (what most existing tests use) never
+   * touches a renderer, the filesystem archive, or the delivery queue —
+   * only `serve()` (index.ts) wires this by default, for real
+   * single-process runs. When absent, a matched event still gets a docId
+   * via determination + idempotency exactly as before this task; its
+   * response simply carries no `composition` field per resolution.
+   */
+  composition?: CompositionDeps;
+}
+
+export function createIngressServer(options: IngressServerOptions = {}) {
   // Default: an in-memory (`:memory:`) SQLite-backed registry — fast and
   // isolated, so `server.test.ts` / `idempotency.test.ts` can call
   // `createIngressServer()` with no setup and get their own throwaway
   // database. `index.ts`'s `serve()` overrides this with a durable,
   // on-disk-backed store for standalone single-process runs.
   const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
+  const composition = options.composition;
   return createServer((req, res) => {
     void (async () => {
       const url = req.url ?? '/';
@@ -347,7 +381,7 @@ export function createIngressServer(options: { idempotencyStore?: IdempotencySto
         sendProblem(res, methodNotAllowedProblem(req.method));
         return;
       }
-      await handleEvent(req, res, idempotencyStore);
+      await handleEvent(req, res, idempotencyStore, composition);
     })().catch(() => {
       // Last-resort guard: never leak an unhandled-exception stack (which may
       // embed payload data) — respond with an opaque problem+json instead.
