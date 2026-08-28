@@ -169,6 +169,38 @@ export class SqliteDeliveryQueue implements DeliveryQueue {
     return rows.map(toJob);
   }
 
+  listJobs(options: { search?: string; statuses?: DeliveryJobStatus[]; limit: number; offset: number }): DeliveryJob[] {
+    const search = options.search?.trim() ?? '';
+    const { limit, offset } = options;
+
+    const conditions: string[] = [];
+    const params: string[] = [];
+
+    if (options.statuses !== undefined && options.statuses.length > 0) {
+      conditions.push(`status IN (${options.statuses.map(() => '?').join(', ')})`);
+      params.push(...options.statuses);
+    }
+
+    if (search !== '') {
+      const like = `%${search}%`;
+      conditions.push('(doc_id LIKE ? OR channel LIKE ?)');
+      params.push(like, like);
+    }
+
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    // Worst-first: poison, then in_progress, then pending (by nextAttemptAt
+    // ascending), everything else (delivered) last; id ascending breaks
+    // ties within a bucket.
+    const sql = `SELECT * FROM delivery_queue ${where}
+      ORDER BY
+        CASE status WHEN 'poison' THEN 0 WHEN 'in_progress' THEN 1 WHEN 'pending' THEN 2 ELSE 3 END,
+        next_attempt_at ASC,
+        id ASC
+      LIMIT ? OFFSET ?`;
+    const rows = this.db.prepare(sql).all(...params, limit, offset) as unknown as DeliveryQueueRow[];
+    return rows.map(toJob);
+  }
+
   async attemptDelivery(jobId: number, sender: ChannelSender): Promise<DeliveryAttemptResult> {
     const row = this.selectById(jobId);
     if (row === undefined) {

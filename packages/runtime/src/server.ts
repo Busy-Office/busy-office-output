@@ -44,6 +44,7 @@ import {
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
 import { handleConsoleRequest, isConsolePath } from './console.js';
+import type { BackoffPolicy, DeliveryQueue } from './delivery/delivery-queue.js';
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MiB — guards against unbounded body reads
 
@@ -378,6 +379,20 @@ export interface IngressServerOptions {
    * response simply carries no `composition` field per resolution.
    */
   composition?: CompositionDeps;
+  /**
+   * The delivery queue backing the Operations console screen (ROADMAP
+   * Stage 4 "Operations console page") — GET /output/operations. Optional,
+   * off by default like `composition`: a bare `createIngressServer()`
+   * never touches the delivery queue; only `serve()` (index.ts) supplies
+   * this for real single-process runs. When absent, `/output/operations`
+   * 404s like any other unknown path.
+   */
+  deliveryQueue?: DeliveryQueue;
+  /** The backoff policy `deliveryQueue` was constructed with — the
+   * Operations screen's `maxAttempts` column comes from here, never a
+   * hardcoded `DEFAULT_BACKOFF_POLICY`. Required alongside `deliveryQueue`
+   * for `/output/operations` to render (both or neither). */
+  backoffPolicy?: BackoffPolicy;
 }
 
 export function createIngressServer(options: IngressServerOptions = {}) {
@@ -389,6 +404,8 @@ export function createIngressServer(options: IngressServerOptions = {}) {
   const registryStore = options.registryStore ?? createSqliteRegistryStore(':memory:');
   const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(registryStore);
   const composition = options.composition;
+  const deliveryQueue = options.deliveryQueue;
+  const backoffPolicy = options.backoffPolicy;
   return createServer((req, res) => {
     void (async () => {
       const url = req.url ?? '/';
@@ -402,7 +419,7 @@ export function createIngressServer(options: IngressServerOptions = {}) {
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
-        handleConsoleRequest(res, path, query, registryStore);
+        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy);
         return;
       }
 

@@ -4,10 +4,17 @@
  * pattern — no fixture bypassing the real route.
  */
 import type { AddressInfo } from 'node:net';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import { createIngressServer } from './index.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
+import { FsArchiveStore } from './archive/fs-archive-store.js';
+import { archiveArtifact } from './archive/index.js';
+import { DEFAULT_BACKOFF_POLICY, SqliteDeliveryQueue } from './delivery/index.js';
+import type { ChannelSender } from './delivery/channel-sender.js';
 import { sampleBusinessEventKey, validPurchaseOrder, withBusinessEvent } from './fixtures.js';
 
 describe('console (read-only): /output/documents, /output/documents/:docId, /output/trace/:id', () => {
@@ -157,5 +164,189 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
     const poRowStart = body.indexOf(poDocId);
     const poRowEnd = body.indexOf('</li>', poRowStart);
     expect(body.slice(poRowStart, poRowEnd)).not.toContain('🔒');
+  });
+});
+
+describe('Operations screen (GET /output/operations) and its poison cross-links', () => {
+  const tempDirs: string[] = [];
+  function tempDir(prefix: string): string {
+    const dir = mkdtempSync(join(tmpdir(), prefix));
+    tempDirs.push(dir);
+    return dir;
+  }
+
+  afterEach(() => {
+    while (tempDirs.length > 0) {
+      const dir = tempDirs.pop();
+      if (dir !== undefined && existsSync(dir)) {
+        rmSync(dir, { recursive: true, force: true });
+      }
+    }
+  });
+
+  class AlwaysFailingSender implements ChannelSender {
+    async send(): Promise<void> {
+      throw new Error('channel is dead (simulated)');
+    }
+  }
+  class AlwaysSucceedingSender implements ChannelSender {
+    async send(): Promise<void> {
+      // no-op
+    }
+  }
+
+  async function buildFixture() {
+    const dbDir = tempDir('console-ops-db-');
+    const dbPath = join(dbDir, 'registry.db');
+    const archiveRoot = tempDir('console-ops-archive-');
+
+    const registryStore = createSqliteRegistryStore(dbPath);
+    const archiveStore = new FsArchiveStore(archiveRoot);
+    const backoffPolicy = { maxAttempts: 2, baseDelayMs: 1, maxDelayMs: 1 };
+    const deliveryQueue = new SqliteDeliveryQueue(dbPath, {
+      registryStore,
+      archiveStore,
+      backoffPolicy,
+      onPoisonAlert: () => {},
+    });
+
+    async function mintArchivedDoc(businessObjectId: string): Promise<string> {
+      const { row } = registryStore.getOrCreateByEventKey({
+        businessObject: 'EKKO',
+        businessObjectId,
+        event: 'po.released',
+        templateVersion: '1.0.0',
+      });
+      await archiveArtifact({
+        archiveStore,
+        registryStore,
+        docId: row.docId,
+        bytes: new TextEncoder().encode('%PDF-1.7 fake bytes'),
+        mediaType: 'application/pdf',
+        retentionUntil: '2030-01-01T00:00:00Z',
+      });
+      return row.docId;
+    }
+
+    // Poison job: drives 2 failing attempts (maxAttempts: 2) to poison.
+    const poisonDocId = await mintArchivedDoc('ops-poison-1');
+    const poisonJob = deliveryQueue.enqueue({ docId: poisonDocId, channel: 'email', recipients: ['a@example.com', 'b@example.com'] });
+    await deliveryQueue.attemptDelivery(poisonJob.id, new AlwaysFailingSender());
+    const poisonResult = await deliveryQueue.attemptDelivery(poisonJob.id, new AlwaysFailingSender());
+    expect(poisonResult.outcome).toBe('poisoned');
+
+    // Delivered job: pure noise on the default (no-q) view.
+    const deliveredDocId = await mintArchivedDoc('ops-delivered-1');
+    const deliveredJob = deliveryQueue.enqueue({ docId: deliveredDocId, channel: 'email', recipients: ['c@example.com'] });
+    await deliveryQueue.attemptDelivery(deliveredJob.id, new AlwaysSucceedingSender());
+
+    // Untouched pending job.
+    const pendingDocId = await mintArchivedDoc('ops-pending-1');
+    deliveryQueue.enqueue({ docId: pendingDocId, channel: 'webhook', recipients: ['d@example.com'] });
+
+    const server = createIngressServer({ registryStore, deliveryQueue, backoffPolicy });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    const baseUrl = `http://127.0.0.1:${port}`;
+
+    return { registryStore, deliveryQueue, server, baseUrl, poisonDocId, deliveredDocId, pendingDocId };
+  }
+
+  async function getHtml(baseUrl: string, path: string) {
+    const res = await fetch(`${baseUrl}${path}`);
+    return { status: res.status, contentType: res.headers.get('content-type'), body: await res.text() };
+  }
+
+  it('with no q: shows pending/in_progress/poison, hides delivered (quiet when green)', async () => {
+    const { registryStore, deliveryQueue, server, baseUrl, poisonDocId, deliveredDocId, pendingDocId } = await buildFixture();
+
+    const { status, contentType, body } = await getHtml(baseUrl, '/output/operations');
+    expect(status).toBe(200);
+    expect(contentType).toContain('text/html');
+    expect(body).toContain(poisonDocId);
+    expect(body).toContain(pendingDocId);
+    expect(body).not.toContain(deliveredDocId);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    deliveryQueue.close();
+    registryStore.close();
+  });
+
+  it('with q: includes delivered too (a poison cross-link should not hide a later success)', async () => {
+    const { registryStore, deliveryQueue, server, baseUrl, deliveredDocId } = await buildFixture();
+
+    const { body } = await getHtml(baseUrl, `/output/operations?q=${deliveredDocId}`);
+    expect(body).toContain(deliveredDocId);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    deliveryQueue.close();
+    registryStore.close();
+  });
+
+  it('poison row shows recipient COUNT only (never raw addresses), inert retry text, and attempt/maxAttempts from the injected BackoffPolicy', async () => {
+    const { registryStore, deliveryQueue, server, baseUrl, poisonDocId } = await buildFixture();
+
+    const { body } = await getHtml(baseUrl, '/output/operations');
+    const occurrence = body.indexOf(poisonDocId);
+    const rowStart = body.lastIndexOf('<li class="row">', occurrence);
+    const rowEnd = body.indexOf('</li>', occurrence);
+    const row = body.slice(rowStart, rowEnd);
+
+    expect(row).toContain('2 recipient(s)');
+    expect(row).not.toContain('a@example.com');
+    expect(row).not.toContain('b@example.com');
+    expect(row).toContain('poison');
+    expect(row).toContain('Retry — not yet available in this console');
+    // backoffPolicy.maxAttempts is 2 (this fixture), never the module's
+    // DEFAULT_BACKOFF_POLICY.maxAttempts (5).
+    expect(row).toContain('attempt 2/2');
+    expect(DEFAULT_BACKOFF_POLICY.maxAttempts).not.toBe(2);
+
+    // docId links back to Document detail (reverse cross-link).
+    expect(row).toContain(`/output/documents/${poisonDocId}`);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    deliveryQueue.close();
+    registryStore.close();
+  });
+
+  it('Registry row cross-links to Operations when its last delivery event is poisoned', async () => {
+    const { registryStore, deliveryQueue, server, baseUrl, poisonDocId } = await buildFixture();
+
+    const { body } = await getHtml(baseUrl, `/output/documents?q=${poisonDocId}`);
+    const rowStart = body.indexOf(poisonDocId);
+    const rowEnd = body.indexOf('</li>', rowStart);
+    const row = body.slice(rowStart, rowEnd);
+    expect(row).toContain(`/output/operations?q=${poisonDocId}`);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    deliveryQueue.close();
+    registryStore.close();
+  });
+
+  it('Document detail cross-links to Operations when it has a poisoned delivery event', async () => {
+    const { registryStore, deliveryQueue, server, baseUrl, poisonDocId, pendingDocId } = await buildFixture();
+
+    const { body: poisonBody } = await getHtml(baseUrl, `/output/documents/${poisonDocId}`);
+    expect(poisonBody).toContain(`/output/operations?q=${poisonDocId}`);
+
+    const { body: pendingBody } = await getHtml(baseUrl, `/output/documents/${pendingDocId}`);
+    expect(pendingBody).not.toContain('/output/operations?q=');
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    deliveryQueue.close();
+    registryStore.close();
+  });
+
+  it('/output/operations 404s when the server has no deliveryQueue wired (composition-optional, like /output/documents)', async () => {
+    const registryStore = createSqliteRegistryStore(':memory:');
+    const server = createIngressServer({ registryStore });
+    await new Promise<void>((resolve) => server.listen(0, resolve));
+    const { port } = server.address() as AddressInfo;
+    const res = await fetch(`http://127.0.0.1:${port}/output/operations`);
+    expect(res.status).toBe(404);
+
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+    registryStore.close();
   });
 });

@@ -113,7 +113,7 @@ import type { RegistryStore } from './registry/registry-store.js';
 import { FsArchiveStore } from './archive/fs-archive-store.js';
 import type { ArchiveStore } from './archive/archive-store.js';
 import { createSqliteDeliveryQueue } from './delivery/sqlite-delivery-queue.js';
-import type { DeliveryQueue } from './delivery/delivery-queue.js';
+import { DEFAULT_BACKOFF_POLICY, type BackoffPolicy, type DeliveryQueue } from './delivery/delivery-queue.js';
 import { FsChannelSender } from './delivery/fs-channel-sender.js';
 import { TypstRenderer } from '@busy-office/render-typst';
 import type { CompositionDeps } from './composition.js';
@@ -158,6 +158,11 @@ export interface RuntimeDeps {
   idempotencyStore: IdempotencyStore;
   composition: CompositionDeps;
   channelSender: FsChannelSender;
+  /** The `BackoffPolicy` `deliveryQueue` was constructed with — threaded
+   * through to the Operations console screen (console.ts) so its
+   * `maxAttempts` column reflects reality instead of hardcoding
+   * `DEFAULT_BACKOFF_POLICY`. */
+  backoffPolicy: BackoffPolicy;
 }
 
 /**
@@ -180,11 +185,12 @@ export function createRuntimeDeps(
   const registryStore = createSqliteRegistryStore(dbPath);
   const idempotencyStore = createRegistryIdempotencyStore(registryStore);
   const archiveStore = new FsArchiveStore(archiveDir);
-  const deliveryQueue = createSqliteDeliveryQueue(dbPath, { registryStore, archiveStore });
+  const backoffPolicy = DEFAULT_BACKOFF_POLICY;
+  const deliveryQueue = createSqliteDeliveryQueue(dbPath, { registryStore, archiveStore, backoffPolicy });
   const renderer = new TypstRenderer();
   const channelSender = new FsChannelSender(outboxDir);
   const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, renderer };
-  return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, channelSender };
+  return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, channelSender, backoffPolicy };
 }
 
 /**
@@ -206,6 +212,8 @@ export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
     idempotencyStore: deps.idempotencyStore,
     registryStore: deps.registryStore,
     composition: deps.composition,
+    deliveryQueue: deps.deliveryQueue,
+    backoffPolicy: deps.backoffPolicy,
   });
   const worker: Worker = startWorker(deps.deliveryQueue, deps.channelSender);
   server.listen(port);

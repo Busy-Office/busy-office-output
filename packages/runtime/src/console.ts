@@ -25,14 +25,27 @@
 import type { ServerResponse } from 'node:http';
 import type { DocumentRegistryRow, RegistryStore } from './registry/registry-store.js';
 import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/trace.js';
+import type { BackoffPolicy, DeliveryJob, DeliveryJobStatus, DeliveryQueue } from './delivery/delivery-queue.js';
 import { notFoundProblem } from './problem.js';
 import { sendHtml, sendProblem } from './http-helpers.js';
 
 /** Registry screen's page size — also what a "load more" link advances by. */
 const DOCUMENTS_PAGE_SIZE = 50;
 
+/** Operations screen's page size — same convention as the Registry screen. */
+const OPERATIONS_PAGE_SIZE = 50;
+
+/** Statuses shown with no `q` — delivered is terminal success (noise),
+ * "quiet when green" (docs/UI-DESIGN.md principle 2). */
+const OPERATIONS_DEFAULT_STATUSES: DeliveryJobStatus[] = ['pending', 'in_progress', 'poison'];
+
 export function isConsolePath(path: string): boolean {
-  return path === '/output/documents' || path.startsWith('/output/documents/') || path.startsWith('/output/trace/');
+  return (
+    path === '/output/documents' ||
+    path.startsWith('/output/documents/') ||
+    path.startsWith('/output/trace/') ||
+    path === '/output/operations'
+  );
 }
 
 function escapeHtml(value: string): string {
@@ -92,10 +105,19 @@ ${bodyHtml}
 </html>`;
 }
 
+/** The poison cross-link (docs/UI-DESIGN.md: "registry poison -> operations"),
+ * shared by the Registry row and the Document detail's delivery-history
+ * section — both check the same condition off `deliveryHistory`, no new
+ * `DeliveryQueue` import needed at either call site. */
+function operationsCrossLink(docId: string): string {
+  return `<a href="/output/operations?q=${encodeURIComponent(docId)}">View in Operations queue</a>`;
+}
+
 function lastDeliveryLine(row: DocumentRegistryRow): string {
   if (row.deliveryHistory.length === 0) return '';
   const last = row.deliveryHistory[row.deliveryHistory.length - 1];
-  return `<div>${escapeHtml(last.status)} ${escapeHtml(last.occurredAt)}</div>`;
+  const crossLink = last.status === 'poisoned' ? ` ${operationsCrossLink(row.docId)}` : '';
+  return `<div>${escapeHtml(last.status)} ${escapeHtml(last.occurredAt)}${crossLink}</div>`;
 }
 
 function renderDocumentsPage(registryStore: RegistryStore, query: URLSearchParams): string {
@@ -140,6 +162,7 @@ ${loadMore}`,
 }
 
 function renderDocumentDetailPage(row: DocumentRegistryRow, hasTrace: boolean): string {
+  const hasPoisonedDelivery = row.deliveryHistory.some((e) => e.status === 'poisoned');
   const deliveryHtml =
     row.deliveryHistory.length === 0
       ? '<p>No delivery history.</p>'
@@ -150,7 +173,7 @@ ${row.deliveryHistory
       `<li>${escapeHtml(e.channel)} · ${escapeHtml(e.status)} · ${escapeHtml(e.occurredAt)}${e.detail !== undefined ? ' · ' + escapeHtml(e.detail) : ''}</li>`,
   )
   .join('\n')}
-</ul>`;
+</ul>${hasPoisonedDelivery ? `<p>${operationsCrossLink(row.docId)}</p>` : ''}`;
 
   const traceLink = hasTrace
     ? `<p><a href="/output/trace/${encodeURIComponent(row.docId)}">Rule trace</a></p>`
@@ -236,6 +259,56 @@ ${trace.resolutions.map(renderResolutionBlock).join('\n')}
   );
 }
 
+function renderOperationsRow(job: DeliveryJob, maxAttempts: number): string {
+  const retryLine =
+    job.status === 'poison' ? '<div>Retry — not yet available in this console</div>' : '';
+  const errorSuffix = job.lastError !== null ? ` — ${escapeHtml(job.lastError)}` : '';
+  return `<li class="row">
+  <div><a href="/output/documents/${encodeURIComponent(job.docId)}">${escapeHtml(job.docId)}</a> · ${escapeHtml(job.channel)} · ${job.recipients.length} recipient(s)</div>
+  <div>${escapeHtml(job.status)}${errorSuffix}</div>
+  <div>attempt ${job.attemptCount}/${maxAttempts} · next attempt ${orDash(job.nextAttemptAt)}</div>
+  ${retryLine}
+</li>`;
+}
+
+function renderOperationsPage(
+  deliveryQueue: DeliveryQueue,
+  backoffPolicy: BackoffPolicy,
+  query: URLSearchParams,
+): string {
+  const search = query.get('q') ?? '';
+  const offset = Number.parseInt(query.get('offset') ?? '0', 10) || 0;
+  // No `q`: delivered is terminal success (noise) — "quiet when green".
+  // `q` present: every status, including delivered — a poison cross-link
+  // that hid a later successful delivery would be misleading.
+  const statuses = search === '' ? OPERATIONS_DEFAULT_STATUSES : undefined;
+  // Fetch one extra row for a "load more" link, same convention as the
+  // Registry screen.
+  const fetched = deliveryQueue.listJobs({ search, statuses, limit: OPERATIONS_PAGE_SIZE + 1, offset });
+  const hasMore = fetched.length > OPERATIONS_PAGE_SIZE;
+  const jobs = hasMore ? fetched.slice(0, OPERATIONS_PAGE_SIZE) : fetched;
+
+  const rowsHtml = jobs.map((job) => renderOperationsRow(job, backoffPolicy.maxAttempts)).join('\n');
+
+  const searchParam = search === '' ? '' : `&q=${encodeURIComponent(search)}`;
+  const loadMore = hasMore
+    ? `<p><a href="/output/operations?offset=${offset + OPERATIONS_PAGE_SIZE}${searchParam}">Load more</a></p>`
+    : '';
+
+  return renderPage(
+    'Operations',
+    `<h1>Operations</h1>
+<form class="search" method="GET" action="/output/operations">
+  <input type="text" name="q" value="${escapeHtml(search)}" placeholder="docId / channel">
+  <button type="submit">Search</button>
+</form>
+<ul class="rows">
+${rowsHtml}
+</ul>
+${loadMore}`,
+  );
+}
+
 /**
  * Dispatch one already-GET-verified `/output/*` request. Synchronous
  * (RegistryStore is `node:sqlite`, itself synchronous) — no `Promise`
@@ -246,7 +319,18 @@ export function handleConsoleRequest(
   path: string,
   query: URLSearchParams,
   registryStore: RegistryStore,
+  deliveryQueue?: DeliveryQueue,
+  backoffPolicy?: BackoffPolicy,
 ): void {
+  if (path === '/output/operations') {
+    if (deliveryQueue === undefined || backoffPolicy === undefined) {
+      sendProblem(res, notFoundProblem(path));
+      return;
+    }
+    sendHtml(res, 200, renderOperationsPage(deliveryQueue, backoffPolicy, query));
+    return;
+  }
+
   if (path === '/output/documents') {
     sendHtml(res, 200, renderDocumentsPage(registryStore, query));
     return;

@@ -125,6 +125,22 @@ export interface DeliveryQueue {
   listDue(now?: string): DeliveryJob[];
 
   /**
+   * The Operations console screen's read model (ROADMAP Stage 4
+   * "Operations console page"). Search + status filter + pagination over
+   * every job, mirroring how `RegistryStore.listDocuments` already does
+   * search+pagination for the Registry screen.
+   *
+   * `search` (optional): case-insensitive substring match over docId /
+   * channel. Empty or omitted: no filter.
+   * `statuses` (optional): restrict to these `DeliveryJobStatus` values.
+   * Omitted: every status.
+   * Sort order: worst-first — `poison` jobs first, then `in_progress`,
+   * then `pending` (by `nextAttemptAt` ascending), everything else
+   * (`delivered`) last; `id` ascending breaks ties within a bucket.
+   */
+  listJobs(options: { search?: string; statuses?: DeliveryJobStatus[]; limit: number; offset: number }): DeliveryJob[];
+
+  /**
    * Run ONE delivery attempt for `jobId` against `sender`: read the job's
    * archived bytes back via the archive store (never re-render), call
    * `sender.send`, and update the job's state accordingly —
