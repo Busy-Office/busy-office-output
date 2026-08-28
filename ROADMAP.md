@@ -163,7 +163,7 @@ are done.
 - [ ] Document-level authorization: reproduce/regenerate/reissue evaluated against the document — DoD: HR-clerk vs employee test — same endpoint, different outcome
 - [x] Retention per doc type enforced end-to-end — DoD: expiry test purges artifact, registry row survives *(2026-08-28: retention-policy.ts (invoice 10y, payslip 6y, purchase-order 3y — documented as non-legal defaults). ArchiveStore.purge() added (idempotent), enforceRetention() purges bytes then marks the registry row (archiveRef->null, purgedAt set, state/retentionUntil preserved) — crash-safe ordering, never claims purged bytes that still exist. Row survives forever, directly callable like resumeStrandedCompositions/drainOnce, no new background loop)*
 - [ ] Bursting through fan-out at target volume; second renderer (ADR-002, default pdf-lib) lands here if needed — DoD: gate below
-- [ ] Operations console page (delivery queue: retry/poison; retry never re-renders) — DoD: five UI principles pass; poison row from registry cross-links here
+- [x] Operations console page (delivery queue: retry/poison; retry never re-renders) — DoD: five UI principles pass; poison row from registry cross-links here *(2026-08-28: GET /output/operations — worst-first sorted rows, quiet-when-green default (delivered hidden unless searched), recipients shown as count only, retry inert text per console-designer ruling matching Stage 3's precedent. Bidirectional cross-links: Registry/Document-detail -> Operations on any poisoned delivery, every row -> Document detail)*
 
 ### Exit gate — `/gate-check 4`
 8,000-recipient payroll run inside the stated window, per-recipient locale and

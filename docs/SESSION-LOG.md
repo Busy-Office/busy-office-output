@@ -11,6 +11,23 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 4: operations console page
+- Did: console-designer ruled retry stays inert text (Stage 3 precedent,
+  no DoD demanding live action). GET /output/operations — new
+  DeliveryQueue.listJobs port method, worst-first sort, quiet-when-green
+  default, recipient counts not addresses. Bidirectional cross-links
+  between Registry/Document-detail and Operations on any poisoned
+  delivery.
+- Open: template-from-sample on redacted samples (blocked, no real
+  samples), document-level authorization, bursting/second-renderer
+  (ADR-002 still Proposed). Stage 3's GATE-S3-THESIS-CHECK remains open
+  (human-only). Only ADR-002-blocked and no-real-samples-blocked tasks
+  remain buildable-with-a-decision in Stage 4; document-level
+  authorization is the only fully independent one left.
+- Next: document-level authorization is the last clearly-buildable Stage
+  4 task without a new decision; bursting/second-renderer needs ADR-002
+  decided first (same pattern as ADR-003/004/007 this session).
+
 ## 2026-08-28 — Stage 4: retention per doc type, expiry enforcement
 - Did: per-document-type retention policy (invoice 10y, payslip 6y,
   purchase-order 3y — non-legal defaults, documented as such). Real
