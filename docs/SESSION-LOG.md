@@ -11,6 +11,28 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 4: invoice contract + template + corpus
+- Did: first Stage 4 task. Invoice gets real render content
+  (invoice-global-v1 DocNode tree, reused from the Stage 1 paper-test
+  fixture) — previously determination-only. test/corpus/invoice/: 5
+  cases mirroring purchase-order's structure (single-currency, multi-page
+  carry-forward, tax-rate variation incl. a zero-rated line, overflow-
+  must-fail, empty-lines). Multi-currency scope decision: schema
+  untouched, header currency + Money's per-instance currency already
+  cover any single-currency invoice; mixed-currency-per-line deliberately
+  deferred (no consumer needs it, avoids gold-plating the contract).
+  Confirmed packages/render-typst is genuinely document-type-agnostic —
+  zero renderer changes needed for the second document type.
+- Open: PDF attachment concatenation, payslip + PII posture, template-
+  from-sample on redacted samples, document-level authorization,
+  retention per doc type, bursting/second-renderer (ADR-002 still
+  Proposed), operations console page. Stage 3's GATE-S3-THESIS-CHECK
+  remains open (human-only, doesn't block Stage 4).
+- Next: payslip (PII posture) is the natural next document-type task —
+  it's the one that actually needs the payslip x-pii schema marker and
+  the "no payload fields in logs" log-scrub test to mean something, since
+  no payslip has ever been rendered yet.
+
 ## 2026-08-28 — Stage 3 exit gate verified PASS (machine-checkable criteria)
 - Did: a second, independent corpus-qa gate-check (real commands, fresh
   /tmp state) confirmed the Stage 3 exit gate: POST /event on a real

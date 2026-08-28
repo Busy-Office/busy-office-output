@@ -156,7 +156,7 @@ are done.
 **Goal:** invoice and payslip, chosen because they break different things.
 
 ### Tasks
-- [ ] Invoice: tax/multi-currency contract + template — DoD: corpus cases green
+- [x] Invoice: tax/multi-currency contract + template — DoD: corpus cases green *(2026-08-28: invoice-global-v1 DocNode content wired into packages/runtime/src/render/template-content.ts; test/corpus/invoice/ 5 cases/10 tests. Multi-currency scope: schema untouched — header currency + Money's per-instance currency already support any single-ISO-4217-currency invoice; genuine mixed-currency-per-line deliberately deferred, no consumer needs it yet. renderer confirmed genuinely document-type-agnostic, zero changes needed)*
 - [ ] **PDF attachment concatenation** (T&C append, cover sheet) — DoD: merged artifact archived as one document, page counts asserted
 - [ ] Payslip: compact template + PII posture — DoD: corpus green; log-scrub test proves no payload fields in logs
 - [ ] Author invoice + payslip templates via the template-from-sample skill on **redacted** real samples — DoD: templates carry `provenance: ai-generated`, corpus gates green; redaction step documented
