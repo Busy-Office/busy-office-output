@@ -11,6 +11,27 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-28 — Stage 3: embeddable module (createOutput + outbox)
+- Did: ADR-007 accepted directly by the maintainer in chat (recommendation
+  adopted as drafted). arb-chair scope ruling: no PostgresRegistryStore
+  (no live Postgres available), no ADR-007 package restructuring,
+  createOutput() built over existing injected ports only. Closed the real
+  crash-mid-composition gap flagged in the prior session: mintWithOutbox
+  wraps docId mint + a new composition_outbox row in one SQLite
+  transaction (migrations/0005_add_composition_outbox.sql);
+  resumeStrandedCompositions() redrives unfinished work, skipping any
+  docId whose archive already succeeded (no orphaned second copy).
+  Rollback tests (real TypstRenderer, real on-disk SQLite/FS archive)
+  prove the DoD directly: exactly one archived artifact, registry row
+  reaches ORIGINAL, idempotent on a second resume.
+- Open: minimal console, [HUMAN] thesis check (permanently open — needs
+  the maintainer). Flagged, not fixed: server.ts's HTTP ingress still
+  uses the pre-outbox mint path, so the same crash window exists there;
+  createOutput() is fixed, the standalone HTTP demo path is not yet.
+- Next: minimal read-only console (registry, document detail, rule trace
+  pages) is the last buildable Stage 3 task — after that, only the
+  human-only thesis check remains.
+
 ## 2026-08-28 — Stage 3: single-process serve
 - Did: composition.ts (render+archive+enqueue per resolution, never
   throws; 10-year default retentionUntil documented as a Stage-3 stand-in,
