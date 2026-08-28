@@ -35,6 +35,7 @@ import type { ArchiveStore } from '../archive/archive-store.js';
 import type { DeliveryQueue } from '../delivery/delivery-queue.js';
 import type { SchemaValidationError } from '../problem.js';
 import { isKnownDocumentType, validateContract, type DocumentType } from '../contract-validation.js';
+import { extractPayslipOwnerId } from '../authorization/authorization-port.js';
 import {
   determine,
   loadOutputRules,
@@ -172,6 +173,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       resolution,
       data,
       documentType,
+      extractPayslipOwnerId(documentType, data),
     );
 
     let composed: CompositionOutcome | { outcome: 'replayed' };

@@ -31,6 +31,7 @@ import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
 import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
 import { composeRenderArchiveAndEnqueue, type CompositionDeps } from './composition.js';
+import { extractPayslipOwnerId } from './authorization/authorization-port.js';
 import {
   invalidContractProblem,
   malformedCloudEventsProblem,
@@ -301,6 +302,7 @@ async function handleEvent(
         businessEventKey,
         resolution.ruleId,
         documentType,
+        extractPayslipOwnerId(documentType, documentPayload as DataContractEnvelope),
       );
       const composed =
         composition !== undefined && !replayed

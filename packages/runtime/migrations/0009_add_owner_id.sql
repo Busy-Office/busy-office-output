@@ -1,0 +1,33 @@
+-- Document-level authorization's natural-person owner (ROADMAP Stage 4,
+-- "Document-level authorization: reproduce/regenerate/reissue evaluated
+-- against the document" — DoD: "HR-clerk vs employee test — same endpoint,
+-- different outcome"). `AuthorizationPort` (src/authorization/
+-- authorization-port.ts, first concrete shape for ADR-007's boundary
+-- concept) needs an owner to compare an `Actor.subjectId` against for the
+-- 'employee' role; no existing column carries that.
+--
+-- owner_id: nullable TEXT, populated ONLY at mint time for payslip rows
+-- (from the payslip data contract's own `header.employeeId` — see
+-- packages/schema/contracts/payslip.schema.json's field comment: "Opaque
+-- internal identifier, not a national ID — never a data element the
+-- runtime logs"). NULL for every other document type (purchase-order,
+-- invoice have no natural-person owner — see authorization-port.ts's
+-- single coarse default-allow fallback for them) and for any row minted
+-- before this migration.
+--
+-- Deliberately nullable rather than NOT NULL DEFAULT '' (unlike
+-- migrations/0003's rule_id / 0006's document_type): those two are
+-- identity/descriptive fields the registry itself always has an opinion
+-- about (even if that opinion is "empty string, no rule/type"); owner_id
+-- is authorization data that most rows (every non-payslip document) never
+-- has at all — NULL means "no owner", not "owner not yet known", and never
+-- feeds a unique index, so there is no NOT-NULL-column composability
+-- concern to guard against here.
+--
+-- Same PII discipline as the payslip data contract itself: owner_id is an
+-- opaque identifier stored on the registry row (the row already carries
+-- other identifying fields like business_object_id) but MUST NEVER appear
+-- in a console.log/error/warn call — see
+-- src/embed/payslip-log-scrub.test.ts, the existing precedent test this
+-- column must not break.
+ALTER TABLE document_registry ADD COLUMN owner_id TEXT;

@@ -127,6 +127,20 @@ export interface DocumentRegistryRow {
    * `documentType === 'payslip'`.
    */
   documentType: string;
+  /**
+   * The natural-person owner of this artifact (ROADMAP Stage 4,
+   * "Document-level authorization"), or `null` when this document type has
+   * no natural-person owner (e.g. purchase-order, invoice) or the row was
+   * minted before migrations/0009_add_owner_id.sql. Populated ONLY for
+   * payslip mints, from the payslip data contract's `header.employeeId` —
+   * see `authorization/authorization-port.ts`'s default `AuthorizationPort`
+   * implementation, which compares an `employee` actor's `subjectId`
+   * against this field. Unlike `ruleId`/`documentType`, deliberately
+   * nullable rather than NOT-NULL-DEFAULT-'' — see the migration's own
+   * comment for why. Never logged (same PII discipline as the payslip
+   * payload itself — src/embed/payslip-log-scrub.test.ts).
+   */
+  ownerId: string | null;
   state: DocumentState;
   createdAt: string;
   updatedAt: string;
@@ -178,8 +192,12 @@ export interface RegistryStore {
    * `documentType` (optional, default `''`) is persisted on a newly minted
    * row only — ignored on replay, since the row (and its documentType)
    * already exists. See `DocumentRegistryRow.documentType`.
+   *
+   * `ownerId` (optional, default `undefined` -> stored as `null`): see
+   * `DocumentRegistryRow.ownerId`. Same "newly minted row only" rule as
+   * `documentType`.
    */
-  getOrCreateByEventKey(key: BusinessEventKey, documentType?: string): GetOrCreateResult;
+  getOrCreateByEventKey(key: BusinessEventKey, documentType?: string, ownerId?: string): GetOrCreateResult;
 
   /**
    * The fan-out-aware idempotency lookup (see `ResolutionEventKey` above):
@@ -191,8 +209,9 @@ export interface RegistryStore {
    * a ruleId-disambiguated lookup can never disagree about identity.
    *
    * `documentType` (optional, default `''`): see `getOrCreateByEventKey`.
+   * `ownerId` (optional): see `getOrCreateByEventKey`.
    */
-  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string): GetOrCreateResult;
+  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string, ownerId?: string): GetOrCreateResult;
 
   /**
    * The transactional-outbox-aware mint (ROADMAP Stage 3 "Embeddable
@@ -206,8 +225,16 @@ export interface RegistryStore {
    * `getOutboxEntry(row.docId)` to find out whether a previous attempt's
    * composition work is still pending (stranded by a crash) and needs
    * redriving before treating this as a pure replay.
+   *
+   * `ownerId` (optional): see `getOrCreateByEventKey`.
    */
-  mintWithOutbox(key: ResolutionEventKey, resolution: unknown, data: unknown, documentType?: string): GetOrCreateResult;
+  mintWithOutbox(
+    key: ResolutionEventKey,
+    resolution: unknown,
+    data: unknown,
+    documentType?: string,
+    ownerId?: string,
+  ): GetOrCreateResult;
 
   /** The pending outbox entry for `docId`, or undefined if none exists
    * (composition already completed for it, or it was never minted via

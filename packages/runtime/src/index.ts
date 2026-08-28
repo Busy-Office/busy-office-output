@@ -93,6 +93,8 @@ export type { CompositionDeps, CompositionOutcome, ResumeOutcome } from './compo
 export { renderCoverSheet, coverSheetTemplate, coverSheetData, COVER_SHEET_DOC_TYPE } from './render/cover-sheet.js';
 export type { CoverSheetHeader } from './render/cover-sheet.js';
 export { createOutput } from './embed/create-output.js';
+export { defaultAuthorizationPort, extractPayslipOwnerId } from './authorization/authorization-port.js';
+export type { AuthorizationPort, Actor, ReprintAction } from './authorization/authorization-port.js';
 export type {
   CreateOutputDeps,
   OutputPort,

@@ -44,7 +44,12 @@ export interface IdempotencyStore {
    * registry/registry-store.ts's `ResolutionEventKey`). `documentType`:
    * see `getOrCreate` above.
    */
-  getOrCreateForResolution(key: BusinessEventKey, ruleId: string, documentType?: string): IdempotencyResult;
+  getOrCreateForResolution(
+    key: BusinessEventKey,
+    ruleId: string,
+    documentType?: string,
+    ownerId?: string,
+  ): IdempotencyResult;
 }
 
 /** Wraps a `RegistryStore` to satisfy the `IdempotencyStore` contract. */
@@ -54,8 +59,13 @@ export function createRegistryIdempotencyStore(registryStore: RegistryStore): Id
       const { row, created } = registryStore.getOrCreateByEventKey(key, documentType);
       return { docId: row.docId, replayed: !created };
     },
-    getOrCreateForResolution(key: BusinessEventKey, ruleId: string, documentType?: string): IdempotencyResult {
-      const { row, created } = registryStore.getOrCreateByResolutionKey({ ...key, ruleId }, documentType);
+    getOrCreateForResolution(
+      key: BusinessEventKey,
+      ruleId: string,
+      documentType?: string,
+      ownerId?: string,
+    ): IdempotencyResult {
+      const { row, created } = registryStore.getOrCreateByResolutionKey({ ...key, ruleId }, documentType, ownerId);
       return { docId: row.docId, replayed: !created };
     },
   };
