@@ -26,7 +26,8 @@ import { join } from 'node:path';
 import type { Artifact, RenderJob, Renderer } from '@busy-office/output-schema';
 import { createRuntimeDeps, createOutput, drainOnce } from '@busy-office/runtime';
 import type { ArchiveStore } from '@busy-office/runtime';
-import { generatePayslip } from '../corpus/payslip/generate.js';
+import { generatePayslip, generatePayslipRouting } from '../corpus/payslip/generate.js';
+import { summarizeRouting } from './routing-breakdown.js';
 
 interface Args {
   n: number;
@@ -120,9 +121,15 @@ async function main(): Promise<void> {
 
   // Payslip mix: cycle through the realistic 1..4 earning / 1..4 deduction
   // shapes so the corpus isn't one identical document 8,000 times.
+  // Per-recipient routing (Stage 4 exit gate clause 2): every event carries
+  // its OWN employee's locale, country, and mailbox as caller-supplied
+  // determination context (master data — never on the payload, HLD §1);
+  // `payslip-default-email` routes to that mailbox, and the fan-out rule
+  // `payslip-country-DE-archive-copy` adds an object-store copy for DE.
   const submitOne = async (i: number) => {
     const seed = 100_000 + i;
     const payload = generatePayslip({ seed, earningCount: 1 + (i % 4), deductionCount: 1 + ((i >> 2) % 4) });
+    const routing = generatePayslipRouting(seed);
     const t = performance.now();
     const result = await output.submitEvent({
       documentType: 'payslip',
@@ -133,6 +140,7 @@ async function main(): Promise<void> {
         event: 'payslip.issued',
         templateVersion: '1.0.0',
       },
+      determination: { locale: routing.locale, country: routing.country, recipients: routing.recipients },
     });
     const ms = performance.now() - t;
     if (result.status !== 'accepted') throw new Error(`doc ${i}: ${result.status}`);
@@ -178,6 +186,11 @@ async function main(): Promise<void> {
     drained = results.length;
   }
 
+  // Row-based locale x channel breakdown straight from SQLite (the same
+  // query the permanent gate test asserts on at small N) — read BEFORE the
+  // handles close and the temp dir goes away.
+  const routing = summarizeRouting(join(root, 'registry.db'));
+
   deps.deliveryQueue.close();
   deps.registryStore.close();
 
@@ -196,10 +209,17 @@ async function main(): Promise<void> {
     `per-doc submitEvent latency: mean ${d.mean.toFixed(1)}ms  p50 ${d.p50.toFixed(1)}ms  p95 ${d.p95.toFixed(1)}ms  max ${d.max.toFixed(1)}ms`,
     `  render phase (typst compile+query): mean ${r.mean.toFixed(1)}ms  p50 ${r.p50.toFixed(1)}ms  p95 ${r.p95.toFixed(1)}ms  (n=${renderMs.length})`,
     `  archive phase (fs write):           mean ${a.mean.toFixed(1)}ms  p50 ${a.p50.toFixed(1)}ms  p95 ${a.p95.toFixed(1)}ms  (n=${archiveMs.length})`,
-    `  everything else (validate/determine/mint/enqueue): mean ${(d.mean - r.mean - a.mean).toFixed(1)}ms`,
+    // Per DOC, not per render: a fan-out event renders once per resolution
+    // (the DE archive copy), so render/archive sums are divided by N here.
+    `  everything else (validate/determine/mint/enqueue): mean ${(d.mean - renderMs.reduce((x, y) => x + y, 0) / args.n - archiveMs.reduce((x, y) => x + y, 0) / args.n).toFixed(1)}ms per doc (renders per doc: ${(renderMs.length / args.n).toFixed(2)})`,
     `projection: 8,000 docs at this wall ms/doc = ${projected8000Min.toFixed(1)} min vs ${windowMin}-min window -> margin ${(windowMin / projected8000Min).toFixed(2)}x${args.n === 8000 ? ' (measured, not projected)' : ' (PROJECTED from N=' + args.n + ')'}`,
   ];
   if (drainMs !== undefined) lines.push(`drain (FsChannelSender): ${drained} jobs in ${(drainMs / 1000).toFixed(1)}s = ${(drainMs / Math.max(1, drained)).toFixed(1)} ms/job`);
+  lines.push(`per-recipient routing (document_registry JOIN delivery_queue, incl. ${args.warmup} warmup docs):`);
+  for (const cell of routing.cells) {
+    lines.push(`  locale=${cell.locale ?? '(null)'} channel=${cell.channel} rows=${cell.rows} distinctRecipients=${cell.distinctRecipients}`);
+  }
+  lines.push(`  registry rows=${routing.registryRows} delivery jobs=${routing.deliveryJobs} traces=${routing.traceRows} docs with a distinct email recipient=${routing.distinctEmailRecipients}`);
   console.log(lines.join('\n'));
 
   if (args.keep) console.log(`kept: ${root}`);

@@ -59,12 +59,15 @@ export async function submitResolution(
 ): Promise<SubmitResolutionOutcome> {
   const key = { ...businessEvent, ruleId: resolution.ruleId };
 
+  // `resolution.locale` is persisted on the registry row at mint
+  // (migrations/0010_add_locale.sql) — the row-level evidence for "each doc
+  // landed on the locale its own event named" (Stage 4 exit gate clause 2).
   if (composition === undefined) {
-    const { row, created } = registryStore.getOrCreateByResolutionKey(key, documentType, ownerId);
+    const { row, created } = registryStore.getOrCreateByResolutionKey(key, documentType, ownerId, resolution.locale);
     return { docId: row.docId, replayed: !created, composition: undefined };
   }
 
-  const { row, created } = registryStore.mintWithOutbox(key, resolution, data, documentType, ownerId);
+  const { row, created } = registryStore.mintWithOutbox(key, resolution, data, documentType, ownerId, resolution.locale);
 
   if (created) {
     const composed = await composeRenderArchiveAndEnqueue(composition, row.docId, resolution, data);

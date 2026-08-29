@@ -134,6 +134,76 @@ S3/email channels not exercised. Warm process (3 warmup docs); a cold
 first `typst` spawn is not in the numbers. The concurrency-4 row is a
 2,000-doc run extrapolated to 8,000, not a completed 8,000 run.
 
+### Per-recipient run — locale x channel (measured 2026-08-29, exit-gate clause 2)
+
+**Why a second run.** The `/gate-check 4` note in ROADMAP.md failed
+clause 2 ("per-recipient locale and channel") because the baseline run
+above used ONE rule, ONE channel, ONE shared recipient string, and never
+set or persisted `locale`. This run is the same harness, same machine,
+same N, after the arb-chair ruling *recipients and locale are
+caller-supplied determination context; a rule may override* (HLD §4).
+The baseline row above is kept as the single-locale baseline; this is the
+per-recipient run.
+
+**What changed per event.** `test/corpus/payslip/generate.ts`'s seeded
+`generatePayslipRouting(seed)` gives every employee its own
+`determination: { locale, country, recipients: ['emp-<id>@example.com'] }`
+(locale alternates en-US / de-DE, country cycles US / DE / SG; nothing on
+the payload — master data stays outside the boundary, HLD §1). Rules:
+`payslip-default-email` is now channel-only (email, recipients from the
+caller); the new fan-out rule `payslip-country-DE-archive-copy`
+(condition `country: "DE"`) adds one `object-store` copy to
+`archive://payroll/de` — the rule-supplied recipient, exercising the
+"rule wins" branch of the precedence in the same run. Locale is persisted
+at mint (`document_registry.locale`, migration 0010); the embedded path
+now persists its trace (it used to drop it).
+
+| Run | N | Wall-clock | Wall ms/doc | submitEvent mean / p50 / p95 / max | Renders | Render mean (per render) | Archive mean | 8,000-doc time | Margin vs 30 min |
+|---|---|---|---|---|---|---|---|---|---|
+| per-recipient, concurrency 1, 2 locales x 2 channels, DE fan-out | **8,000 (run to completion)** | **1117.7 s = 18.63 min** | **139.7 ms** | 139.7 / 137.2 / 150.8 / 257.1 ms | 10,667 (1.33/doc) | 139.8 ms | 0.5 ms | **18.6 min (measured)** | **1.61x** |
+
+Wall-clock is unchanged from the baseline (18.64 -> 18.63 min) despite
+1/3 of events now rendering TWO artifacts: a fan-out event's resolutions
+compose concurrently (`Promise.all` inside `submitEvent`), so the second
+`typst` process overlaps the first and per-doc latency stays ~140 ms.
+(The bench's "everything else" line printed -0.7 ms on this run because
+it subtracted the per-*render* mean from the per-*doc* mean; the bench
+now divides render/archive sums by N — the correct per-doc figure is
+~0.6 ms, unchanged.) Drain after the loop: 10,671 jobs in 78.7 s =
+7.4 ms/job (5.6 ms/job baseline; more rows, same sender).
+
+**Row-based breakdown**, read straight from the SQLite file after the
+run (`document_registry.locale` JOIN `delivery_queue`, counts include the
+3 untimed warmup docs; `test/bench/routing-breakdown.ts`):
+
+| locale | channel | rows | distinct recipients |
+|---|---|---|---|
+| de-DE | email | 4,002 | 4,002 |
+| de-DE | object-store | 1,334 | 1 |
+| en-US | email | 4,001 | 4,001 |
+| en-US | object-store | 1,334 | 1 |
+
+Two numbers a reader will otherwise misread. (a) resolutions = 10,667
+> N = 8,000 and registry rows = 10,671 > 8,003 docs is **not** double
+counting: the second rule is `fanOut: true`, and each object-store copy
+is legitimately its own DocumentInstance / audit row (HLD §3) — "one
+audit row each" holds per RESOLUTION, and registry rows = delivery jobs =
+**10,671** = 8,003 email originals + 2,668 DE archive copies exactly.
+(b) object-store `distinct recipients = 1` is **correct, not a defect**:
+that rule names its own recipient (`archive://payroll/de`), so
+`rule.resolution.recipients` wins over the caller's mailbox — the
+rule-override half of the ruling's precedence, demonstrated in the same
+run as the caller-supplied half (email: 8,003 rows, 8,003 distinct
+mailboxes). Persisted traces = **8,003** (one per event, none dropped on
+the embedded path); both locales appear on both channels; no NULL locale.
+The permanent version of this assertion runs at N=24 inside `npm test`
+(`packages/runtime/src/embed/per-recipient-routing.test.ts`: 32 rows,
+24 traces, 12/12 + 12/12 email distinct, 4 + 4 object-store copies).
+
+Caveats as above, plus: the two locales share ONE template body
+(`payslip-global-v1`) — the locale column is routing evidence, not a
+differing PDF; locale-aware formatting is Stage 6.
+
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):
 - Typst (markup): `po.typ` requests `font: "DejaVu Sans"`, not installed on

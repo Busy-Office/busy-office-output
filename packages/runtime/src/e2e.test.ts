@@ -215,7 +215,7 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
           validPayslip(),
           sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-1000', event: 'payslip.issued' }),
         ),
-        determination: { companyCode: '1000' },
+        determination: { companyCode: '1000', recipients: ['emp-0000789@example.com'] },
       };
       const { status, json } = await post(payload);
       expect(status).toBe(202);
@@ -249,10 +249,13 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
   );
 
   it('payslip without a companyCode still resolves payslip-global-v1 on typst (the routing rule is per template, not per document type)', async () => {
-    const payload = withBusinessEvent(
-      validPayslip(),
-      sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-global', event: 'payslip.issued' }),
-    );
+    const payload = {
+      ...withBusinessEvent(
+        validPayslip(),
+        sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-global', event: 'payslip.issued' }),
+      ),
+      determination: { recipients: ['emp-0000789@example.com'] },
+    };
     const { status, json } = await post(payload);
     expect(status).toBe(202);
     const [resolution] = json.resolutions;

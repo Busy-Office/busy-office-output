@@ -9,11 +9,18 @@ describe('loadOutputRules / loadTemplateCandidates (files-first, ADR-003)', () =
     expect(ids).toContain('po-default-email');
     expect(ids).toContain('invoice-default-email');
     expect(ids).toContain('payslip-default-email');
+    expect(ids).toContain('payslip-country-DE-archive-copy');
     for (const rule of rules) {
       expect(rule.conditions.documentType).toEqual(expect.any(String));
       expect(rule.resolution.channel).toEqual(expect.any(String));
-      expect(Array.isArray(rule.resolution.recipients)).toBe(true);
+      // Recipients are OPTIONAL on a rule (Stage 4 clause 2 ruling: caller-
+      // supplied master data, rule overrides) — when present, an array.
+      if (rule.resolution.recipients !== undefined) {
+        expect(Array.isArray(rule.resolution.recipients)).toBe(true);
+      }
     }
+    // The channel-only payslip rule is the one that relies on the caller.
+    expect(rules.find((r) => r.id === 'payslip-default-email')?.resolution.recipients).toBeUndefined();
   });
 
   it('loads every *.json template candidate file under rules/templates/', () => {

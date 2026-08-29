@@ -44,7 +44,7 @@ import { createSqliteDeliveryQueue } from '../delivery/sqlite-delivery-queue.js'
 import type { ChannelSendInput, ChannelSender } from '../delivery/channel-sender.js';
 import { drainOnce } from '../worker.js';
 import { createOutput, type OutputPort } from './create-output.js';
-import { generatePayslip } from '../../../../test/corpus/payslip/generate.js';
+import { generatePayslip, generatePayslipRouting, type PayslipRouting } from '../../../../test/corpus/payslip/generate.js';
 import type { PayslipData } from '@busy-office/output-schema';
 import { TypstRenderer } from '@busy-office/render-typst';
 
@@ -73,10 +73,15 @@ function buildOutput(deps: Pick<RuntimeDeps, 'registryStore' | 'archiveStore' | 
   });
 }
 
-/** Every literal PII value this test's own payload carries. Every captured
+/** Every literal PII value this test's own payload carries, PLUS the
+ * employee's mailbox (caller-supplied determination context, Stage 4
+ * clause 2 — the bench's `emp-<id>@example.com` pattern; never on the
+ * payload, but it flows through determination -> delivery_queue ->
+ * channel sender, so it must be scrubbed like payload PII). Every captured
  * log line is checked for the literal presence of each of these. */
-function piiNeedles(data: PayslipData): string[] {
+function piiNeedles(data: PayslipData, routing: PayslipRouting): string[] {
   return [
+    ...routing.recipients,
     data.header.employeeName,
     data.header.employeeId,
     data.header.payslipNumber,
@@ -110,8 +115,8 @@ function captureConsole(): { lines: string[]; restore: () => void } {
   };
 }
 
-function assertNoPiiLeak(lines: string[], data: PayslipData): void {
-  const needles = piiNeedles(data);
+function assertNoPiiLeak(lines: string[], data: PayslipData, routing: PayslipRouting): void {
+  const needles = piiNeedles(data, routing);
   for (const line of lines) {
     for (const needle of needles) {
       expect(line, `log line unexpectedly contains a PII value ("${needle}"): ${line}`).not.toContain(needle);
@@ -126,6 +131,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
     const output = buildOutput(deps);
 
     const data = generatePayslip({ seed: 42, earningCount: 2, deductionCount: 2 });
+    const routing = generatePayslipRouting(42);
 
     const capture = captureConsole();
     try {
@@ -138,6 +144,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
           event: 'payslip.issued',
           templateVersion: '1.0.0',
         },
+        determination: { locale: routing.locale, country: routing.country, recipients: routing.recipients },
       });
       expect(result.status).toBe('accepted');
       if (result.status !== 'accepted') throw new Error('unreachable');
@@ -155,7 +162,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       deps.registryStore.close();
     }
 
-    assertNoPiiLeak(capture.lines, data);
+    assertNoPiiLeak(capture.lines, data, routing);
   }, 30_000);
 
   it('poison path — a permanently-failing delivery channel drives the job to poison and fires the real console.error alert; the alert line is captured (proving the mechanism works) but carries no PII value', async () => {
@@ -186,6 +193,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
     };
 
     const data = generatePayslip({ seed: 99, earningCount: 1, deductionCount: 1 });
+    const routing = generatePayslipRouting(99);
 
     const capture = captureConsole();
     try {
@@ -198,6 +206,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
           event: 'payslip.issued',
           templateVersion: '1.0.0',
         },
+        determination: { locale: routing.locale, country: routing.country, recipients: routing.recipients },
       });
       expect(result.status).toBe('accepted');
       if (result.status !== 'accepted') throw new Error('unreachable');
@@ -219,6 +228,6 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       registryStore.close();
     }
 
-    assertNoPiiLeak(capture.lines, data);
+    assertNoPiiLeak(capture.lines, data, routing);
   }, 30_000);
 });

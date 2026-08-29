@@ -6,7 +6,6 @@
     "event": "payslip.issued"
   },
   "resolution": {
-    "channel": "email",
-    "recipients": ["employee-self-service@example.com"]
+    "channel": "email"
   }
 }

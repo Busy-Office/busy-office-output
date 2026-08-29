@@ -27,7 +27,7 @@ import {
 import type { IdempotencyStore } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
-import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
+import { determine, loadOutputRules, loadTemplateCandidates, type CallerDeterminationContext, type DeterminationContext } from './determination/index.js';
 import type { CompositionDeps } from './composition.js';
 import { submitResolution } from './submit-resolution.js';
 import { extractPayslipOwnerId } from './authorization/authorization-port.js';
@@ -41,6 +41,7 @@ import {
   noTemplateMatchProblem,
   notFoundProblem,
   unknownDocumentTypeProblem,
+  unresolvedRecipientsProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
 import { handleConsoleRequest, isConsolePath } from './console.js';
@@ -159,7 +160,7 @@ const DETERMINATION_CONTEXT_FIELDS = ['companyCode', 'country', 'partnerId', 'lo
  * still works — rules/templates that only constrain documentType/event
  * match on wildcards for the rest (docs/VARIANT-RESOLUTION.md semantics).
  */
-function extractDeterminationContext(payload: unknown): Partial<Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale'>> {
+function extractDeterminationContext(payload: unknown): CallerDeterminationContext {
   if (payload === null || typeof payload !== 'object' || !('determination' in payload)) {
     return {};
   }
@@ -168,12 +169,21 @@ function extractDeterminationContext(payload: unknown): Partial<Pick<Determinati
     return {};
   }
   const record = candidate as Record<string, unknown>;
-  const context: Partial<Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale'>> = {};
+  const context: CallerDeterminationContext = {};
   for (const field of DETERMINATION_CONTEXT_FIELDS) {
     const value = record[field];
     if (typeof value === 'string' && value !== '') {
       context[field] = value;
     }
+  }
+  // `recipients` (Stage 4 clause 2 arb-chair ruling): caller-supplied
+  // master data, shape-validated only — an array of non-empty strings —
+  // nothing more (no address parsing, no directory lookup: HLD §1 keeps
+  // master data outside the boundary). Anything else is treated as absent
+  // and determination decides loudly (`unresolved-recipients`).
+  const recipients = record.recipients;
+  if (Array.isArray(recipients) && recipients.length > 0 && recipients.every((r) => typeof r === 'string' && r !== '')) {
+    context.recipients = recipients as string[];
   }
   return context;
 }
@@ -273,6 +283,11 @@ async function handleEvent(
   if (determination.outcome === 'no-template-match') {
     registryStore.appendTraceLog(randomUUID(), determination.trace);
     sendProblem(res, noTemplateMatchProblem(determination.trace));
+    return;
+  }
+  if (determination.outcome === 'unresolved-recipients') {
+    registryStore.appendTraceLog(randomUUID(), determination.trace);
+    sendProblem(res, unresolvedRecipientsProblem(determination.trace));
     return;
   }
 

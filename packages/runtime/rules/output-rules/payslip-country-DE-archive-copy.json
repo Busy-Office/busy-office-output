@@ -1,0 +1,14 @@
+{
+  "id": "payslip-country-DE-archive-copy",
+  "priority": 0,
+  "fanOut": true,
+  "conditions": {
+    "documentType": "payslip",
+    "event": "payslip.issued",
+    "country": "DE"
+  },
+  "resolution": {
+    "channel": "object-store",
+    "recipients": ["archive://payroll/de"]
+  }
+}

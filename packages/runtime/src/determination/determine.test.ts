@@ -36,6 +36,62 @@ const baseCtx: DeterminationContext = {
   event: 'po.released',
 };
 
+describe('determine() — recipients precedence (Stage 4 clause 2 ruling: caller-supplied, rule overrides)', () => {
+  const channelOnly: OutputRule = {
+    id: 'po-channel-only',
+    conditions: { documentType: 'purchase-order', event: 'po.released' },
+    resolution: { channel: 'email' },
+  };
+  const hrCopy: OutputRule = {
+    id: 'po-hr-copy',
+    fanOut: true,
+    conditions: { documentType: 'purchase-order', event: 'po.released' },
+    resolution: { channel: 'email', recipients: ['hr@example.com'] },
+  };
+
+  it('uses the caller context recipients when the rule names none (recipientsSource: context)', () => {
+    const result = determine({ ...baseCtx, recipients: ['buyer-1@example.com'] }, [channelOnly], templates);
+    expect(result.outcome).toBe('matched');
+    if (result.outcome !== 'matched') throw new Error('unreachable');
+    expect(result.resolutions[0].recipients).toEqual(['buyer-1@example.com']);
+    expect(result.trace.resolutions[0].recipientsSource).toBe('context');
+  });
+
+  it('the rule wins when it names recipients — a fan-out "also copy to hr@" rule keeps working (recipientsSource: rule)', () => {
+    const result = determine({ ...baseCtx, recipients: ['buyer-1@example.com'] }, [channelOnly, hrCopy], templates);
+    expect(result.outcome).toBe('matched');
+    if (result.outcome !== 'matched') throw new Error('unreachable');
+    const byRule = new Map(result.resolutions.map((r) => [r.ruleId, r]));
+    expect(byRule.get('po-channel-only')?.recipients).toEqual(['buyer-1@example.com']);
+    expect(byRule.get('po-hr-copy')?.recipients).toEqual(['hr@example.com']);
+    expect(result.trace.resolutions.map((r) => r.recipientsSource)).toEqual(['context', 'rule']);
+  });
+
+  it('neither rule nor caller supplying recipients → unresolved-recipients, atomic (the hr copy does NOT go out alone), TRACE explains', () => {
+    const result = determine(baseCtx, [channelOnly, hrCopy], templates);
+    expect(result.outcome).toBe('unresolved-recipients');
+    expect(result.trace.outcome).toBe('unresolved-recipients');
+    expect(result.trace.firingRuleIds).toEqual(['po-channel-only', 'po-hr-copy']);
+    expect(result.trace.resolutions.map((r) => r.recipientsSource)).toEqual(['none', 'rule']);
+    // Templates DID resolve — this failure is about recipients, not templates.
+    expect(result.trace.resolutions[0].winningTemplateId).toBe('po-global-v1');
+  });
+
+  it('never writes recipient addresses into the TRACE (PII)', () => {
+    const result = determine({ ...baseCtx, recipients: ['buyer-1@example.com'] }, [channelOnly, hrCopy], templates);
+    const serialized = JSON.stringify(result.trace);
+    expect(serialized).not.toContain('buyer-1@example.com');
+    expect(serialized).not.toContain('hr@example.com');
+  });
+
+  it('recipients are not a rule-condition field: a rule cannot constrain on them and they never appear in rule reasons', () => {
+    const result = determine({ ...baseCtx, recipients: ['buyer-1@example.com'] }, rules, templates);
+    for (const entry of result.trace.rules) {
+      expect(entry.reasons.join('\n')).not.toContain('recipients');
+    }
+  });
+});
+
 describe('determine() — winner-take-all (fanOut absent/false, unchanged default behavior)', () => {
   it('matches the most specific rule and its matching template, carrying a non-empty TRACE', () => {
     const result = determine({ ...baseCtx, companyCode: '1000' }, rules, templates);

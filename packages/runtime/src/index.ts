@@ -71,7 +71,7 @@ export type {
   ChannelSenderMap,
 } from './delivery/index.js';
 export { determine, loadOutputRules, loadTemplateCandidates } from './determination/index.js';
-export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, DeterminationTrace, DeterminationOutcome, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
+export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, CallerDeterminationContext, DeterminationTrace, DeterminationOutcome, RecipientsSource, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
 export {
   invalidContractProblem,
   malformedCloudEventsProblem,

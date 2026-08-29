@@ -125,6 +125,45 @@ export function generatePayslip(opts: GenerateOptions): PayslipData {
   };
 }
 
+/** Locales the routing generator alternates across (>= 2, per the Stage 4
+ * exit gate clause 2). Only ROUTING evidence — no template body differs
+ * per locale (locale-aware formatting is Stage 6). */
+export const ROUTING_LOCALES = ['en-US', 'de-DE'] as const;
+
+/** Per-employee routing context for one payslip event (Stage 4 exit gate
+ * clause 2: "per-recipient locale and channel"). This is the caller-side
+ * MASTER DATA an ERP would hand the runtime alongside the event — it is
+ * deliberately NOT on `PayslipData` (HLD §1: holding master data is
+ * outside the boundary; the contract is `additionalProperties: false`). */
+export interface PayslipRouting {
+  locale: (typeof ROUTING_LOCALES)[number];
+  country: (typeof COUNTRIES)[number];
+  /** Exactly one synthetic mailbox — `emp-<id>@example.com`, RFC 2606
+   * reserved domain, never a real address. The needle
+   * payslip-log-scrub.test.ts greps captured console output for. */
+  recipients: [string];
+}
+
+/**
+ * Deterministic per-employee routing for `seed` (mulberry32-free on
+ * purpose: plain modular arithmetic over the seed so consecutive seeds —
+ * what the bench and the gate test issue — provably alternate across
+ * every locale and every country, rather than merely probably).
+ *
+ * The mailbox id is the SEED (zero-padded like the bench's
+ * `businessObjectId`), not `header.employeeId`: employeeId is drawn from a
+ * 5-digit space and collides across an 8,000-seed run, and the gate
+ * asserts recipients are distinct per document.
+ */
+export function generatePayslipRouting(seed: number): PayslipRouting {
+  const n = Math.abs(seed);
+  return {
+    locale: ROUTING_LOCALES[n % ROUTING_LOCALES.length]!,
+    country: COUNTRIES[n % COUNTRIES.length]!,
+    recipients: [`emp-${String(n).padStart(7, '0')}@example.com`],
+  };
+}
+
 /**
  * Named corpus cases (ROADMAP Stage 4). Line counts tuned empirically
  * against the actual Typst layout (9pt text, A4, 40pt margins, 5-column

@@ -40,7 +40,7 @@ import {
   type VariantKey,
 } from '@busy-office/output-schema';
 import type { DeterminationContext, OutputRule } from './rule-types.js';
-import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './trace.js';
+import type { DeterminationTrace, RecipientsSource, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './trace.js';
 
 const RULE_CONDITION_FIELDS = ['event', 'businessObject', 'companyCode', 'country', 'partnerId'] as const;
 
@@ -186,7 +186,10 @@ export type DeterminationResult =
       trace: DeterminationTrace;
     }
   | { outcome: 'no-rule-match'; trace: DeterminationTrace }
-  | { outcome: 'no-template-match'; trace: DeterminationTrace };
+  | { outcome: 'no-template-match'; trace: DeterminationTrace }
+  /** Rule(s) fired, templates resolved, but a firing rule has no recipient
+   * from either the rule or the caller — see trace.ts's outcome doc. */
+  | { outcome: 'unresolved-recipients'; trace: DeterminationTrace };
 
 export function determine(
   ctx: DeterminationContext,
@@ -215,6 +218,7 @@ export function determine(
   const resolutionTraces: ResolutionTrace[] = [];
   const resolutions: Resolution[] = [];
   let anyTemplateMissing = false;
+  let anyRecipientsMissing = false;
 
   for (const rule of firingRules) {
     const variantQuery: VariantKey = {
@@ -224,6 +228,14 @@ export function determine(
       partnerId: rule.resolution.partnerId ?? ctx.partnerId,
       locale: rule.resolution.locale ?? ctx.locale,
     };
+
+    // Recipients follow the exact precedence shape `locale` uses one line
+    // above (arb-chair ruling, Stage 4 clause 2): the rule wins when it
+    // names recipients, otherwise the caller's master data. The trace
+    // records only the SOURCE — the addresses are PII and never enter it.
+    const recipients = rule.resolution.recipients ?? ctx.recipients ?? [];
+    const recipientsSource: RecipientsSource =
+      rule.resolution.recipients !== undefined ? 'rule' : ctx.recipients !== undefined ? 'context' : 'none';
 
     const { entries: templateEntries, winner: winningTemplate } = evaluateTemplateCandidates(
       templateCandidates,
@@ -235,10 +247,18 @@ export function determine(
       variantQuery,
       templates: templateEntries,
       winningTemplateId: winningTemplate?.id,
+      recipientsSource,
     });
 
     if (winningTemplate === undefined) {
       anyTemplateMissing = true;
+      continue;
+    }
+    if (recipients.length === 0) {
+      // Every channel this runtime knows (email, object-store) needs at
+      // least one destination; an empty list would be an empty-array send
+      // — exactly the silent no-op HLD §9 forbids.
+      anyRecipientsMissing = true;
       continue;
     }
 
@@ -247,7 +267,7 @@ export function determine(
       templateId: winningTemplate.id,
       templateVersion: winningTemplate.version,
       channel: rule.resolution.channel,
-      recipients: rule.resolution.recipients,
+      recipients,
       locale: variantQuery.locale,
       renderer: winningTemplate.renderer,
     });
@@ -268,6 +288,22 @@ export function determine(
       firingRuleIds,
     };
     return { outcome: 'no-template-match', trace };
+  }
+
+  if (anyRecipientsMissing) {
+    // Same atomicity as no-template-match (see file header): one firing
+    // rule with nobody to deliver to fails the whole event loudly, with
+    // `trace.resolutions[].recipientsSource === 'none'` pointing at it.
+    const trace: DeterminationTrace = {
+      documentType: ctx.documentType,
+      businessObject: ctx.businessObject,
+      event: ctx.event,
+      rules: ruleEntries,
+      resolutions: resolutionTraces,
+      outcome: 'unresolved-recipients',
+      firingRuleIds,
+    };
+    return { outcome: 'unresolved-recipients', trace };
   }
 
   const trace: DeterminationTrace = {

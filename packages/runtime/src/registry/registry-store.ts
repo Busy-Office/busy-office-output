@@ -141,6 +141,15 @@ export interface DocumentRegistryRow {
    * payload itself — src/embed/payslip-log-scrub.test.ts).
    */
   ownerId: string | null;
+  /**
+   * The locale this resolution was determined with (`Resolution.locale`:
+   * the firing rule's override, else the caller's determination context),
+   * persisted at mint (migrations/0010_add_locale.sql — Stage 4 exit gate
+   * clause 2's row-level evidence). `null` when neither supplied one, or
+   * for rows minted before that migration. Locale-aware FORMATTING is a
+   * Stage 6 concern; this column records routing, not rendering.
+   */
+  locale: string | null;
   state: DocumentState;
   createdAt: string;
   updatedAt: string;
@@ -196,8 +205,11 @@ export interface RegistryStore {
    * `ownerId` (optional, default `undefined` -> stored as `null`): see
    * `DocumentRegistryRow.ownerId`. Same "newly minted row only" rule as
    * `documentType`.
+   *
+   * `locale` (optional, default `undefined` -> stored as `null`): see
+   * `DocumentRegistryRow.locale`. Same "newly minted row only" rule.
    */
-  getOrCreateByEventKey(key: BusinessEventKey, documentType?: string, ownerId?: string): GetOrCreateResult;
+  getOrCreateByEventKey(key: BusinessEventKey, documentType?: string, ownerId?: string, locale?: string): GetOrCreateResult;
 
   /**
    * The fan-out-aware idempotency lookup (see `ResolutionEventKey` above):
@@ -209,9 +221,9 @@ export interface RegistryStore {
    * a ruleId-disambiguated lookup can never disagree about identity.
    *
    * `documentType` (optional, default `''`): see `getOrCreateByEventKey`.
-   * `ownerId` (optional): see `getOrCreateByEventKey`.
+   * `ownerId` / `locale` (optional): see `getOrCreateByEventKey`.
    */
-  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string, ownerId?: string): GetOrCreateResult;
+  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string, ownerId?: string, locale?: string): GetOrCreateResult;
 
   /**
    * The transactional-outbox-aware mint (ROADMAP Stage 3 "Embeddable
@@ -226,7 +238,7 @@ export interface RegistryStore {
    * composition work is still pending (stranded by a crash) and needs
    * redriving before treating this as a pure replay.
    *
-   * `ownerId` (optional): see `getOrCreateByEventKey`.
+   * `ownerId` / `locale` (optional): see `getOrCreateByEventKey`.
    */
   mintWithOutbox(
     key: ResolutionEventKey,
@@ -234,6 +246,7 @@ export interface RegistryStore {
     data: unknown,
     documentType?: string,
     ownerId?: string,
+    locale?: string,
   ): GetOrCreateResult;
 
   /** The pending outbox entry for `docId`, or undefined if none exists

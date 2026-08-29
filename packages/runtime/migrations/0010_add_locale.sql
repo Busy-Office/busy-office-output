@@ -1,0 +1,22 @@
+-- Per-resolution locale on the forever registry row (ROADMAP Stage 4 exit
+-- gate, clause 2 "per-recipient locale and channel"). The gate-check found
+-- locale was resolved (Resolution.locale, from the rule's override or the
+-- caller's determination context) but never PERSISTED, so "each doc landed
+-- on the locale its own event named" could not be verified from registry
+-- rows. This column is that evidence: set once at mint from
+-- `Resolution.locale`, never updated, exposed as
+-- `DocumentRegistryRow.locale`.
+--
+-- Nullable (same reasoning as 0009's owner_id, not 0003/0006's NOT NULL
+-- DEFAULT ''): a resolution with no locale — rule and caller both silent,
+-- template resolved on the wildcard — genuinely HAS no locale; NULL says
+-- so honestly, '' would fake a value. Rows minted before this migration
+-- are NULL too.
+--
+-- Deliberately NOT added here: recipients. The registry row lives forever
+-- and stays PII-lean (owner_id is an opaque id; addresses are not);
+-- `delivery_queue.recipients` (0004) already carries them for the lifetime
+-- of the delivery job, which is where they belong. Nor is locale written
+-- into trace_log — the trace already carries it in each resolution's
+-- `variantQuery.locale`.
+ALTER TABLE document_registry ADD COLUMN locale TEXT;

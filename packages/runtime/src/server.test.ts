@@ -125,13 +125,50 @@ describe('POST /event ingress + contract validation', () => {
     expect(json.status).toBe('accepted');
   });
 
-  it('accepts a genuinely valid payslip payload', async () => {
-    const { status, json } = await post(
-      withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', event: 'payslip.issued' })),
-    );
+  it('accepts a genuinely valid payslip payload when the event names its recipient (caller-supplied master data)', async () => {
+    const { status, json } = await post({
+      ...withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', event: 'payslip.issued' })),
+      determination: { recipients: ['emp-0000001@example.com'], locale: 'de-DE' },
+    });
     expect(status).toBeGreaterThanOrEqual(200);
     expect(status).toBeLessThan(300);
     expect(json.status).toBe('accepted');
+    expect(json.determination).toMatchObject({ channel: 'email', recipients: ['emp-0000001@example.com'], locale: 'de-DE' });
+    expect(json.trace.resolutions[0]).toMatchObject({ recipientsSource: 'context' });
+  });
+
+  it('rejects a payslip whose rule is channel-only and whose event names no recipient: 422 unresolved-recipients with the TRACE (never an empty send)', async () => {
+    const { status, contentType, json } = await post(
+      withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-NO-RCPT', event: 'payslip.issued' })),
+    );
+    expect(status).toBe(422);
+    expect(contentType).toContain('application/problem+json');
+    expect(json.type).toBe('https://busy-office.dev/problems/unresolved-recipients');
+    expect(json.trace.outcome).toBe('unresolved-recipients');
+    expect(json.trace.firingRuleIds).toContain('payslip-default-email');
+    expect(json.trace.resolutions.find((r: { ruleId: string }) => r.ruleId === 'payslip-default-email')).toMatchObject({
+      recipientsSource: 'none',
+      winningTemplateId: 'payslip-global-v1',
+    });
+  });
+
+  it('the TRACE never carries recipient addresses (PII) — only their source', async () => {
+    const address = 'emp-0000042@example.com';
+    const { json } = await post({
+      ...withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-TRACE-PII', event: 'payslip.issued' })),
+      determination: { recipients: [address] },
+    });
+    expect(JSON.stringify(json.trace)).not.toContain(address);
+    expect(json.trace.resolutions[0].recipientsSource).toBe('context');
+  });
+
+  it('ignores a malformed determination.recipients (not an array of non-empty strings) rather than sending to it', async () => {
+    const { status, json } = await post({
+      ...withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-BAD-RCPT', event: 'payslip.issued' })),
+      determination: { recipients: ['ok@example.com', ''] },
+    });
+    expect(status).toBe(422);
+    expect(json.type).toBe('https://busy-office.dev/problems/unresolved-recipients');
   });
 
   it('accepts a raw purchase-order payload wrapped in a CloudEvents 1.0 envelope, identically to the raw shape', async () => {

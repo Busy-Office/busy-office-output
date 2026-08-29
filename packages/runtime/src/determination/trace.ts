@@ -25,7 +25,24 @@ export interface TemplateTraceEntry {
   reasons: string[];
 }
 
-export type DeterminationOutcome = 'matched' | 'no-rule-match' | 'no-template-match';
+/**
+ * `unresolved-recipients` (Stage 4 exit-gate clause 2): rule(s) fired and
+ * every template resolved, but at least one firing rule's resolution ended
+ * up with NO recipient — neither the rule nor the caller's
+ * `DeterminationContext.recipients` supplied any. Atomic like
+ * `no-template-match`: one unresolvable resolution fails the whole event,
+ * never an empty-array send for that copy alone.
+ */
+export type DeterminationOutcome = 'matched' | 'no-rule-match' | 'no-template-match' | 'unresolved-recipients';
+
+/**
+ * Where a resolution's recipients came from — recorded INSTEAD of the
+ * recipients themselves (PII never enters the trace): `rule` (the rule's
+ * own `resolution.recipients` won), `context` (the caller's
+ * `DeterminationContext.recipients`), `none` (neither — the
+ * `unresolved-recipients` outcome).
+ */
+export type RecipientsSource = 'rule' | 'context' | 'none';
 
 /**
  * The template-resolution half of the TRACE for exactly ONE firing rule
@@ -50,6 +67,8 @@ export interface ResolutionTrace {
   /** Every template candidate evaluated for THIS firing rule's variant query. */
   templates: TemplateTraceEntry[];
   winningTemplateId?: string;
+  /** See `RecipientsSource`. Never the addresses themselves. */
+  recipientsSource: RecipientsSource;
 }
 
 export interface DeterminationTrace {

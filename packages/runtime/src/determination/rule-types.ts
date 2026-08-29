@@ -36,7 +36,17 @@ export interface OutputRuleConditions {
  */
 export interface OutputRuleResolution {
   channel: string;
-  recipients: string[];
+  /**
+   * OPTIONAL since the Stage 4 clause-2 arb-chair ruling: recipients are
+   * caller-supplied master data (`DeterminationContext.recipients`); a rule
+   * overrides them when present. Precedence in determine.ts is exactly the
+   * shape `locale` already uses — `rule.resolution.recipients ??
+   * ctx.recipients` — so a fan-out "also copy to hr@" rule keeps working
+   * (rule wins), while a channel-only rule routes to whoever the EVENT
+   * named. Neither supplying any recipient is a loud, traced
+   * `unresolved-recipients` determination failure, never an empty send.
+   */
+  recipients?: string[];
   locale?: string;
   companyCode?: string;
   country?: string;
@@ -104,4 +114,26 @@ export interface DeterminationContext {
   country?: string;
   partnerId?: string;
   locale?: string;
+  /**
+   * Caller-supplied master data (arb-chair ruling, Stage 4 exit-gate
+   * clause 2; HLD §1 puts "holding master data" OUTSIDE the boundary — an
+   * employee's mailbox is master data about the recipient, not content of
+   * the payslip, so it never lives on a data contract). A rule overrides
+   * when its resolution names recipients (`rule.resolution.recipients ??
+   * ctx.recipients`, mirroring `locale`). NOT a rule-condition field
+   * (never matched against, never in `RULE_CONDITION_FIELDS`) and NEVER
+   * written into a `DeterminationTrace` — recipients are PII; the trace
+   * records only WHERE they came from (`ResolutionTrace.recipientsSource`).
+   */
+  recipients?: string[];
 }
+
+/**
+ * The caller-supplied half of `DeterminationContext` — everything the
+ * event envelope's `determination` field (server.ts) or the embedded
+ * module's `SubmitEventInput.determination` (embed/create-output.ts) may
+ * carry. Both paths shape-validate it identically and nothing more.
+ */
+export type CallerDeterminationContext = Partial<
+  Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale' | 'recipients'>
+>;

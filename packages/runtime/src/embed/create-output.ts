@@ -28,6 +28,7 @@
  * transaction with this pipeline supplies a `RegistryStore` implementation
  * of its own — that implementation is host-side work, not built here.
  */
+import { randomUUID } from 'node:crypto';
 import type { DataContractEnvelope, Renderer, TemplateMeta } from '@busy-office/output-schema';
 import type { BusinessEventKey } from '@busy-office/output-schema';
 import type { RegistryStore } from '../registry/registry-store.js';
@@ -40,6 +41,7 @@ import {
   determine,
   loadOutputRules,
   loadTemplateCandidates,
+  type CallerDeterminationContext,
   type DeterminationContext,
   type DeterminationTrace,
   type OutputRule,
@@ -52,6 +54,28 @@ import {
   type ResumeOutcome,
 } from '../composition.js';
 import { submitResolution } from '../submit-resolution.js';
+
+/**
+ * Same shape validation server.ts's `extractDeterminationContext` applies
+ * on the wire: string fields must be non-empty strings; `recipients` must
+ * be a non-empty array of non-empty strings. Anything else is dropped
+ * (treated as absent) so determination decides loudly rather than a
+ * malformed value slipping into a delivery job. Nothing more — no
+ * address parsing, no directory lookup (HLD §1).
+ */
+function sanitizeCallerDeterminationContext(input: CallerDeterminationContext | undefined): CallerDeterminationContext {
+  if (input === undefined) return {};
+  const out: CallerDeterminationContext = {};
+  for (const field of ['companyCode', 'country', 'partnerId', 'locale'] as const) {
+    const value: unknown = input[field];
+    if (typeof value === 'string' && value !== '') out[field] = value;
+  }
+  const recipients: unknown = input.recipients;
+  if (Array.isArray(recipients) && recipients.length > 0 && recipients.every((r) => typeof r === 'string' && r !== '')) {
+    out.recipients = recipients as string[];
+  }
+  return out;
+}
 
 export interface CreateOutputDeps {
   registryStore: RegistryStore;
@@ -83,8 +107,11 @@ export interface SubmitEventInput {
   businessEvent: BusinessEventKey;
   /** Optional routing hints beyond documentType/businessEvent — see
    * server.ts's `extractDeterminationContext` for the same fields on the
-   * HTTP path. */
-  determination?: Partial<Pick<DeterminationContext, 'companyCode' | 'country' | 'partnerId' | 'locale'>>;
+   * HTTP path. `recipients` is caller-supplied master data (arb-chair
+   * ruling, Stage 4 clause 2) that a rule may override; shape-validated
+   * here exactly as on the HTTP path (array of non-empty strings) and
+   * nothing more. */
+  determination?: CallerDeterminationContext;
 }
 
 /** One resolution's outcome from `submitEvent`. `composition` is `{ outcome:
@@ -110,6 +137,7 @@ export type SubmitEventResult =
   | { status: 'invalid-contract'; documentType: DocumentType; errors: SchemaValidationError[] }
   | { status: 'no-rule-match'; trace: DeterminationTrace }
   | { status: 'no-template-match'; trace: DeterminationTrace }
+  | { status: 'unresolved-recipients'; trace: DeterminationTrace }
   | { status: 'accepted'; documentType: DocumentType; resolutions: SubmitResolutionResult[] };
 
 export interface OutputPort {
@@ -210,14 +238,26 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         documentType,
         businessObject: input.businessEvent.businessObject,
         event: input.businessEvent.event,
-        ...input.determination,
+        ...sanitizeCallerDeterminationContext(input.determination),
       };
       const determination = determine(ctx, rules, templateCandidates);
+      // Persist the TRACE on every outcome, mirroring server.ts exactly
+      // (HLD §9: the trace is mandatory; the Rule trace console screen
+      // reads trace_log). This path used to DROP it — the 8,000-doc bench
+      // runs through here, so its traces were never persisted. Non-match:
+      // a fresh id (no docId exists); matched: the PRIMARY docId, after
+      // mint — `INSERT OR IGNORE` makes a replay a no-op.
       if (determination.outcome === 'no-rule-match') {
+        deps.registryStore.appendTraceLog(randomUUID(), determination.trace);
         return { status: 'no-rule-match', trace: determination.trace };
       }
       if (determination.outcome === 'no-template-match') {
+        deps.registryStore.appendTraceLog(randomUUID(), determination.trace);
         return { status: 'no-template-match', trace: determination.trace };
+      }
+      if (determination.outcome === 'unresolved-recipients') {
+        deps.registryStore.appendTraceLog(randomUUID(), determination.trace);
+        return { status: 'unresolved-recipients', trace: determination.trace };
       }
 
       const resolutions = await Promise.all(
@@ -225,6 +265,8 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
           submitOneResolution(input.businessEvent, resolution, input.payload as DataContractEnvelope, documentType),
         ),
       );
+      const [primary] = resolutions;
+      deps.registryStore.appendTraceLog(primary.docId, determination.trace);
 
       return { status: 'accepted', documentType, resolutions };
     },

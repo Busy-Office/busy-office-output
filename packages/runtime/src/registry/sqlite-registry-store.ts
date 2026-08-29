@@ -63,6 +63,7 @@ interface DocumentRow {
   rule_id: string;
   document_type: string;
   owner_id: string | null;
+  locale: string | null;
   state: string;
   created_at: string;
   updated_at: string;
@@ -97,14 +98,14 @@ export class SqliteRegistryStore implements RegistryStore {
     runMigrations(this.db);
   }
 
-  getOrCreateByEventKey(key: BusinessEventKey, documentType = '', ownerId?: string): GetOrCreateResult {
+  getOrCreateByEventKey(key: BusinessEventKey, documentType = '', ownerId?: string, locale?: string): GetOrCreateResult {
     // The plain four-tuple lookup is the fan-out-aware lookup with an
     // explicit '' ruleId — one implementation, one unique index, see
     // registry-store.ts's `ResolutionEventKey` / `rule_id` column doc.
-    return this.getOrCreateByResolutionKey({ ...key, ruleId: '' }, documentType, ownerId);
+    return this.getOrCreateByResolutionKey({ ...key, ruleId: '' }, documentType, ownerId, locale);
   }
 
-  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType = '', ownerId?: string): GetOrCreateResult {
+  getOrCreateByResolutionKey(key: ResolutionEventKey, documentType = '', ownerId?: string, locale?: string): GetOrCreateResult {
     const existing = this.selectByResolutionKey(key);
     if (existing !== undefined) {
       return { row: this.toRow(existing), created: false };
@@ -116,8 +117,8 @@ export class SqliteRegistryStore implements RegistryStore {
       this.db
         .prepare(
           `INSERT INTO document_registry
-             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, owner_id, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, owner_id, locale, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
         )
         .run(
           docId,
@@ -128,6 +129,7 @@ export class SqliteRegistryStore implements RegistryStore {
           documentType,
           key.ruleId,
           ownerId ?? null,
+          locale ?? null,
           now,
           now,
         );
@@ -157,6 +159,7 @@ export class SqliteRegistryStore implements RegistryStore {
     data: unknown,
     documentType = '',
     ownerId?: string,
+    locale?: string,
   ): GetOrCreateResult {
     const existing = this.selectByResolutionKey(key);
     if (existing !== undefined) {
@@ -174,8 +177,8 @@ export class SqliteRegistryStore implements RegistryStore {
       this.db
         .prepare(
           `INSERT INTO document_registry
-             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, owner_id, state, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
+             (doc_id, business_object, business_object_id, event, template_version, document_type, rule_id, owner_id, locale, state, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'DRAFT', ?, ?)`,
         )
         .run(
           docId,
@@ -186,6 +189,7 @@ export class SqliteRegistryStore implements RegistryStore {
           documentType,
           key.ruleId,
           ownerId ?? null,
+          locale ?? null,
           now,
           now,
         );
@@ -395,6 +399,7 @@ export class SqliteRegistryStore implements RegistryStore {
       ruleId: doc.rule_id,
       documentType: doc.document_type,
       ownerId: doc.owner_id,
+      locale: doc.locale,
       state: doc.state as DocumentState,
       createdAt: doc.created_at,
       updatedAt: doc.updated_at,

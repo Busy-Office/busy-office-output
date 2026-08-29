@@ -92,6 +92,26 @@ export function noTemplateMatchProblem(trace: DeterminationTrace): ProblemDetail
   };
 }
 
+/**
+ * Rule(s) fired and every template resolved, but at least one firing rule
+ * ended up with NO recipient — the rule's resolution names none and the
+ * caller supplied no `determination.recipients` (Stage 4 clause 2 arb-chair
+ * ruling: recipients are caller-supplied master data a rule may override).
+ * Third distinct determination failure, same 422 + TRACE discipline; the
+ * trace carries `recipientsSource: 'none'` on the offending resolution —
+ * never any address (PII).
+ */
+export function unresolvedRecipientsProblem(trace: DeterminationTrace): ProblemDetails {
+  const offending = trace.resolutions.filter((r) => r.recipientsSource === 'none').map((r) => r.ruleId);
+  return {
+    type: `${PROBLEM_BASE}/unresolved-recipients`,
+    title: 'No recipients resolved for a firing rule',
+    status: 422,
+    detail: `Rule(s) "${offending.join(', ')}" fired, but neither the rule's resolution nor the event's "determination.recipients" supplied any recipient. Supply recipients on the event (caller master data) or on the rule (override). See "trace".`,
+    trace,
+  };
+}
+
 export function malformedCloudEventsProblem(detail: string): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/malformed-cloudevents-envelope`,

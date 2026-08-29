@@ -42,7 +42,10 @@ Event flow: validate → determination (fan-out: one event → N resolutions —
 bursting is fan-out, not a subsystem) → compose → render → archive → registry
 row → enqueue delivery. Delivery failure never re-renders. Idempotency key
 `(businessObject, businessObjectId, event, templateVersion)`: replay returns
-the existing docId.
+the existing docId. Recipients and locale are caller-supplied determination
+context (master data stays outside the boundary, §1); a rule may override
+either. Neither supplying a recipient is a traced determination failure
+(`unresolved-recipients`), never an empty send.
 
 ## 5. Template resolution
 
