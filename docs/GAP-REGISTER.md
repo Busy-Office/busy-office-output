@@ -240,12 +240,20 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
-- Type: GATE — **OPEN, human-only**
-- ~1.5 stages built past an open thesis check. Under GAP-01 = standalone
+- Type: GATE — **OPEN, human-only; Stage-5 EXCEPTION RATIFIED 2026-08-29**
+- ~2 stages built past an open thesis check. Under GAP-01 = standalone
   product, the operator demo IS the validation (not "first consumer
-  wired") — this gap is now unambiguously `GATE-S3-THESIS-CHECK`.
-- Closes when: 5-operator demo done, `docs/PREMORTEM.md` written — or a
-  ratified exception explicitly permits Stage 5 to proceed unvalidated.
+  wired") — this gap is unambiguously `GATE-S3-THESIS-CHECK`.
+- **Ratified exception (maintainer, in chat, 2026-08-29):** the loop may
+  proceed into Stage 5 (Governance) while `GATE-S3-THESIS-CHECK` stays
+  open. Reasoning accepted: Stage 5 is governance the product needs
+  regardless of what operators say about the demo, and idle time is worse
+  than a re-prioritisable build. This satisfies the "ratified exception"
+  arm of the close condition for the purpose of unblocking Stage 5 — it
+  does NOT close the gate itself.
+- Still closes when: 5-operator demo done, `docs/PREMORTEM.md` written.
+  The demo is built and runnable (`npx tsx packages/runtime/src/index.ts`,
+  or the Dockerfile); only the human step remains.
 
 ## Hygiene
 
