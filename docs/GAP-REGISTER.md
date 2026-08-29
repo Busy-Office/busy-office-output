@@ -25,16 +25,20 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 - Closed by: CLAUDE.md golden rule "Standalone product, spine non-optional."
 
 ### GAP-03 — ADR-002 stale: volume renderer decided on dead numbers
-- Type: DECISION — **OPEN**
-- ADR-002 still says "Pending real-hardware numbers"; they now exist
-  (`README.md` bench table: Typst warm p50 ≈123ms → 8,000 docs ≈16.4 min
-  single-process, inside the 30-min window at ~1.8x). ADR-001 already routed
-  payslip-shaped docs to Typst; pdf-direct reaching PDF/A-2b is a
-  fonts+XMP+OutputIntent workstream — gold-plating a renderer.
-- Closes when: Stage 4 bursting gate run Typst-only through the real
-  pipeline; ADR-002 Accepted on that measurement ("Typst-only, pdf-direct
-  reserved-not-adopted" if it clears — the ADR-000 Carbone pattern).
-- Owner: Claude measures, human decides. Blocks: Stage 4 exit gate.
+- Type: DECISION — **measurement DONE 2026-08-29; decision still OPEN, human-only**
+- The Claude half is closed: 8,000 payslips run to completion through
+  the real pipeline (validate+determine+mint+render+archive+enqueue),
+  Typst-only, single-process — **18.64 min, 139.8 ms/doc, 1.61x inside
+  the 30-min window, measured not projected**. Concurrency-4 extrapolated
+  from N=2,000: 6.5 min (4.62x). Render is 99% of per-doc cost. Drain
+  adds 44.6 s. Full section: `docs/RESULTS.md` §Bursting — real pipeline.
+  Supersedes the Stage-0 container/single-render projections ADR-002 was
+  drafted on.
+- Still closes when: ADR-002 Accepted on that measurement. The measurement
+  clears the window with margin Typst-only, with no second renderer — the
+  "Typst-only, pdf-direct reserved-not-adopted" outcome (the ADR-000
+  Carbone pattern) is now evidenced, not assumed. Human decides.
+- Owner: human. Blocks: Stage 4 exit gate.
 
 ### GAP-04 — Template authoring persona — **RATIFIED 2026-08-29**
 - Type: DECISION

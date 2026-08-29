@@ -74,6 +74,66 @@ to clear tighter windows than 30 min the way pdf-direct does.
 pdf-direct 12.1ms p50 — 18.6x margin (clears) / carbone not applicable —
 reserved, not adopted, per ADR-000.**
 
+## Bursting — real pipeline, Stage 4 (GAP-03, measured 2026-08-29)
+
+**What this is.** The number the Bursting-math section above only
+*projected*: 8,000 distinct payslip events pushed through the REAL
+runtime, not a single-render bench multiplied out. Harness:
+`test/bench/bursting.ts` (`npm run bench:burst -- --n 8000 --drain`;
+not part of `npm test`). It calls `createOutput().submitEvent()` against
+`createRuntimeDeps()` on disk in a fresh OS temp dir (deleted on exit).
+
+**Per document, included in the timed loop:** contract validation ->
+determination (`payslip-default-email` rule + `payslip-global-v1`
+template resolution, fan-out path) -> transactional-outbox mint (SQLite
+registry row) -> Typst render (`typst compile --pdf-standard a-2b` **plus**
+the `typst query` overflow-guard shell-out — two process spawns per doc)
+-> FS archive write + registry archiveRef/retentionUntil -> delivery
+enqueue (pending job row). One registry row and one archived PDF/A-2b
+per doc; every event a distinct `businessObjectId`, no replay
+short-circuits (asserted). **Excluded from the timed loop:** delivery
+drain — run once *after* the loop via `drainOnce()` with the
+`FsChannelSender` outbox and reported separately below. Payload mix:
+1–4 earning + 1–4 deduction lines, seeded (mulberry32), all single-page.
+
+- Machine: MacBook Air, Apple M4 (10 cores: 4P+6E), 24 GB RAM, macOS 26.5.2
+  (darwin 25.5.0), Node v26.3.0, Typst 0.15.1. 3 untimed warmup docs.
+
+| Run | N | Wall-clock | Wall ms/doc | submitEvent mean / p50 / p95 / max | Render phase mean | Archive mean | Everything else mean | 8,000-doc time | Margin vs 30 min |
+|---|---|---|---|---|---|---|---|---|---|
+| single-process, concurrency 1 (`serve()` baseline) | **8,000 (run to completion)** | **1118.7 s = 18.64 min** | **139.8 ms** | 139.8 / 136.1 / 156.5 / 378.1 ms | 138.7 ms | 0.4 ms | 0.6 ms | **18.6 min (measured)** | **1.61x** |
+| batched `Promise.all` x4 | 2,000 | 97.3 s | 48.7 ms | 192.8 / 191.1 / 223.2 / 387.5 ms | 191.4 ms | 0.9 ms | 0.6 ms | 6.5 min **(extrapolated from N=2,000)** | 4.62x (extrapolated) |
+
+Delivery drain, measured after the 8,000 loop (same process, not in the
+numbers above): 8,003 jobs (8,000 + 3 warmup) in 44.6 s = 5.6 ms/job. Added
+to the loop it makes the whole 8,000-doc run 19.4 min end to end — still
+inside the 30-min window (1.55x).
+
+Validation runs at N=20 and N=200 (concurrency 1) gave 136.2 and
+134.3 ms/doc wall; the full 8,000 run drifted up slightly to 139.8 ms/doc
+(steady in-run progress reports: 139.8–139.9 ms/doc from ~7,700 onward).
+
+**Where the time goes:** the render phase IS the cost — 138.7 of
+139.8 ms/doc (99%); validation + determination + mint + enqueue together
+are ~0.6 ms and the archive write ~0.4 ms. Under 4-way concurrency the
+per-call render latency rises (136 -> 191 ms p50; four `typst` processes
+contending) while wall ms/doc drops 2.9x, not 4x.
+
+**What this supersedes.** The Bursting-math section above (Stage 0) used
+Typst cold-process p50 = 100 ms (3-page PO, container-era harness) and
+the README bench table's warm single-render p50 ≈ 123 ms (purchase-order
+001-single-page, `npm run bench:po`) to *project* 13.3 min / 16.4 min for
+8,000 docs. The measured real-pipeline number is **18.6 min at
+139.8 ms/doc** (payslip, includes the `typst query` overflow-guard
+spawn and all non-render pipeline steps). The pdf-direct row in the
+Stage-0 table (12.1 ms p50) is a deleted spike; no pdf-direct renderer
+exists in the runtime and none was measured here.
+
+**Caveats.** Single machine, local FS archive and SQLite, no network;
+S3/email channels not exercised. Warm process (3 warmup docs); a cold
+first `typst` spawn is not in the numbers. The concurrency-4 row is a
+2,000-doc run extrapolated to 8,000, not a completed 8,000 run.
+
 ## Authoring experience notes (feeds ADR-000)
 - Carbone (.odt in LibreOffice):
 - Typst (markup): `po.typ` requests `font: "DejaVu Sans"`, not installed on
