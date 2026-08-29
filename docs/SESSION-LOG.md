@@ -931,6 +931,7 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 23, 2026-08-29: noop — unchanged since tick 22, still blocked on GATE-S5-CLOSE/GATE-S5-RULINGS. (Between ticks, a /progress-dashboard session patched the shared skill script `~/.claude/skills/progress-dashboard/scripts/collect.mjs` to parse this repo's file shapes and published a status dashboard — no repo files touched, no INBOX entry.) docs/INBOX.md Open section empty, not a dispatcher tick (23%4≠0).
 - tick 22, 2026-08-29: noop — unchanged since tick 21, still blocked on GATE-S5-CLOSE/GATE-S5-RULINGS. docs/INBOX.md Open section empty, not a dispatcher tick (22%4≠0).
 - tick 21, 2026-08-29: noop — /next this session confirmed the only remaining work is a maintainer ruling on GATE-S5-CLOSE (ADR-007's two Proposed addenda) + GATE-S5-RULINGS' seven bundled items; all evidence already cited, nothing left to gather. docs/INBOX.md Open section still empty, not a dispatcher tick (21%4≠0).
 - tick 20, 2026-08-29: dispatcher tick (20%4=0), noop — docs/INBOX.md Open section empty, nothing new to rule on; consecutiveNoopDispatches 0→1 (lastDispatchTick stays 16, only advances on an applied ruling). Normal tick then also noop — unchanged since tick 19, same GAP-20/22/24 human-blocked set, nothing Claude-doable.
