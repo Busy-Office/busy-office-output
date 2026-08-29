@@ -54,12 +54,12 @@ export class TypstRenderer implements Renderer {
     this.maxPages = opts.maxPages ?? DEFAULT_MAX_PAGES;
   }
 
-  async render(job: RenderJob): Promise<Artifact> {
+  async render(job: RenderJob, opts?: { locale?: string }): Promise<Artifact> {
     if (job.kind !== 'ir') {
       throw new Error(`TypstRenderer only accepts job kind 'ir', got '${job.kind}'`);
     }
 
-    const { markup, fullPageContentHeightPt } = emitDocument(job.ir.root, job.ir.data);
+    const { markup, fullPageContentHeightPt } = emitDocument(job.ir.root, job.ir.data, opts?.locale);
 
     const dir = await mkdtemp(join(tmpdir(), 'bo-typst-'));
     const srcPath = join(dir, 'doc.typ');

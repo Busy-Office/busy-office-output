@@ -250,7 +250,7 @@ docs/HUMAN-GATES-LOG.md and docs/SESSION-LOG.md 2026-08-29.)*
 ## Stage 6 — Variant and locale depth  `~3–4 weeks`
 
 ### Tasks
-- [ ] Locale packs: number/date/address formats; CJK + RTL fonts wired (Path B: pinned LibreOffice font matrix) — DoD: corpus locale cases green
+- [x] Locale packs: number/date/address formats; CJK + RTL fonts wired (Path B: pinned LibreOffice font matrix — N/A, ADR-000 keeps Path B out of scope) — DoD: corpus locale cases green *(2026-08-29: `opts.locale` wired through `TypstRenderer.render()` -> `emitDocument()`; `Intl.NumberFormat`/`Intl.DateTimeFormat` locale-aware money+date display (packages/render-typst/src/format.ts), small explicit address line-order lookup for en-SG/ja-JP/th-TH/ar-SA; CJK+RTL font rendering already proven Stage 0 (ADR-001, RTL/CJK smoke test) — this task only added formatting, not font wiring. Same `purchaseOrderTemplate` (zero forking) now also renders buyer/vendor address; 4 new corpus cases 010-013 assert locale-formatted text + address line order via pdftotext extraction — all green, `npm run verify` 77 files/481 tests pass. 005-totals-at-boundary's empirical boundary re-swept 27->25 lines (header grew two fieldGrid rows) — see generate.ts comment.)*
 - [ ] Variant exercise: country/company/customer overrides via inheritance, zero template forking — DoD: resolver + render tests
 
 ### Exit gate — `/gate-check 6`

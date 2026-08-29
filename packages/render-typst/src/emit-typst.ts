@@ -73,7 +73,7 @@
  */
 import type { DataContractEnvelope, DocNode, TableColumn } from '@busy-office/output-schema';
 import { evaluateExpression, evaluateRelative } from './evaluate.js';
-import { formatMoneyCents, isMoneyAmountPath } from './format.js';
+import { formatAddressLines, formatDisplayValue, isAddressLike } from './format.js';
 import { escapeTypstMarkup } from './typst-escape.js';
 
 export const OVERFLOW_MARKER_LABEL = 'bo-totals-end';
@@ -94,7 +94,7 @@ interface PageMetrics {
   fullPageContentHeightPt: number;
 }
 
-export function emitDocument(root: DocNode, data: DataContractEnvelope): EmitResult {
+export function emitDocument(root: DocNode, data: DataContractEnvelope, locale?: string): EmitResult {
   if (root.kind !== 'document') {
     throw new Error(`LayoutIR.root must be kind 'document', got '${root.kind}'`);
   }
@@ -118,16 +118,36 @@ export function emitDocument(root: DocNode, data: DataContractEnvelope): EmitRes
     })`,
   );
   lines.push('#set text(size: 9pt)');
+  // Stage 6: `#set text(lang: ...)` drives Typst's per-language hyphenation
+  // and number-context choices for the four exit-gate locales' scripts —
+  // Typst's font *fallback* (the actual CJK/RTL glyph coverage) is already
+  // proven independent of this (docs/RESULTS.md's RTL/CJK smoke test, ADR-001)
+  // and needs no explicit font request. Bidi reordering/shaping for Arabic
+  // runs automatically off the Unicode content itself (same RESULTS.md
+  // finding), so `dir` is deliberately left at Typst's default rather than
+  // forced globally — forcing it would mirror the whole page layout
+  // (margins, table column order), which is layout/typography polish this
+  // Stage 0-2 rule ("never optimize typography") and this task's scope
+  // (correctness of the text content, not page mirroring) don't call for.
+  const langTag = localeLangTag(locale);
+  if (langTag) lines.push(`#set text(lang: "${langTag}")`);
   if (usesCarryForward) {
     lines.push(TYPST_MONEY_HELPER);
     lines.push('#let running = state("bo-running", 0)');
   }
 
   for (const child of bodyChildren) {
-    lines.push(emitNode(child, data, metrics));
+    lines.push(emitNode(child, data, metrics, locale));
   }
 
   return { markup: lines.join('\n\n'), fullPageContentHeightPt };
+}
+
+/** BCP-47 locale -> Typst's `text(lang:)` 2-letter code (the primary language subtag). */
+function localeLangTag(locale?: string): string | undefined {
+  if (!locale) return undefined;
+  const primary = locale.split('-')[0];
+  return primary.length === 2 ? primary.toLowerCase() : undefined;
 }
 
 function typstPaper(size: 'A4' | 'Letter'): string {
@@ -166,51 +186,69 @@ function treeUsesCarryForward(node: DocNode): boolean {
   }
 }
 
-function emitNode(node: DocNode, data: DataContractEnvelope, metrics: PageMetrics): string {
+function emitNode(node: DocNode, data: DataContractEnvelope, metrics: PageMetrics, locale?: string): string {
   switch (node.kind) {
     case 'document':
       throw new Error('nested document node is not valid');
     case 'header':
-      return emitContainer(node.children, data, metrics, false);
+      return emitContainer(node.children, data, metrics, false, locale);
     case 'section':
-      return emitContainer(node.children, data, metrics, Boolean(node.keepTogether));
+      return emitContainer(node.children, data, metrics, Boolean(node.keepTogether), locale);
     case 'footer':
       // Extracted and handled as a page-level footer in emitDocument; a
       // *nested* footer (not a direct child of document) is out of scope
       // for the frozen templates but rendered in-flow defensively rather
       // than silently dropped.
-      return emitContainer(node.children, data, metrics, false);
+      return emitContainer(node.children, data, metrics, false, locale);
     case 'text':
-      return emitText(node, data);
+      return emitText(node, data, locale);
     case 'fieldGrid':
-      return emitFieldGrid(node, data);
+      return emitFieldGrid(node, data, locale);
     case 'table':
-      return emitTable(node, data);
+      return emitTable(node, data, locale);
     case 'totals':
-      return emitTotals(node, data, metrics);
+      return emitTotals(node, data, metrics, locale);
     case 'pageNumber':
       return emitPageNumber(node);
   }
 }
 
-function emitContainer(children: DocNode[], data: DataContractEnvelope, metrics: PageMetrics, keepTogether: boolean): string {
-  const inner = children.map((c) => emitNode(c, data, metrics)).join('\n\n');
+function emitContainer(
+  children: DocNode[],
+  data: DataContractEnvelope,
+  metrics: PageMetrics,
+  keepTogether: boolean,
+  locale?: string,
+): string {
+  const inner = children.map((c) => emitNode(c, data, metrics, locale)).join('\n\n');
   return keepTogether ? `#block(breakable: false, width: 100%)[\n${inner}\n]` : inner;
 }
 
-function emitText(node: Extract<DocNode, { kind: 'text' }>, data: DataContractEnvelope): string {
+function emitText(node: Extract<DocNode, { kind: 'text' }>, data: DataContractEnvelope, locale?: string): string {
   const value = evaluateExpression(node.value, data);
-  const text = escapeTypstMarkup(stringifyValue(value));
+  const text = escapeTypstMarkup(formatDisplayValue(node.value, value, locale));
   if (node.style === 'title') {
     return `#text(size: 16pt, weight: "bold")[${text}]`;
   }
   return text;
 }
 
-function emitFieldGrid(node: Extract<DocNode, { kind: 'fieldGrid' }>, data: DataContractEnvelope): string {
+/** Typst's markup line-break shorthand — a literal backslash followed by whitespace forces a line break inside a bracketed content block. */
+const TYPST_LINEBREAK = ' \\\n';
+
+function emitFieldGrid(node: Extract<DocNode, { kind: 'fieldGrid' }>, data: DataContractEnvelope, locale?: string): string {
   const cells = node.fields.map((f) => {
     const value = evaluateExpression(f.value, data);
-    return `[*${escapeTypstMarkup(f.label)}:* ${escapeTypstMarkup(stringifyValue(value))}]`;
+    const label = escapeTypstMarkup(f.label);
+    if (isAddressLike(value)) {
+      // Multi-line form (Stage 6 locale-aware address ordering,
+      // format.ts's `formatAddressLines`) — the single-line
+      // `formatDisplayValue` fallback (comma-joined) is for contexts that
+      // can't break lines, not this one.
+      const addrLines = formatAddressLines(value, locale).map((l) => escapeTypstMarkup(l));
+      return `[*${label}:*${TYPST_LINEBREAK}${addrLines.join(TYPST_LINEBREAK)}]`;
+    }
+    return `[*${label}:* ${escapeTypstMarkup(formatDisplayValue(f.value, value, locale))}]`;
   });
   return `#grid(columns: ${node.columns}, column-gutter: 10pt, row-gutter: 4pt,\n  ${cells.join(',\n  ')},\n)`;
 }
@@ -223,24 +261,13 @@ function colWidthSpec(width: number | 'flex'): string {
   return width === 'flex' ? '1fr' : `${width}pt`;
 }
 
-function formatCellValue(key: string, value: unknown): string {
-  if (value === undefined || value === null) return '';
-  if (typeof value === 'number' && isMoneyAmountPath(key)) return formatMoneyCents(value);
-  return stringifyValue(value);
-}
-
-function stringifyValue(value: unknown): string {
-  if (value === undefined || value === null) return '';
-  return String(value);
-}
-
-function emitTable(node: Extract<DocNode, { kind: 'table' }>, data: DataContractEnvelope): string {
+function emitTable(node: Extract<DocNode, { kind: 'table' }>, data: DataContractEnvelope, locale?: string): string {
   const bound = evaluateExpression(node.bind, data);
   const rows: unknown[] = Array.isArray(bound) ? bound : [];
   const colSpecs = node.columns.map((c) => colWidthSpec(c.width)).join(', ');
   const headerCells = node.columns.map((c) => `[*${escapeTypstMarkup(c.label)}*]`).join(', ');
 
-  const bodyRowsMarkup = rows.map((row) => emitTableRow(node.columns, row, node.carryForward));
+  const bodyRowsMarkup = rows.map((row) => emitTableRow(node.columns, row, node.carryForward, locale));
 
   const parts: string[] = [`table.header(repeat: true, ${headerCells})`];
   if (bodyRowsMarkup.length > 0) parts.push(bodyRowsMarkup.join(',\n  '));
@@ -254,10 +281,10 @@ function emitTable(node: Extract<DocNode, { kind: 'table' }>, data: DataContract
   return `#table(\n  columns: (${colSpecs}),\n  stroke: 0.4pt + gray,\n  inset: 3pt,\n  ${parts.join(',\n  ')},\n)`;
 }
 
-function emitTableRow(columns: TableColumn[], row: unknown, carryForward: string | undefined): string {
+function emitTableRow(columns: TableColumn[], row: unknown, carryForward: string | undefined, locale?: string): string {
   const cells = columns.map((col) => {
     const raw = evaluateRelative(col.key, row);
-    const text = escapeTypstMarkup(formatCellValue(col.key, raw));
+    const text = escapeTypstMarkup(formatDisplayValue(col.key, raw, locale));
     const align = alignKeyword(col.align);
     if (carryForward && col.key === carryForward) {
       const cents = typeof raw === 'number' ? raw : 0;
@@ -268,10 +295,15 @@ function emitTableRow(columns: TableColumn[], row: unknown, carryForward: string
   return cells.join(', ');
 }
 
-function emitTotals(node: Extract<DocNode, { kind: 'totals' }>, data: DataContractEnvelope, metrics: PageMetrics): string {
+function emitTotals(
+  node: Extract<DocNode, { kind: 'totals' }>,
+  data: DataContractEnvelope,
+  metrics: PageMetrics,
+  locale?: string,
+): string {
   const rows = node.rows.map((r) => {
     const value = evaluateExpression(r.value, data);
-    const text = typeof value === 'number' ? formatMoneyCents(value) : stringifyValue(value);
+    const text = formatDisplayValue(r.value, value, locale);
     return `  [${escapeTypstMarkup(r.label)}], [${escapeTypstMarkup(text)}],`;
   });
   const content = `[\n  #align(right)[\n    #table(columns: (auto, auto), stroke: none, inset: 3pt,\n${rows.join('\n')}\n    )\n  ]\n]`;

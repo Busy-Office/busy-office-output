@@ -16,9 +16,9 @@ import { assertPdfA } from './pdfa-assert.js';
  * only zero-fills existing fields to the same byte length, it does not change
  * PDF/A conformance.
  */
-export async function assertDeterministic(data: PurchaseOrderData): Promise<Uint8Array> {
-  const a = await renderPurchaseOrder(data);
-  const b = await renderPurchaseOrder(data);
+export async function assertDeterministic(data: PurchaseOrderData, opts?: { locale?: string }): Promise<Uint8Array> {
+  const a = await renderPurchaseOrder(data, opts);
+  const b = await renderPurchaseOrder(data, opts);
   await assertPdfA(a.bytes);
   const na = normalizePdf(a.bytes);
   const nb = normalizePdf(b.bytes);

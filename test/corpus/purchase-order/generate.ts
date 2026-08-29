@@ -96,9 +96,12 @@ export const CORPUS_CASES = {
   '003-ten-page': { seed: 3, lineCount: 280 }, // -> 10 pages (empirically tuned, see session report)
   '004-120-line-carry-forward': { seed: 4, lineCount: 120 }, // -> 5 pages, carry-forward exercised across all of them
   // Empirically the tightest boundary for this template (A4/40pt margins/9pt text/seed 5):
-  // n=26 -> totals still fits page 1 (1 page total); n=27 -> totals is pushed to page 2 (2 pages
-  // total) without splitting or clipping. See session report's sweep for the n=24..38 scan.
-  '005-totals-at-boundary': { seed: 5, lineCount: 27 },
+  // n=24 -> totals still fits page 1 (1 page total); n=25 -> totals is pushed to page 2 (2 pages
+  // total) without splitting or clipping. Re-swept for Stage 6 (previously 26/27): the header's
+  // two new fieldGrid rows (buyer/vendor address, template.ts) add vertical height ahead of the
+  // table, shifting this boundary down by 2 lines. See this task's session report for the
+  // n=20..32 re-sweep.
+  '005-totals-at-boundary': { seed: 5, lineCount: 25 },
   '006-overflow-must-fail': { seed: 6, lineCount: 2100 }, // -> 68 pages, comfortably over DEFAULT_MAX_PAGES (60)
   '007-empty-lines': { seed: 7, lineCount: 0 },
 } as const;

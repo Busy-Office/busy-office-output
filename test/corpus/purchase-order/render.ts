@@ -8,8 +8,8 @@ export function toLayoutIR(data: PurchaseOrderData): LayoutIR {
   return { irVersion: '1.0.0', root: purchaseOrderTemplate, data };
 }
 
-export async function renderPurchaseOrder(data: PurchaseOrderData) {
-  return renderer.render({ kind: 'ir', ir: toLayoutIR(data) });
+export async function renderPurchaseOrder(data: PurchaseOrderData, opts?: { locale?: string }) {
+  return renderer.render({ kind: 'ir', ir: toLayoutIR(data) }, opts);
 }
 
 export { renderer };

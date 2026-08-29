@@ -64,6 +64,8 @@ const reconstructedTemplate: DocNode = {
             { label: 'Currency', value: 'header.currency' },
             { label: 'Buyer', value: 'header.buyer.name' },
             { label: 'Vendor', value: 'header.vendor.name' },
+            { label: 'Buyer address', value: 'header.buyer.address' },
+            { label: 'Vendor address', value: 'header.vendor.address' },
           ],
         },
       ],

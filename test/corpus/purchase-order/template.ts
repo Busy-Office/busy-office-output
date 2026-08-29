@@ -9,6 +9,18 @@
  * template in the same paper-test file uses it — this is "reuse the tree
  * shape, adapt it", not a new tree design. No node kind or expression
  * outside the frozen nine/the grammar is introduced.
+ *
+ * Stage 6 addendum: two fieldGrid rows bind the whole Address object
+ * (header.buyer.address / header.vendor.address, not a leaf field) — still
+ * a plain dot-path per docs/EXPRESSION-GRAMMAR.md, evaluated exactly like
+ * any other fieldGrid value. This gives the locale-aware address
+ * line-ordering work (packages/render-typst/src/format.ts) something real
+ * to render in the SAME template used by every locale case, so the Stage 6
+ * exit gate ("the same PO template renders correctly in en-SG, ja-JP,
+ * th-TH, ar-SA with zero forking") is exercised across all three
+ * locale-formatting dimensions (money, date, address), not just two.
+ * 009-template-from-sample-roundtrip.test.ts's independently
+ * hand-reconstructed template mirrors this same addition.
  */
 import type { DocNode } from '@busy-office/output-schema';
 
@@ -28,6 +40,8 @@ export const purchaseOrderTemplate: DocNode = {
             { label: 'Currency', value: 'header.currency' },
             { label: 'Buyer', value: 'header.buyer.name' },
             { label: 'Vendor', value: 'header.vendor.name' },
+            { label: 'Buyer address', value: 'header.buyer.address' },
+            { label: 'Vendor address', value: 'header.vendor.address' },
           ],
         },
       ],

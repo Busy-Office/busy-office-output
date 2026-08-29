@@ -11,6 +11,63 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 6 task 1: locale packs (number/date/address formats)
+- Did: wired `Renderer.render()`'s existing `opts.locale` (packages/schema/
+  src/renderer.ts) through `TypstRenderer` -> `emitDocument()` and every
+  emit site (fieldGrid, table cells, totals rows, text). New locale-aware
+  formatting in packages/render-typst/src/format.ts, `Intl.NumberFormat`/
+  `Intl.DateTimeFormat` only (zero new deps): `formatMoneyCentsLocale`
+  (falls back to the pre-existing plain `formatMoneyCents` with no locale
+  — every pre-Stage-6 corpus case's byte output is unchanged), `looksLikeIsoDate`
+  + `formatIsoDateLocale` (shape-detects the contract's plain `YYYY-MM-DD`
+  strings), and a small explicit `ADDRESS_RULES` lookup (just the four
+  exit-gate locales, not a library) for address line order + RTL flag.
+  Verified empirically, not assumed: `ar-SA` really prints Arabic-Indic
+  digits via Node's ICU; `th-TH` dates default to the Buddhist Era
+  calendar (2026 -> 2569) — flagged in code comments in case the real
+  business convention wants the Gregorian year instead. CJK/RTL glyph
+  rendering itself needed no new work — already proven at Stage 0 (ADR-001,
+  RTL/CJK smoke test, docs/RESULTS.md) via Typst's font-fallback; this task
+  only added display formatting on top.
+- Did: extended the SAME `purchaseOrderTemplate` (test/corpus/purchase-
+  order/template.ts) with two fieldGrid rows binding the whole
+  `header.buyer.address`/`header.vendor.address` object — still a plain
+  dot-path, no grammar change — giving the address-ordering work something
+  real to render (previously the template showed no Address at all). Kept
+  009's independently hand-reconstructed template in sync with the same
+  addition so its convergence check still passes. New corpus cases
+  010-013-locale-{en-sg,ja-jp,th-th,ar-sa}.test.ts: one per exit-gate
+  locale, asserting (a) determinism (byte-identical after normalization),
+  and (b) the actual locale-formatted date/money/address-order text is
+  present in the rendered PDF's `pdftotext`-extracted words — not just
+  "renders without throwing". 005-totals-at-boundary's empirically-tuned
+  page-break boundary shifted (27->25 lines) because the header grew two
+  rows; re-swept with a throwaway script and generate.ts's comment updated
+  to match, not silently left stale.
+- Evidence: `npm run verify` — typecheck clean, 77 test files / 481 tests
+  pass (was 463 before this session's 24 new unit tests in format.test.ts
+  + 8 new corpus tests in 010-013 + net-new assertions in 005).
+- Did: corpus-qa gate-checked this task independently (re-ran `npm run
+  verify` itself — 77/77, 481/481 exact match; read the actual diffs
+  rather than trusting the claims above; ran live `node -e` Intl checks
+  confirming both th-TH's Buddhist-era dates and ar-SA's Arabic-Indic
+  digits are real ICU behavior, not assumed). PASS on every check.
+  One non-blocking note surfaced: `emitTotals` in emit-typst.ts now gates
+  "is this a money row" on `isMoneyAmountPath(path)` rather than "any
+  numeric value" — safe today (every template's totals rows end in
+  `.amount`) but has no regression test guarding the invariant. Worth a
+  test before Stage 7 introduces a template whose totals don't.
+- Open: Stage 6 task 2 (variant exercise: country/company/customer
+  overrides via inheritance) — untouched, out of scope for this session.
+  Stage 6 exit gate itself ("same PO template renders correctly in en-SG,
+  ja-JP, th-TH, ar-SA with zero forking") is now literally demonstrated by
+  the new corpus cases for task 1's scope, but isn't formally closed until
+  task 2 also lands (or a `/gate-check 6` run decides it's already met).
+  `emitTotals`'s `isMoneyAmountPath` gating has no regression test yet
+  (see above) — small, untracked, worth a GAP entry or a quick test.
+- Next: Stage 6 task 2 — variant/override exercise via `parentId`
+  inheritance, resolver + render tests.
+
 ## 2026-08-29 — Stage 5 CLOSED: GATE-S5-CLOSE + GATE-S5-RULINGS ruled, GAP-13 scope resolved
 - Did: maintainer ruled directly in chat on the four items blocking Stage
   5's close. (1) ADR-007's "OutputPort v1 surface" addendum — **Accepted
