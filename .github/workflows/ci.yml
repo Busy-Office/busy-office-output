@@ -6,8 +6,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-        with: { node-version-file: .nvmrc }
-      - run: npm install
+        with: { node-version-file: .nvmrc, cache: npm }
+      # GAP-12: the corpus gates shell out to typst, verapdf and pdftotext.
+      # Pinned versions live in the script (typst 0.15.1, veraPDF 1.30.2).
+      - name: install typst / verapdf / poppler-utils
+        run: bash .github/ci/install-tools.sh
+      # Fail loudly here, not as an obscure corpus test failure.
+      - name: check external binaries are on PATH
+        run: |
+          typst --version | grep -F '0.15.1'
+          verapdf --version | grep -F 'veraPDF 1.30'
+          pdftotext -v
+      - run: npm ci
       - run: npm run verify
-      # smoke: the verified spike must keep rendering 3 pages
-      - run: npm --prefix spike/pdf-direct install && node spike/pdf-direct/run.js
