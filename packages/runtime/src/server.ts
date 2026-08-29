@@ -10,6 +10,8 @@
  *   POST /render     → port.preview   (HLD §4: no archive, no delivery, no registry)
  *   GET  /documents  → port.status    (?businessObject=&businessObjectId=&event=&templateVersion=)
  *   GET  /output/*   → console (console.ts), read-only on the document registry
+ *                      (`/output` is the failures-first Overview, `/output/settings`
+ *                      the read-only Settings — Stage 5 task 5)
  *   POST /output/templates/:id/:ver/review → the ONE console write (Stage 5
  *                      task 4): appends a lifecycle-log row through
  *                      `TemplateLifecycleService.transition`; every other
@@ -61,7 +63,7 @@ import {
   unresolvedMessageTemplateProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
-import { handleConsoleRequest, handleReviewPost, isConsolePath, parseReviewPath } from './console.js';
+import { handleConsoleRequest, handleReviewPost, isConsolePath, parseReviewPath, type ConsoleFacts } from './console.js';
 import type { BackoffPolicy, DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Actor } from './authorization/authorization-port.js';
 import { createTemplateLifecycle } from './lifecycle/template-lifecycle.js';
@@ -499,6 +501,14 @@ export interface IngressServerOptions {
    * for `/output/operations` to render (both or neither). */
   backoffPolicy?: BackoffPolicy;
   /**
+   * What the Settings screen (GET /output/settings, Stage 5 task 5)
+   * states — the closed `ConsoleFacts` shape BUILT by the composition root
+   * (index.ts `buildConsoleFacts`), never assembled here: this file sees
+   * no sender config, no archive credentials, no env. Optional like
+   * `deliveryQueue`; absent → `/output/settings` 404s.
+   */
+  consoleFacts?: ConsoleFacts;
+  /**
    * Who is acting on the review screen (Stage 5 task 4). PROXY-ASSERTED
    * lifecycle-audit identity only — never authenticated by this server,
    * NEVER handed to `AuthorizationPort` or any owner/PII scoping. Default
@@ -566,7 +576,9 @@ export function createIngressServer(options: IngressServerOptions = {}) {
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
-        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle, resolveActor(req));
+        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle, resolveActor(req), {
+          consoleFacts: options.consoleFacts,
+        });
         return;
       }
 

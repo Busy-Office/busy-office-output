@@ -330,12 +330,16 @@ describe('STAGE 5 EXIT GATE through the review screen', () => {
     expect(rowFor('memo-email-v1')).toContain('· message');
     expect(rowFor('note-v3')).toContain('<div>approved</div>');
 
-    const hrefs = [...list.body.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    // Stage 5 task 5 added the one nav line to every page; these two
+    // assertions are about the SCREEN's own links, so they read the body
+    // below `</nav>` (the nav itself is asserted byte-exact in console.test.ts).
+    const belowNav = (body: string) => body.slice(body.indexOf('</nav>') + '</nav>'.length);
+    const hrefs = [...belowNav(list.body).matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
     expect(hrefs.length).toBeGreaterThan(0);
     for (const href of hrefs) expect(href).toMatch(/^\/output\/templates\/[^/]+\/[^/]+\/review$/);
 
     const review = await request(REVIEW);
-    const reviewHrefs = [...review.body.matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
+    const reviewHrefs = [...belowNav(review.body).matchAll(/href="([^"]+)"/g)].map((m) => m[1]);
     expect(reviewHrefs).toEqual(['/output/templates']);
     // The list is 404 on a server with no template source; the review path is exact.
     expect((await request('/output/templates/memo-global/1.0.0/other')).status).toBe(404);

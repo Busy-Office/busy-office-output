@@ -22,7 +22,7 @@ pages mounted at `/output` in a host app, or served by `bo-output serve`.
 | Templates | list (variants+lifecycle) · workspace · review-and-approve | accept as draft / approve | S5 list, S7 workspace, S5 review |
 | Rules | read-only rules · event log → trace | open trace | Stage 3 |
 | Operations | delivery queue · shadow parity | retry delivery | S4 queue, parity with shadow track |
-| Settings | four flat groups (channels, retention, renderers, access) | save | Stage 5 |
+| Settings | four flat groups (channels, retention, renderers, access) | — (read-only; a config store would need an ADR) | Stage 5 |
 
 Cross-links: overview failure → document/delivery · registry poison →
 operations · document detail → trace · sample drop (anywhere in Templates) →
@@ -30,8 +30,8 @@ workspace converging · review publish → templates.
 
 ## Screen specs (one sentence each)
 
-- **Overview**: today's volume and every current failure, each row a link;
-  nearly empty on a good day, by design.
+- **Overview**: every current failure, each row a link (worst-first;
+  templates awaiting approval last); nearly empty on a good day, by design.
 - **Registry**: one search box over every document ever, bordered rows with
   state stamp, template@ver · renderer@ver, delivery status; payslip rows
   carry their ACL visibly (lock).
@@ -56,7 +56,7 @@ workspace converging · review publish → templates.
   re-renders; shadow parity strip with the cutover gate (≥ target for N
   consecutive days).
 - **Settings**: config that changes yearly, not daily; four flat groups, no
-  drill-ins.
+  drill-ins. Read-only: every value is set at process start.
 
 ## Deliberately absent (additions here require an arb-chair ruling)
 

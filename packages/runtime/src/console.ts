@@ -4,6 +4,8 @@
  * Server-rendered HTML screens, no build step, no client framework, no
  * client JS — mounted under `/output` by server.ts:
  *
+ *   - GET /output                      — Overview (failures-first home; `/output/` → 301)
+ *   - GET /output/settings             — Settings (four flat read-only groups)
  *   - GET /output/documents            — Registry
  *   - GET /output/documents/:docId     — Document detail
  *   - GET /output/trace/:id            — Rule trace
@@ -43,7 +45,7 @@
  */
 import type { ServerResponse } from 'node:http';
 import type { DocNode, TemplateLifecycle, TemplateMeta, VariantKey } from '@busy-office/output-schema';
-import type { DocumentRegistryRow, RegistryStore, TemplateLifecycleEvent } from './registry/registry-store.js';
+import type { DocumentRegistryRow, OutboxEntry, RegistryStore, TemplateLifecycleEvent } from './registry/registry-store.js';
 import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/trace.js';
 import type { BackoffPolicy, DeliveryJob, DeliveryJobStatus, DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Actor, OwnerScopeSource } from './authorization/authorization-port.js';
@@ -103,8 +105,75 @@ const OPERATIONS_PAGE_SIZE = 50;
  * "quiet when green" (docs/UI-DESIGN.md principle 2). */
 const OPERATIONS_DEFAULT_STATUSES: DeliveryJobStatus[] = ['pending', 'in_progress', 'poison'];
 
+/**
+ * How old a pending `composition_outbox` row, or an `in_progress` delivery
+ * job's `updatedAt`, must be before the Overview calls it stranded/stuck.
+ * ONE constant, two consumers (Overview groups "Not archived" (a) and
+ * "Stuck deliveries") — a composition or a delivery attempt younger than
+ * this is presumed in flight, not failed.
+ */
+export const STRANDED_AFTER_MS = 5 * 60_000;
+
+/** Overview rows per failure group before the group defers to its owning
+ * screen with one link. */
+const OVERVIEW_GROUP_CAP = 50;
+
+/**
+ * What the Settings screen states (Stage 5 task 5) — a CLOSED shape of
+ * booleans, numbers, names, and the three configured paths, BUILT by the
+ * composition root (index.ts `buildConsoleFacts`) and handed to the server
+ * as one optional `IngressServerOptions.consoleFacts`. No index signature,
+ * no env passthrough, no field that could carry a credential: SMTP auth,
+ * S3 keys, and every env var other than the three path vars stop at
+ * index.ts and enter here only as a `…Configured` boolean. The
+ * `assertNoCredentialShapedKey` check below is the type-level lock.
+ */
+export interface ConsoleFacts {
+  channels: {
+    sender:
+      | { kind: 'filesystem'; outboxDir: string }
+      | { kind: 'email'; host: string; port: number; tls: boolean; authConfigured: boolean }
+      | { kind: 'object-store'; bucket: string; prefix: string; endpoint: string | undefined; credentialsConfigured: boolean };
+    retry: { maxAttempts: number; baseDelayMs: number; maxDelayMs: number };
+    workerIntervalMs: number;
+  };
+  retention: {
+    /** One row per registered document type, registration order. */
+    documentTypes: ReadonlyArray<{ documentType: string; years: number; isDefault: boolean }>;
+    defaultYears: number;
+    archive:
+      | { kind: 'filesystem'; archiveDir: string }
+      | { kind: 's3'; bucket: string; endpoint: string | undefined; credentialsConfigured: boolean };
+    registry: { kind: 'sqlite'; dbPath: string };
+  };
+  /** One row per registered renderer, exactly one `isDefault`. */
+  renderers: ReadonlyArray<{ id: string; version: string; isDefault: boolean }>;
+  access: {
+    /** Document types whose registration supplies an `ownerIdPath`. */
+    ownerScopedDocumentTypes: readonly string[];
+  };
+}
+
+type CredentialShaped<K extends string> = Lowercase<K> extends `${string}${'pass' | 'secret' | 'token' | 'key'}${string}` ? K : never;
+/** Every key, at any depth of `T`, whose name looks like a credential. */
+type CredentialShapedKeys<T> = T extends readonly (infer U)[]
+  ? CredentialShapedKeys<U>
+  : T extends object
+    ? { [K in keyof T & string]: CredentialShaped<K> | CredentialShapedKeys<T[K]> }[keyof T & string]
+    : never;
+/** Compile-time lock: `ConsoleFacts` has no key matching /pass|secret|token|key/i at any depth. */
+const assertNoCredentialShapedKey: [CredentialShapedKeys<ConsoleFacts>] extends [never] ? true : never = true;
+void assertNoCredentialShapedKey;
+
+/** The five section roots the nav links to (depth 0 in docs/UI-DESIGN.md's
+ * "depth ≤ 2"). Exported for the console tests' depth crawl. */
+export const CONSOLE_SECTION_PATHS = ['/output', '/output/documents', '/output/templates', '/output/operations', '/output/settings'] as const;
+
 export function isConsolePath(path: string): boolean {
   return (
+    path === '/output' ||
+    path === '/output/' ||
+    path === '/output/settings' ||
     path === '/output/documents' ||
     path.startsWith('/output/documents/') ||
     path.startsWith('/output/trace/') ||
@@ -135,6 +204,7 @@ function orDash(value: string | null | undefined): string {
 const PAGE_STYLE = `
   body { font-family: ui-monospace, "SF Mono", Consolas, monospace; max-width: 72rem; margin: 2rem auto; padding: 0 1rem; color: #111; background: #fff; line-height: 1.5; }
   h1 { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; }
+  nav.console { font-size: 0.85rem; margin-bottom: 1.5rem; }
   a { color: #111; text-decoration: underline; }
   form.search { margin-bottom: 1.5rem; }
   form.search input[type="text"] { font-family: inherit; font-size: 0.9rem; padding: 0.3rem 0.5rem; width: 24rem; max-width: 100%; }
@@ -160,6 +230,12 @@ const PAGE_STYLE = `
   .refusal { border: 1px solid #888; padding: 0.4rem 0.7rem; margin: 0.4rem 0; font-size: 0.85rem; }
 `;
 
+/** The one nav line, byte-identical on every console page: the five
+ * sections, no active class, no counts, no icons (no Rules page — it is
+ * not built). */
+const CONSOLE_NAV =
+  '<nav class="console"><a href="/output">Overview</a> · <a href="/output/documents">Documents</a> · <a href="/output/templates">Templates</a> · <a href="/output/operations">Operations</a> · <a href="/output/settings">Settings</a></nav>';
+
 function renderPage(title: string, bodyHtml: string): string {
   return `<!doctype html>
 <html lang="en">
@@ -169,6 +245,7 @@ function renderPage(title: string, bodyHtml: string): string {
 <style>${PAGE_STYLE}</style>
 </head>
 <body>
+${CONSOLE_NAV}
 ${bodyHtml}
 </body>
 </html>`;
@@ -700,6 +777,218 @@ export function handleReviewPost(
   res.end();
 }
 
+// ---------------------------------------------------------------------------
+// Overview (failures-first home) + Settings (Stage 5 task 5)
+// ---------------------------------------------------------------------------
+
+/** Everything the Overview reads. Only `registryStore` is mandatory: a
+ * bare server has no queue (groups 1 and 3 absent) and no registry/
+ * lifecycle (group 4 absent). */
+export interface OverviewSources {
+  registryStore: RegistryStore;
+  deliveryQueue?: DeliveryQueue;
+  backoffPolicy?: BackoffPolicy;
+  documentTypes?: TemplateSource;
+  lifecycle?: TemplateLifecycleService;
+}
+
+/** One failure group: a heading, its rows (each ONE link), and where the
+ * rest live when the cap is hit. Rendered only when `rows` is non-empty. */
+interface OverviewGroup {
+  heading: string;
+  rows: string[];
+  /** Owning screen, linked once when the group overflowed the cap. */
+  owner: { href: string; label: string };
+  overflowed: boolean;
+}
+
+function olderThan(iso: string, now: Date, ms: number): boolean {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) && now.getTime() - t >= ms;
+}
+
+function capRows<T>(items: T[]): { kept: T[]; overflowed: boolean } {
+  return { kept: items.slice(0, OVERVIEW_GROUP_CAP), overflowed: items.length > OVERVIEW_GROUP_CAP };
+}
+
+function operationsRowLink(docId: string): string {
+  return `<a href="/output/operations?q=${encodeURIComponent(docId)}">${escapeHtml(docId)}</a>`;
+}
+
+/** (1) Poison deliveries — worst. `docId · channel · attempt n/max — lastError`;
+ * never recipients, never the message. */
+function poisonGroup(queue: DeliveryQueue, policy: BackoffPolicy): OverviewGroup {
+  const { kept, overflowed } = capRows(queue.listPoisonJobs());
+  const rows = kept.map(
+    (job) =>
+      `<li class="row">${operationsRowLink(job.docId)} · ${escapeHtml(job.channel)} · attempt ${job.attemptCount}/${policy.maxAttempts}${job.lastError !== null ? ` — ${escapeHtml(job.lastError)}` : ''}</li>`,
+  );
+  return { heading: 'Poison deliveries', rows, owner: { href: '/output/operations', label: 'Operations' }, overflowed };
+}
+
+/** (2) Not archived — (a) outbox rows older than `STRANDED_AFTER_MS`
+ * (composition stranded mid-flight) and (b) DRAFT rows with NO outbox row
+ * (render failed: submit-resolution.ts clears the outbox, the row stays
+ * DRAFT — no threshold, the failure is already final). A docId appears
+ * once: a row with an outbox entry is decided by (a) alone, whatever its
+ * age. The reason is NOT persisted, so the row says only `not archived`. */
+function notArchivedGroup(registryStore: RegistryStore, now: Date): OverviewGroup {
+  const outbox = registryStore.listOutboxEntries();
+  const inOutbox = new Set(outbox.map((e) => e.docId));
+  const stranded: DocumentRegistryRow[] = [];
+  for (const entry of outbox.filter((e: OutboxEntry) => olderThan(e.createdAt, now, STRANDED_AFTER_MS))) {
+    const row = registryStore.getByDocId(entry.docId);
+    if (row !== undefined) stranded.push(row);
+  }
+  // Fetch enough DRAFT rows that filtering out the in-flight ones can
+  // still fill the cap and detect overflow.
+  const drafts = registryStore
+    .listDocuments({ state: 'DRAFT', limit: OVERVIEW_GROUP_CAP + 1 + inOutbox.size })
+    .filter((row) => !inOutbox.has(row.docId));
+  const { kept, overflowed } = capRows([...stranded, ...drafts]);
+  const rows = kept.map(
+    (row) =>
+      `<li class="row"><a href="/output/documents/${encodeURIComponent(row.docId)}">${escapeHtml(row.docId)}</a> · ${escapeHtml(row.documentType)} · ${escapeHtml(row.templateVersion)} · created ${escapeHtml(row.createdAt)} · not archived</li>`,
+  );
+  return { heading: 'Not archived', rows, owner: { href: '/output/documents', label: 'Documents' }, overflowed };
+}
+
+/** (3) Stuck deliveries — `in_progress` whose `updatedAt` is older than
+ * `STRANDED_AFTER_MS` (an attempt that never came back). */
+function stuckGroup(queue: DeliveryQueue, policy: BackoffPolicy, now: Date): OverviewGroup {
+  const stuck = queue
+    .listJobs({ statuses: ['in_progress'], limit: OVERVIEW_GROUP_CAP * 4, offset: 0 })
+    .filter((job) => olderThan(job.updatedAt, now, STRANDED_AFTER_MS));
+  const { kept, overflowed } = capRows(stuck);
+  const rows = kept.map(
+    (job) =>
+      `<li class="row">${operationsRowLink(job.docId)} · ${escapeHtml(job.channel)} · attempt ${job.attemptCount}/${policy.maxAttempts} · in progress since ${escapeHtml(job.updatedAt)}</li>`,
+  );
+  return { heading: 'Stuck deliveries', rows, owner: { href: '/output/operations', label: 'Operations' }, overflowed };
+}
+
+/** (4) Awaiting approval — LOG lifecycle `review`; worst-LAST because it
+ * is work waiting on a person, not a failure. */
+function awaitingApprovalGroup(source: TemplateSource, lifecycle: TemplateLifecycleService): OverviewGroup {
+  const inReview = governedTemplates(source).filter(
+    (t) => lifecycle.current({ templateId: t.meta.id, version: t.meta.version }) === 'review',
+  );
+  const { kept, overflowed } = capRows(inReview);
+  const rows = kept.map((t) => {
+    const key = { templateId: t.meta.id, version: t.meta.version };
+    const history = lifecycle.history(key);
+    const since = history.length > 0 ? history[history.length - 1].occurredAt : undefined;
+    return `<li class="row"><a href="${reviewHref(key)}">${escapeHtml(t.meta.id)}@${escapeHtml(t.meta.version)}</a> · ${escapeHtml(t.meta.variant.documentType)} · in review since ${orDash(since)}</li>`;
+  });
+  return { heading: 'Awaiting approval', rows, owner: { href: '/output/templates', label: 'Templates' }, overflowed };
+}
+
+function renderOverviewGroup(group: OverviewGroup): string {
+  const more = group.overflowed ? `\n<p><a href="${group.owner.href}">${group.owner.label}</a></p>` : '';
+  return `<section><h2>${escapeHtml(group.heading)}</h2><ul class="rows">
+${group.rows.join('\n')}
+</ul>${more}</section>`;
+}
+
+/**
+ * `GET /output`: worst-first failure groups, each row one link, NO group
+ * (no heading, no empty list) when it has nothing, no counts, no volume
+ * line, no timestamp. All green → exactly `<h1>Overview</h1><p>Nothing
+ * needs attention.</p>` after the nav. `now` is injectable for the two
+ * threshold groups; the default is the wall clock.
+ */
+export function renderOverviewPage(sources: OverviewSources, now: Date = new Date()): string {
+  const { registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle } = sources;
+  const queue = deliveryQueue !== undefined && backoffPolicy !== undefined ? { deliveryQueue, backoffPolicy } : undefined;
+  const groups: OverviewGroup[] = [
+    ...(queue !== undefined ? [poisonGroup(queue.deliveryQueue, queue.backoffPolicy)] : []),
+    notArchivedGroup(registryStore, now),
+    ...(queue !== undefined ? [stuckGroup(queue.deliveryQueue, queue.backoffPolicy, now)] : []),
+    ...(documentTypes !== undefined && lifecycle !== undefined ? [awaitingApprovalGroup(documentTypes, lifecycle)] : []),
+  ].filter((g) => g.rows.length > 0);
+  const body = groups.length === 0 ? '<p>Nothing needs attention.</p>' : groups.map(renderOverviewGroup).join('\n');
+  return renderPage('Overview', `<h1>Overview</h1>${body}`);
+}
+
+function facts(rows: Array<[string, string]>): string {
+  return `<dl class="facts">
+${rows.map(([dt, dd]) => `  <dt>${escapeHtml(dt)}</dt><dd>${dd}</dd>`).join('\n')}
+</dl>`;
+}
+
+function configuredText(configured: boolean): string {
+  return configured ? 'configured' : 'not configured';
+}
+
+function senderText(sender: ConsoleFacts['channels']['sender']): string {
+  switch (sender.kind) {
+    case 'filesystem':
+      return `filesystem outbox · ${escapeHtml(sender.outboxDir)}`;
+    case 'email':
+      return `email · ${escapeHtml(sender.host)}:${sender.port} · TLS ${sender.tls ? 'on' : 'off'} · auth: ${configuredText(sender.authConfigured)}`;
+    case 'object-store':
+      return `object-store · ${escapeHtml(sender.bucket)} · ${escapeHtml(sender.prefix)} · ${orDash(sender.endpoint)} · credentials: ${configuredText(sender.credentialsConfigured)}`;
+  }
+}
+
+function archiveText(archive: ConsoleFacts['retention']['archive']): string {
+  return archive.kind === 'filesystem'
+    ? `filesystem · ${escapeHtml(archive.archiveDir)}`
+    : `S3-compatible · ${escapeHtml(archive.bucket)} · ${orDash(archive.endpoint)} · credentials: ${configuredText(archive.credentialsConfigured)}`;
+}
+
+/**
+ * `GET /output/settings`: four flat groups, each a `<dl class="facts">`,
+ * read-only — every value was set at process start (docs/UI-DESIGN.md).
+ * No form, no control, no drill-in; nothing here can be changed from the
+ * console (a config store would need an ADR).
+ */
+export function renderSettingsPage(f: ConsoleFacts): string {
+  const channels = facts([
+    ['delivery sender', senderText(f.channels.sender)],
+    ['retry policy', `maxAttempts ${f.channels.retry.maxAttempts} · baseDelayMs ${f.channels.retry.baseDelayMs} · maxDelayMs ${f.channels.retry.maxDelayMs}`],
+    ['worker poll', `intervalMs ${f.channels.workerIntervalMs}`],
+  ]);
+  const retention = facts([
+    ...f.retention.documentTypes.map((t): [string, string] => [t.documentType, `${t.years} years${t.isDefault ? ' (default)' : ''}`]),
+    ['default', `${f.retention.defaultYears} years`],
+    ['archive', archiveText(f.retention.archive)],
+    ['registry', `sqlite · ${escapeHtml(f.retention.registry.dbPath)}`],
+  ]);
+  const renderers = facts(
+    f.renderers.map((r): [string, string] => [r.id, `${escapeHtml(r.id)}@${escapeHtml(r.version)}${r.isDefault ? ' · default' : ''}`]),
+  );
+  const owned = f.access.ownerScopedDocumentTypes;
+  const access = facts([
+    ['console actor', 'asserted by the reverse proxy via X-Actor-Subject / X-Actor-Role; not authenticated by this runtime'],
+    ['CSRF guard', 'Sec-Fetch-Site cross-site → 403'],
+    ['document authorization', `AuthorizationPort (owner-scoped types: ${owned.length === 0 ? 'none' : owned.map(escapeHtml).join(', ')})`],
+  ]);
+  return renderPage(
+    'Settings',
+    `<h1>Settings</h1>
+<section><h2>Channels</h2>
+${channels}
+</section>
+<section><h2>Retention</h2>
+${retention}
+</section>
+<section><h2>Renderers</h2>
+${renderers}
+</section>
+<section><h2>Access</h2>
+${access}
+</section>`,
+  );
+}
+
+/** What the Overview/Settings screens need beyond the shared arguments. */
+export interface ConsoleHomeOptions {
+  consoleFacts?: ConsoleFacts;
+  /** Injectable clock for the Overview's two threshold groups. */
+  now?: Date;
+}
+
 /**
  * Dispatch one already-GET-verified `/output/*` request. Synchronous
  * (RegistryStore is `node:sqlite`, itself synchronous) — no `Promise`
@@ -722,7 +1011,28 @@ export function handleConsoleRequest(
   lifecycle?: TemplateLifecycleService,
   /** The transport-resolved actor (review screen's "acting as" line). */
   actor?: Actor,
+  home: ConsoleHomeOptions = {},
 ): void {
+  if (path === '/output/') {
+    res.writeHead(301, { Location: '/output', 'Content-Length': 0 });
+    res.end();
+    return;
+  }
+
+  if (path === '/output') {
+    sendHtml(res, 200, renderOverviewPage({ registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle }, home.now));
+    return;
+  }
+
+  if (path === '/output/settings') {
+    if (home.consoleFacts === undefined) {
+      sendProblem(res, notFoundProblem(path));
+      return;
+    }
+    sendHtml(res, 200, renderSettingsPage(home.consoleFacts));
+    return;
+  }
+
   if (path === '/output/templates' || path.startsWith('/output/templates/')) {
     if (documentTypes === undefined || lifecycle === undefined) {
       sendProblem(res, notFoundProblem(path));

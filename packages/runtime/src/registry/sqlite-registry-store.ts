@@ -370,21 +370,23 @@ export class SqliteRegistryStore implements RegistryStore {
     const limit = query.limit ?? DEFAULT_LIST_DOCUMENTS_LIMIT;
     const offset = query.offset ?? 0;
 
-    const rows =
-      search === ''
-        ? (this.db
-            .prepare('SELECT * FROM document_registry ORDER BY created_at DESC LIMIT ? OFFSET ?')
-            .all(limit, offset) as unknown as DocumentRow[])
-        : (() => {
-            const like = `%${search}%`;
-            return this.db
-              .prepare(
-                `SELECT * FROM document_registry
-                 WHERE doc_id LIKE ? OR business_object_id LIKE ? OR event LIKE ? OR template_version LIKE ?
-                 ORDER BY created_at DESC LIMIT ? OFFSET ?`,
-              )
-              .all(like, like, like, like, limit, offset) as unknown as DocumentRow[];
-          })();
+    // One WHERE clause, every filter ANDed: `search` (four LIKEs) and
+    // `state` (exact) compose with each other and with LIMIT/OFFSET.
+    const conditions: string[] = [];
+    const params: (string | number)[] = [];
+    if (search !== '') {
+      const like = `%${search}%`;
+      conditions.push('(doc_id LIKE ? OR business_object_id LIKE ? OR event LIKE ? OR template_version LIKE ?)');
+      params.push(like, like, like, like);
+    }
+    if (query.state !== undefined) {
+      conditions.push('state = ?');
+      params.push(query.state);
+    }
+    const where = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+    const rows = this.db
+      .prepare(`SELECT * FROM document_registry ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
+      .all(...params, limit, offset) as unknown as DocumentRow[];
 
     return rows.map((row) => this.toRow(row));
   }

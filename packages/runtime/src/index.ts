@@ -140,8 +140,16 @@ export type { SubmitResolutionOutcome } from './submit-resolution.js';
 export { drainOnce, startWorker } from './worker.js';
 export type { Worker } from './worker.js';
 export type { IngressServerOptions } from './server.js';
+export { STRANDED_AFTER_MS } from './console.js';
+export type { ConsoleFacts } from './console.js';
 
 import { mkdirSync } from 'node:fs';
+import type { Renderer } from '@busy-office/output-schema';
+import type { ConsoleFacts } from './console.js';
+import type { SmtpConfig } from './delivery/email-channel-sender.js';
+import type { ObjectStoreChannelSenderOptions } from './delivery/object-store-channel-sender.js';
+import type { S3ArchiveStoreOptions } from './archive/s3-archive-store.js';
+import { DEFAULT_RETENTION_YEARS } from './archive/retention-policy.js';
 import { dirname, join } from 'node:path';
 import { createIngressServer as createIngressServerRaw, type IngressServerOptions } from './server.js';
 import { createOutput, type OutputPort } from './embed/create-output.js';
@@ -210,6 +218,96 @@ export interface RuntimeDeps {
    * `maxAttempts` column reflects reality instead of hardcoding
    * `DEFAULT_BACKOFF_POLICY`. */
   backoffPolicy: BackoffPolicy;
+  /** What the Settings screen states, built here from the SAME values the
+   * backends above were constructed with (Stage 5 task 5). */
+  consoleFacts: ConsoleFacts;
+}
+
+/** How often `serve()`'s delivery worker polls the queue — the one value
+ * `startWorker` is given and the Settings screen states. */
+export const WORKER_POLL_INTERVAL_MS = 1000;
+
+/**
+ * What `buildConsoleFacts` reads: the option objects the backends were
+ * ACTUALLY constructed from (never a second copy an operator could let
+ * drift). Credential-bearing fields (`SmtpConfig.auth`, the AWS SDK's
+ * env-supplied keys) are reduced to a boolean before anything leaves this
+ * function — `ConsoleFacts` has no place to put them (console.ts's
+ * type-level lock).
+ */
+export interface ConsoleFactsInput {
+  sender:
+    | { kind: 'filesystem'; outboxDir: string }
+    | { kind: 'email'; smtp: SmtpConfig }
+    | { kind: 'object-store'; options: ObjectStoreChannelSenderOptions };
+  archive: { kind: 'filesystem'; archiveDir: string } | { kind: 's3'; options: S3ArchiveStoreOptions };
+  dbPath: string;
+  backoffPolicy: BackoffPolicy;
+  workerIntervalMs: number;
+  documentTypes: DocumentTypeRegistry;
+  renderers: Readonly<Record<string, Renderer>>;
+  defaultRendererId: string;
+}
+
+/**
+ * The AWS SDK's default credential chain reads `AWS_ACCESS_KEY_ID` /
+ * `AWS_SECRET_ACCESS_KEY` from the environment; neither `S3ArchiveStore`
+ * nor `ObjectStoreChannelSender` takes credentials as an option. This is
+ * the ONLY place the console asks the environment about them, and only
+ * whether both are set — the values never leave this function.
+ */
+function awsCredentialsConfigured(): boolean {
+  const id = process.env.AWS_ACCESS_KEY_ID;
+  const secret = process.env.AWS_SECRET_ACCESS_KEY;
+  return typeof id === 'string' && id !== '' && typeof secret === 'string' && secret !== '';
+}
+
+/** Build the Settings screen's closed fact set — see `ConsoleFactsInput`. */
+export function buildConsoleFacts(input: ConsoleFactsInput): ConsoleFacts {
+  const { sender, archive } = input;
+  const senderFacts: ConsoleFacts['channels']['sender'] =
+    sender.kind === 'filesystem'
+      ? { kind: 'filesystem', outboxDir: sender.outboxDir }
+      : sender.kind === 'email'
+        ? {
+            kind: 'email',
+            host: sender.smtp.host,
+            port: sender.smtp.port,
+            tls: sender.smtp.secure === true,
+            authConfigured: sender.smtp.auth !== undefined && sender.smtp.auth.user !== '' && sender.smtp.auth.pass !== '',
+          }
+        : {
+            kind: 'object-store',
+            bucket: sender.options.bucket,
+            prefix: sender.options.keyPrefix ?? 'deliveries/',
+            endpoint: sender.options.endpoint,
+            credentialsConfigured: awsCredentialsConfigured(),
+          };
+  const archiveFacts: ConsoleFacts['retention']['archive'] =
+    archive.kind === 'filesystem'
+      ? { kind: 'filesystem', archiveDir: archive.archiveDir }
+      : { kind: 's3', bucket: archive.options.bucket, endpoint: archive.options.endpoint, credentialsConfigured: awsCredentialsConfigured() };
+  const documentTypes = input.documentTypes.documentTypes().map((documentType) => {
+    const years = input.documentTypes.retentionYears(documentType);
+    return { documentType, years: years ?? DEFAULT_RETENTION_YEARS, isDefault: years === undefined };
+  });
+  return {
+    channels: {
+      sender: senderFacts,
+      retry: { maxAttempts: input.backoffPolicy.maxAttempts, baseDelayMs: input.backoffPolicy.baseDelayMs, maxDelayMs: input.backoffPolicy.maxDelayMs },
+      workerIntervalMs: input.workerIntervalMs,
+    },
+    retention: {
+      documentTypes,
+      defaultYears: DEFAULT_RETENTION_YEARS,
+      archive: archiveFacts,
+      registry: { kind: 'sqlite', dbPath: input.dbPath },
+    },
+    renderers: Object.values(input.renderers).map((r) => ({ id: r.id, version: r.version, isDefault: r.id === input.defaultRendererId })),
+    access: {
+      ownerScopedDocumentTypes: input.documentTypes.documentTypes().filter((t) => input.documentTypes.ownerIdPath(t) !== undefined),
+    },
+  };
 }
 
 /**
@@ -245,7 +343,20 @@ export function createRuntimeDeps(
   const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, documentTypes, renderer, renderers };
   const output = createOutput({ registryStore, archiveStore, deliveryQueue, renderer, renderers, documentTypes });
   registerBuiltinDocumentTypes(output);
-  return { registryStore, archiveStore, deliveryQueue, composition, documentTypes, output, channelSender, backoffPolicy };
+  // Built AFTER the built-ins register, from the exact values above — the
+  // retention rows are the registry's own answers, the paths are the ones
+  // the stores were opened on.
+  const consoleFacts = buildConsoleFacts({
+    sender: { kind: 'filesystem', outboxDir },
+    archive: { kind: 'filesystem', archiveDir },
+    dbPath,
+    backoffPolicy,
+    workerIntervalMs: WORKER_POLL_INTERVAL_MS,
+    documentTypes,
+    renderers,
+    defaultRendererId: renderer.id,
+  });
+  return { registryStore, archiveStore, deliveryQueue, composition, documentTypes, output, channelSender, backoffPolicy, consoleFacts };
 }
 
 /**
@@ -326,6 +437,7 @@ export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
     composition: deps.composition,
     deliveryQueue: deps.deliveryQueue,
     backoffPolicy: deps.backoffPolicy,
+    consoleFacts: deps.consoleFacts,
   });
   const resumed: Promise<ResumeOutcome[]> = deps.output
     .resumeStrandedCompositions()
@@ -341,7 +453,7 @@ export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
       console.error('[serve] stranded-composition resume failed', err instanceof Error ? err.message : String(err));
       return [] as ResumeOutcome[];
     });
-  const worker: Worker = startWorker(deps.deliveryQueue, deps.channelSender);
+  const worker: Worker = startWorker(deps.deliveryQueue, deps.channelSender, WORKER_POLL_INTERVAL_MS);
   server.listen(port);
   return Object.assign(server, { worker, resumed });
 }

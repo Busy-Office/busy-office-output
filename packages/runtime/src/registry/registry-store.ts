@@ -207,14 +207,18 @@ export interface DocumentRegistryRow {
 }
 
 /** `RegistryStore.listDocuments`'s query shape — the Registry console
- * screen's one search box plus its "load more" link, nothing else
- * (docs/UI-DESIGN.md: no sortable columns/filter dropdowns beside the one
- * search box, no pagination widget beyond an optional simple "load more"
- * link). */
+ * screen's one search box plus its "load more" link, and the Overview
+ * screen's `state` filter (Stage 5 task 5: "Not archived" = DRAFT rows).
+ * Every field composes as one WHERE clause: no sortable columns/filter
+ * dropdowns beside the one search box, no pagination widget beyond an
+ * optional simple "load more" link (docs/UI-DESIGN.md). */
 export interface ListDocumentsQuery {
   /** Case-insensitive substring match over docId / businessObjectId /
    * event / templateVersion. Empty or omitted: no filter. */
   search?: string;
+  /** Restrict to rows in exactly this `DocumentState`. Omitted: every
+   * state. Composes with `search`/`offset` (AND). */
+  state?: DocumentState;
   /** Max rows to return. Defaults to a store-chosen page size. */
   limit?: number;
   /** Rows to skip, most-recent-first — what "load more" advances. */
