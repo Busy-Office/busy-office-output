@@ -338,6 +338,21 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   screen (task 4) makes the superseded version's continued live status
   visible so it can be retired explicitly.
 
+### GAP-21 — LIFECYCLE_STATES is a hand-maintained mirror of the schema union
+- Type: TASK — **OPEN, trivial** (surfaced 2026-08-29 by the Stage 5 task-1
+  gate-check)
+- `packages/runtime/src/lifecycle/transitions.ts` declares
+  `LIFECYCLE_STATES` as an array mirroring `TemplateLifecycle`
+  (`packages/schema/src/document/template.ts`). The transition table's
+  exhaustiveness test derives illegal pairs from that array — so if the
+  schema union ever grows a state, the test silently keeps passing on the
+  stale array, and the new state is neither legal nor refused-by-test.
+- Closes when: the array is tied to the union at the type level (e.g.
+  `satisfies readonly TemplateLifecycle[]` plus a reverse check that every
+  union member is present — a `Record<TemplateLifecycle, true>` keyed
+  object is the cheapest), so adding a union member is a compile error
+  until the array and table are updated. One-line fix; no behaviour change.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
