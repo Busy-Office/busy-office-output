@@ -3,16 +3,25 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stages 0–5 closed** (Stage 4 exit gate met 2026-08-29: 8,000
+Status: **Stages 0–6 closed** (Stage 4 exit gate met 2026-08-29: 8,000
 per-recipient payslips in 18.63 min, 1.61x inside the window, 2 locales ×
 2 channels, one audit row per resolution; ADR-002 Accepted. Stage 5
 exit gate MET and stage CLOSED 2026-08-29 — ADR-007's two addenda
-Accepted as drafted, GATE-S5-CLOSE/GATE-S5-RULINGS closed). **Stage 6
-(Variant and locale depth) starting**, under the still-open
+Accepted as drafted, GATE-S5-CLOSE/GATE-S5-RULINGS closed. Stage 6 exit
+gate MET and stage CLOSED 2026-08-29 — locale-aware number/date/address
+formatting for en-SG/ja-JP/th-TH/ar-SA on the same PO template, zero
+forking; a real `parentId` content-merge landed for country/company/
+customer variant overrides, closing GAP-27 — a Stage 1-specified merge
+algorithm that had silently never been wired into the composition path
+through four prior stage closures), under the still-open
 `GATE-S3-THESIS-CHECK` (gap register GAP-13) — its ratified exception is
-read broadly, covering Stage 5's close and Stage 6's start, not just the
-Stage-5 building that already happened. Every ADR through 009 is
-Accepted except 005 (closes at Stage 7 entry). Two renderers:
+read broadly, covering every stage close and start through here, not
+just the Stage-5 building it was first ratified for. **Stage 7
+(Authoring assist, AI-native) is next but unscheduled** — every track is
+trigger-gated (ADR-005, still Proposed until then) and no track's
+trigger has fired (track 1 stands at 0/3 templates); nothing there is
+buildable until a trigger does. Every ADR through 009 is Accepted except
+005 (closes at Stage 7 entry). Two renderers:
 `@busy-office/render-typst` (volume, all document types) and
 `@busy-office/render-pdf-direct` (single-page/Latin/no-carry-forward, both
 PDF/A-2b, veraPDF in the corpus gate). Document types are owner-supplied

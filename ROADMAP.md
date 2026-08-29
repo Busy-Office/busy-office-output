@@ -247,7 +247,7 @@ docs/HUMAN-GATES-LOG.md and docs/SESSION-LOG.md 2026-08-29.)*
 
 ---
 
-## Stage 6 — Variant and locale depth  `~3–4 weeks`
+## Stage 6 — Variant and locale depth  `~3–4 weeks · CLOSED 2026-08-29`
 
 ### Tasks
 - [x] Locale packs: number/date/address formats; CJK + RTL fonts wired (Path B: pinned LibreOffice font matrix — N/A, ADR-000 keeps Path B out of scope) — DoD: corpus locale cases green *(2026-08-29: `opts.locale` wired through `TypstRenderer.render()` -> `emitDocument()`; `Intl.NumberFormat`/`Intl.DateTimeFormat` locale-aware money+date display (packages/render-typst/src/format.ts), small explicit address line-order lookup for en-SG/ja-JP/th-TH/ar-SA; CJK+RTL font rendering already proven Stage 0 (ADR-001, RTL/CJK smoke test) — this task only added formatting, not font wiring. Same `purchaseOrderTemplate` (zero forking) now also renders buyer/vendor address; 4 new corpus cases 010-013 assert locale-formatted text + address line order via pdftotext extraction — all green, `npm run verify` 77 files/481 tests pass. 005-totals-at-boundary's empirical boundary re-swept 27->25 lines (header grew two fieldGrid rows) — see generate.ts comment.)*
@@ -256,6 +256,20 @@ docs/HUMAN-GATES-LOG.md and docs/SESSION-LOG.md 2026-08-29.)*
 ### Exit gate — `/gate-check 6`
 The same PO template renders correctly in en-SG, ja-JP, th-TH, ar-SA with zero
 forking.
+
+**MET** *(2026-08-29 — corpus-qa re-derived, not trusted from prior session
+claims: `npm run verify` 80/80 files, 508/508 tests, typecheck clean; the
+four locale corpus cases (010-013) confirmed to import from the single
+shared `test/corpus/purchase-order/template.ts`/`render.ts` — no per-locale
+template fork exists anywhere in the repo; assertions confirmed substantive
+(en-SG date/address word-order, ja-JP/th-TH locale date+money incl. th-TH's
+Buddhist-Era calendar, ar-SA's Arabic-Indic digit code points as an
+anti-cheat check against a silent Latin-digit fallback), plus a byte-
+identical-after-normalization determinism check per locale. GAP-27's variant/
+company/country override inheritance (014-variant-inheritance.test.ts +
+the registry test) is a separate axis from what this exit-gate sentence
+literally names, but both Stage 6 tasks are done regardless.)* No open
+ADRs, no `[HUMAN]` tasks in this stage — **Stage 6 CLOSED 2026-08-29.**
 
 ---
 

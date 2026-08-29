@@ -11,6 +11,37 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 6 CLOSED
+- Did: ran `/gate-check 6` via corpus-qa — re-derived, not trusted from
+  this session's own prior claims. `npm run verify` 80/80 files, 508/508
+  tests, typecheck clean. Confirmed the four locale corpus cases
+  (010-013) import from the single shared `template.ts`/`render.ts` —
+  no per-locale template fork exists anywhere in the repo; confirmed
+  their assertions are substantive (en-SG address/date word-order,
+  ja-JP/th-TH locale formatting incl. th-TH's Buddhist-Era calendar,
+  ar-SA's Arabic-Indic digit code points as an anti-cheat check against
+  a silent Latin-digit fallback); confirmed a byte-identical-after-
+  normalization determinism check per locale. Noted GAP-27's variant/
+  company/country override work is a separate axis from what the exit-
+  gate sentence literally names, but both Stage 6 tasks are done either
+  way. Exit gate MET.
+- Did: marked Stage 6 CLOSED in ROADMAP.md (no open ADRs, no [HUMAN]
+  tasks in this stage) and updated CLAUDE.md's Status line: Stages 0-6
+  closed, Stage 7 named as next but unscheduled (every track is
+  trigger-gated per ADR-005/GAP-18, no trigger has fired — track 1
+  stands at 0/3 templates).
+- Open: nothing Claude-doable in Stage 7 until a track's trigger fires.
+  `GATE-S3-THESIS-CHECK` (the 5-operator demo) remains the one standing
+  human-only item, unaffected by this stage's close. The `emitTotals`
+  regression-test gap flagged at Stage 6 task 1 and the `npm run verify`
+  full-suite flake in `document-detail-reproduce.test.ts` flagged at
+  task 2 (both non-blocking, neither has a GAP entry yet) are still
+  untracked loose ends worth logging next session.
+- Next: nothing to build until a Stage 7 trigger fires or the
+  maintainer names new work. Watch `document-detail-reproduce.test.ts`
+  in CI for a repeat of the flake before assuming it's not a real
+  intermittent bug.
+
 ## 2026-08-29 — Stage 6 task 2: variant exercise (country/company/customer overrides via inheritance)
 - Did: arb-chair scoped GAP-27 first (docs/GAP-REGISTER.md) — the Stage 1
   `parentId` content-merge spec had never been built anywhere in four
