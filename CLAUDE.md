@@ -3,16 +3,21 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stages 0, 1, and 2 closed**; **Stage 3 essentially complete
-2026-08-28** — every buildable task done (ingress, determination + TRACE,
-fan-out, idempotency, registry, archive, delivery queue, channels,
-single-process `serve`, embeddable module + outbox, minimal console; ADRs
-003/004/007 Accepted). Only `[HUMAN] Thesis check` remains, genuinely
-human-only (show the demo to 5 real operators). Path B (Carbone) tasks
-stayed out of scope per ADR-000 in every stage. Renderer for the
-purchase-order document type is `@busy-office/render-typst` (ADR-001,
-PDF/A-2b, veraPDF in the corpus gate). One part-time maintainer; sessions
-are short — leave everything in a resumable state.
+Status: **Stages 0–4 closed** (Stage 4 exit gate met 2026-08-29: 8,000
+per-recipient payslips in 18.63 min, 1.61x inside the window, 2 locales ×
+2 channels, one audit row per resolution; ADR-002 Accepted). **Stage 5
+(Governance) starting** under a maintainer-ratified exception to the
+still-open `GATE-S3-THESIS-CHECK` (gap register GAP-13). Every ADR through
+009 is Accepted except 005 (closes at Stage 7 entry). Two renderers:
+`@busy-office/render-typst` (volume, all document types) and
+`@busy-office/render-pdf-direct` (single-page/Latin/no-carry-forward, both
+PDF/A-2b, veraPDF in the corpus gate). Document types are owner-supplied
+via `registerDocumentType` (GAP-08) — the engine names none. Licence
+Apache-2.0 (ADR-008). Human-only items open: GATE-S3-THESIS-CHECK (5-
+operator demo), GAP-18 (authoring-assist proposal ratify/reject). Path B
+(Carbone) stayed out of scope per ADR-000 throughout. One part-time
+maintainer; sessions are short — leave everything in a resumable state.
+`docs/GAP-REGISTER.md` is the live worklist alongside ROADMAP.md.
 
 ## Read order at session start
 1. `ROADMAP.md` — find the current stage and its first unchecked task
