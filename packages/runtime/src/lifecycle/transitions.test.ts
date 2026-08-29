@@ -1,20 +1,26 @@
 /**
  * Template lifecycle transition table (ROADMAP Stage 5 task 1 — "DoD:
  * state machine tests"). Pure: no store, no clock. Every legal edge, every
- * illegal (from, to) pair including X→X, the two input refusals, and
- * separation of duties on review→approved.
+ * illegal (from, to) pair including X→X, the two input refusals,
+ * separation of duties on review→approved and approved→published, and the
+ * approval record required on approved→published (Stage 5 task 3).
  */
 import { describe, expect, it } from 'vitest';
 import type { TemplateLifecycle } from '@busy-office/output-schema';
 import type { TemplateLifecycleEvent } from '../registry/registry-store.js';
-import { LIFECYCLE_STATES, LIFECYCLE_TRANSITIONS, evaluateTransition } from './transitions.js';
+import { LIFECYCLE_STATES, LIFECYCLE_TRANSITIONS, evaluateTransition, standingApproval } from './transitions.js';
 
 const alice = { role: 'author', subjectId: 'alice' };
 const bob = { role: 'reviewer', subjectId: 'bob' };
+const carol = { role: 'approver', subjectId: 'carol' };
 
 function row(fromState: TemplateLifecycle | null, toState: TemplateLifecycle, subjectId: string): TemplateLifecycleEvent {
   return { templateId: 't', version: '1', fromState, toState, actorRole: 'x', actorSubjectId: subjectId, reason: 'r', occurredAt: '2026-08-29T00:00:00.000Z' };
 }
+
+/** A standing approval by bob on alice's submission — the minimum history
+ * the publish edge accepts. */
+const approvedByBob = [row(null, 'draft', 'registration'), row('draft', 'review', 'alice'), row('review', 'approved', 'bob')];
 
 describe('transition table — the six legal edges', () => {
   it.each([
@@ -22,10 +28,13 @@ describe('transition table — the six legal edges', () => {
     ['review', 'draft', 'return'],
     ['review', 'approved', 'approve'],
     ['approved', 'draft', 'reopen'],
-    ['approved', 'published', 'publish'],
     ['published', 'retired', 'retire'],
-  ] as const)('%s → %s is legal (%s)', (from, to, verb) => {
+  ] as const)('%s → %s is legal (%s) with an empty history', (from, to, verb) => {
     expect(evaluateTransition(from, to, bob, 'because', [])).toEqual({ ok: true, verb });
+  });
+
+  it('approved → published is legal (publish) — given a standing approve row by someone else', () => {
+    expect(evaluateTransition('approved', 'published', carol, 'because', approvedByBob)).toEqual({ ok: true, verb: 'publish' });
   });
 
   it('the table has exactly those six edges and nothing else', () => {
@@ -86,8 +95,55 @@ describe('separation of duties (review → approved)', () => {
     expect(evaluateTransition('review', 'approved', alice, 'ok', history)).toEqual({ ok: true, verb: 'approve' });
   });
 
-  it('no pairing other than submit/approve is checked: the approver may publish', () => {
-    const history = [row(null, 'draft', 'registration'), row('draft', 'review', 'alice'), row('review', 'approved', 'bob')];
-    expect(evaluateTransition('approved', 'published', bob, 'go', history)).toEqual({ ok: true, verb: 'publish' });
+  it('the submitter may publish (the submit/publish pairing is not checked)', () => {
+    expect(evaluateTransition('approved', 'published', alice, 'go', approvedByBob)).toEqual({ ok: true, verb: 'publish' });
+  });
+});
+
+describe('approval record required (approved → published) — the Stage 5 exit gate', () => {
+  it('seeded straight to approved with an empty history → approval-record-required', () => {
+    expect(evaluateTransition('approved', 'published', carol, 'go', [])).toEqual({ ok: false, refused: 'approval-record-required' });
+  });
+
+  it('seeded straight to approved (S1 seed row only) → approval-record-required: state alone is not an approval record', () => {
+    expect(evaluateTransition('approved', 'published', carol, 'go', [row(null, 'approved', 'definition:memo')])).toEqual({ ok: false, refused: 'approval-record-required' });
+  });
+
+  it('submit → approve → publish is allowed', () => {
+    expect(evaluateTransition('approved', 'published', carol, 'go', approvedByBob)).toEqual({ ok: true, verb: 'publish' });
+  });
+
+  it('approve → reopen → submit → approve again → publish is allowed (the second approve stands)', () => {
+    const history = [...approvedByBob, row('approved', 'draft', 'alice'), row('draft', 'review', 'alice'), row('review', 'approved', 'bob')];
+    expect(evaluateTransition('approved', 'published', carol, 'go', history)).toEqual({ ok: true, verb: 'publish' });
+  });
+
+  it('approve → reopen → publish is refused: the reopen invalidates the approve row', () => {
+    // (The state would be `draft` in reality; the evaluator is asked as if
+    // `approved` to prove the HISTORY check alone refuses it.)
+    const history = [...approvedByBob, row('approved', 'draft', 'alice')];
+    expect(evaluateTransition('approved', 'published', carol, 'go', history)).toEqual({ ok: false, refused: 'approval-record-required' });
+    expect(standingApproval(history)).toBeUndefined();
+  });
+
+  it('approve → (later) return → publish is refused: any later row into draft invalidates', () => {
+    const history = [...approvedByBob, row('review', 'draft', 'bob')];
+    expect(evaluateTransition('approved', 'published', carol, 'go', history)).toEqual({ ok: false, refused: 'approval-record-required' });
+  });
+
+  it('publisher == standing approver → separation-of-duties', () => {
+    expect(evaluateTransition('approved', 'published', bob, 'go', approvedByBob)).toEqual({ ok: false, refused: 'separation-of-duties' });
+  });
+
+  it('standingApproval returns the LAST approve row, byte-for-byte', () => {
+    const second = row('review', 'approved', 'dave');
+    const history = [...approvedByBob, row('approved', 'draft', 'alice'), row('draft', 'review', 'alice'), second];
+    expect(standingApproval(history)).toBe(second);
+    expect(standingApproval(approvedByBob)).toBe(approvedByBob[2]);
+  });
+
+  it('the approval check is on the edge, not the table: the edge table is unchanged (six edges, 19 illegal pairs)', () => {
+    expect(LIFECYCLE_TRANSITIONS).toHaveLength(6);
+    expect(LIFECYCLE_STATES.length ** 2 - LIFECYCLE_TRANSITIONS.length).toBe(19);
   });
 });

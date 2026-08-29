@@ -31,7 +31,18 @@
  * Separation of duties (ruling (d), maintainer-confirmed): on
  * review → approved the approver's `subjectId` must differ from the
  * `subjectId` on the MOST RECENT draft → review row of the key's history
- * (refusal `separation-of-duties`). No other pairing is checked.
+ * (refusal `separation-of-duties`). Stage 5 task 3 adds the second
+ * pairing: on approved → published the publisher's `subjectId` must
+ * differ from the STANDING approve row's (same refusal code).
+ *
+ * Approval record (Stage 5 task 3, the stage exit gate — "a template
+ * change cannot reach PRD without an approval record"): approved →
+ * published additionally requires a STANDING approve row in the key's
+ * history — a review → approved row with no later reopen/return
+ * (any later row into `draft`) after it. State alone is not enough: a
+ * template seeded straight to `approved` (S1 seeding) has no approve row
+ * and is refused `approval-record-required`. The check reads only the
+ * history the caller passes — still pure.
  *
  * ADR-005 is honoured structurally: an AI-patched template enters as
  * `draft` (its declared initial state) and must travel this table like
@@ -79,7 +90,12 @@ export const LIFECYCLE_TRANSITIONS: readonly LifecycleTransition[] = [
   { from: 'published', to: 'retired', verb: 'retire' },
 ];
 
-export type TransitionRefusal = 'actor-required' | 'reason-required' | 'illegal-transition' | 'separation-of-duties';
+export type TransitionRefusal =
+  | 'actor-required'
+  | 'reason-required'
+  | 'illegal-transition'
+  | 'separation-of-duties'
+  | 'approval-record-required';
 
 export type TransitionEvaluation = { ok: true; verb: TransitionVerb } | { ok: false; refused: TransitionRefusal };
 
@@ -96,7 +112,7 @@ export function hasSubjectId(actor: Actor): actor is Actor & { subjectId: string
  * whether the edge exists; then the table; then separation of duties.
  *
  * `history` is the key's full lifecycle log, oldest first — only the
- * approve edge reads it.
+ * approve and publish edges read it.
  */
 export function evaluateTransition(
   current: TemplateLifecycle,
@@ -118,5 +134,30 @@ export function evaluateTransition(
     }
   }
 
+  if (edge.verb === 'publish') {
+    const approval = standingApproval(history);
+    if (approval === undefined) return { ok: false, refused: 'approval-record-required' };
+    if (approval.actorSubjectId === actor.subjectId) return { ok: false, refused: 'separation-of-duties' };
+  }
+
   return { ok: true, verb: edge.verb };
+}
+
+/**
+ * The approve row that is still standing: the LAST review → approved row,
+ * provided no later row re-enters `draft` (reopen or return) after it.
+ * `undefined` when there is no such row — including a key that is
+ * `approved` by seed alone.
+ */
+export function standingApproval(history: readonly TemplateLifecycleEvent[]): TemplateLifecycleEvent | undefined {
+  let index = -1;
+  for (let i = history.length - 1; i >= 0; i--) {
+    if (history[i].fromState === 'review' && history[i].toState === 'approved') {
+      index = i;
+      break;
+    }
+  }
+  if (index === -1) return undefined;
+  const invalidated = history.slice(index + 1).some((e) => e.toState === 'draft');
+  return invalidated ? undefined : history[index];
 }
