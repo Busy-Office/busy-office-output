@@ -94,10 +94,13 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
     // No composition deps supplied to this server -> nothing archived -> the exact retentionUntil phrasing.
     expect(body).toContain('not yet archived');
     expect(body).toContain('PDF/A-2b · veraPDF-verified in CI');
-    // Reprint trichotomy: exact UI-DESIGN.md one-line descriptions, each "— not yet available in this console".
-    expect(body).toContain('Reproduce (archive bytes, stamped) — not yet available in this console');
-    expect(body).toContain('Regenerate (current template+data, new doc) — not yet available in this console');
-    expect(body).toContain('Reissue (new event) — not yet available in this console');
+    // Reprint trichotomy (GAP-26): Reproduce is a real download link;
+    // Regenerate/Reissue stay inert text naming them ERP-caller-only verbs.
+    expect(body).toContain(
+      `<a href="/output/documents/${docId}/reproduce?reason=console%20reproduce">Reproduce</a> (archive bytes, stamped)`,
+    );
+    expect(body).toContain('Regenerate (current template+data, new doc) — ERP-caller-only verb (API); the registry holds no payload for an operator to supply');
+    expect(body).toContain('Reissue (new event) — ERP-caller-only verb (API); the registry holds no payload for an operator to supply');
     // A matched event's determine() call is persisted under its primary docId -> a trace link must be present.
     expect(body).toContain(`/output/trace/${docId}`);
   });

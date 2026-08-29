@@ -481,6 +481,12 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
       if (path.startsWith('/output/trace/')) return 2;
       throw new Error(`unknown console screen: ${path}`);
     };
+    // GAP-26: `/output/documents/:docId/reproduce` is a download action
+    // (it returns bytes or a refusal depending on the transport-resolved
+    // actor, never an HTML page to crawl further into), not a screen — the
+    // crawl asserts its DEPTH like every other document-detail link, but
+    // does not fetch/recurse into it the way it does an actual page.
+    const isReproduceHref = (href: string): boolean => /^\/output\/documents\/[^/]+\/reproduce$/.test(href.split('?')[0]);
     const seen = new Set<string>();
     let frontier = ['/output'];
     while (frontier.length > 0) {
@@ -492,6 +498,7 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
         expect(res.status, href).toBe(200);
         for (const link of hrefs(res.body)) {
           expect(depthOf(link), link).toBeLessThanOrEqual(2);
+          if (isReproduceHref(link)) continue;
           next.push(link);
         }
       }

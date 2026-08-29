@@ -8,6 +8,12 @@
  *   - GET /output/settings             — Settings (four flat read-only groups)
  *   - GET /output/documents            — Registry
  *   - GET /output/documents/:docId     — Document detail
+ *   - GET /output/documents/:docId/reproduce — Reproduce (GAP-26): streams the
+ *                      archived bytes through `OutputPort.reproduce`, stamping
+ *                      one `reprint_log` row. The ONLY reprint verb with a
+ *                      console control — `regenerate`/`reissue` need
+ *                      caller-supplied data the console has nowhere to collect
+ *                      (HLD §1) and stay ERP-caller-only, permanently.
  *   - GET /output/trace/:id            — Rule trace
  *   - GET /output/operations           — Operations (delivery queue)
  *   - GET /output/templates            — Templates list (variants + log-truth lifecycle)
@@ -56,6 +62,7 @@ import { standingApproval, type TransitionRefusal } from './lifecycle/transition
 import { formatDiffRow, structuralDiff, type DiffRow } from './lifecycle/structural-diff.js';
 import { actorRequiredProblem, crossSiteRequestProblem, notFoundProblem, unknownReviewActionProblem } from './problem.js';
 import { sendHtml, sendProblem } from './http-helpers.js';
+import type { ReproduceInput, ReproduceResult } from './embed/create-output.js';
 
 /**
  * The read-only slice of `DocumentTypeRegistry` the console sees (Stage 5
@@ -175,6 +182,10 @@ export function isConsolePath(path: string): boolean {
     path === '/output/' ||
     path === '/output/settings' ||
     path === '/output/documents' ||
+    // Covers both the document detail route and GAP-26's
+    // `/output/documents/:docId/reproduce` — server.ts dispatches the
+    // latter to `handleReproduceRequest` before it ever reaches
+    // `handleConsoleRequest`'s document-detail branch.
     path.startsWith('/output/documents/') ||
     path.startsWith('/output/trace/') ||
     path === '/output/operations' ||
@@ -310,6 +321,16 @@ ${loadMore}`,
   );
 }
 
+/** GAP-26: the reason is a fixed constant text — the operator is not
+ * prompted (the ruling named only "reproduce gains a console control", no
+ * form; a tiny GET form to let the operator type a reason is a plausible
+ * future extension, flagged rather than decided here). */
+const REPRODUCE_REASON = 'console reproduce';
+
+function reproduceHref(docId: string): string {
+  return `/output/documents/${encodeURIComponent(docId)}/reproduce?reason=${encodeURIComponent(REPRODUCE_REASON)}`;
+}
+
 function renderDocumentDetailPage(row: DocumentRegistryRow, hasTrace: boolean): string {
   const hasPoisonedDelivery = row.deliveryHistory.some((e) => e.status === 'poisoned');
   const deliveryHtml =
@@ -350,9 +371,9 @@ ${row.deliveryHistory
 </section>
 <section>
   <h2>Reprint</h2>
-  <div class="trichotomy-row">Reproduce (archive bytes, stamped) — not yet available in this console</div>
-  <div class="trichotomy-row">Regenerate (current template+data, new doc) — not yet available in this console</div>
-  <div class="trichotomy-row">Reissue (new event) — not yet available in this console</div>
+  <div class="trichotomy-row"><a href="${reproduceHref(row.docId)}">Reproduce</a> (archive bytes, stamped)</div>
+  <div class="trichotomy-row">Regenerate (current template+data, new doc) — ERP-caller-only verb (API); the registry holds no payload for an operator to supply</div>
+  <div class="trichotomy-row">Reissue (new event) — ERP-caller-only verb (API); the registry holds no payload for an operator to supply</div>
 </section>
 ${traceLink}`,
   );
@@ -775,6 +796,116 @@ export function handleReviewPost(
   }
   res.writeHead(303, { Location: '/output/templates', 'Content-Length': 0 });
   res.end();
+}
+
+// ---------------------------------------------------------------------------
+// Reproduce (GAP-26): GET /output/documents/:docId/reproduce
+// ---------------------------------------------------------------------------
+
+const REPRODUCE_PATH = /^\/output\/documents\/([^/]+)\/reproduce$/;
+
+/** The reproduce route's docId, or `undefined` when `path` is not that route. */
+export function parseReproducePath(path: string): string | undefined {
+  const match = REPRODUCE_PATH.exec(path);
+  if (match === null) return undefined;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return undefined;
+  }
+}
+
+/** Known archived media types this console can name a download extension
+ * for. Anything else (or no media type at all — `ArchiveStore` may not
+ * answer `retrieveMediaType`) falls back to `.bin`: an honest "we don't
+ * know" rather than a guessed/wrong extension. */
+const MEDIA_TYPE_EXTENSIONS: Readonly<Record<string, string>> = {
+  'application/pdf': 'pdf',
+};
+
+function downloadFilename(docId: string, mediaType: string | undefined): string {
+  const ext = (mediaType !== undefined ? MEDIA_TYPE_EXTENSIONS[mediaType] : undefined) ?? 'bin';
+  // Reuse the same anchor-id sanitizer as rule/template ids: a docId is
+  // never attacker-controlled HTML here (it's a header value, not a body),
+  // but a filename with a stray quote/slash is still worth avoiding.
+  return `${toAnchorId(docId)}.${ext}`;
+}
+
+/** A refusal rendered as a plain HTML page (not problem+json) — the review
+ * screen's html-first refusal style (`sendHtml`, never a raw JSON blob),
+ * because this route is a browser download link, not an API caller. Never
+ * echoes anything from the archived document itself — only the docId (from
+ * the URL the caller already has) and a fixed, non-PII detail string. */
+function reproduceProblemPage(title: string, detail: string): string {
+  return renderPage(title, `<h1>${escapeHtml(title)}</h1><p>${escapeHtml(detail)}</p>`);
+}
+
+/** The narrow slice of `OutputPort` this route needs — avoids importing the
+ * whole port type just to call one verb. */
+export interface ReproducePort {
+  reproduce(input: ReproduceInput): Promise<ReproduceResult>;
+}
+
+/**
+ * `GET /output/documents/:docId/reproduce`. Goes through
+ * `port.reproduce` — the SAME actor/authorization/audit path
+ * `OutputPort.reproduce` gives every caller (CLAUDE.md: "Authorization is
+ * evaluated against the DOCUMENT, not the endpoint"); this handler adds no
+ * checks of its own beyond mapping the typed result to HTTP. `actor` is
+ * `undefined` only when the transport asserted no `X-Actor-Subject` at
+ * all — stood in as a subject-less placeholder so the port's own
+ * `admitReprint` order (unknown-document → forbidden → actor-required →
+ * reason-required) runs unmodified; a missing `reason` query param is
+ * passed through as `''` for the same reason (the port's own
+ * `reason-required` refusal fires, never re-implemented here).
+ */
+export async function handleReproduceRequest(
+  res: ServerResponse,
+  docId: string,
+  reasonParam: string | null,
+  port: ReproducePort,
+  actor: Actor | undefined,
+): Promise<void> {
+  const result = await port.reproduce({
+    docId,
+    actor: actor ?? { role: 'console' },
+    reason: reasonParam ?? '',
+  });
+  switch (result.status) {
+    case 'unknown-document':
+      sendHtml(res, 404, reproduceProblemPage('Not found', `No document ${docId} in the registry.`));
+      return;
+    case 'forbidden':
+      sendHtml(res, 403, reproduceProblemPage('Forbidden', 'This actor is not authorized to reproduce this document.'));
+      return;
+    case 'actor-required':
+      sendHtml(
+        res,
+        400,
+        reproduceProblemPage('Actor required', 'A lifecycle-audit actor identity (X-Actor-Subject) is required to reproduce a document; none was asserted on this request.'),
+      );
+      return;
+    case 'reason-required':
+      sendHtml(res, 400, reproduceProblemPage('Reason required', 'Reproducing an archived document requires a reason (query parameter "reason").'));
+      return;
+    case 'purged':
+      sendHtml(res, 410, reproduceProblemPage('Purged', `This document's archived bytes were purged (retention expired) on ${result.purgedAt}.`));
+      return;
+    case 'not-archived':
+      // 409, not 404: the document exists (its registry row is real) —
+      // there are simply no bytes yet to reproduce (DRAFT / stranded).
+      // A 404 would say "no such document", which is false.
+      sendHtml(res, 409, reproduceProblemPage('Not archived', 'This document has not been archived yet — there are no bytes to reproduce.'));
+      return;
+    case 'reproduced':
+      res.writeHead(200, {
+        'Content-Type': result.mediaType ?? 'application/octet-stream',
+        'Content-Length': result.bytes.byteLength,
+        'Content-Disposition': `attachment; filename="${downloadFilename(docId, result.mediaType)}"`,
+      });
+      res.end(Buffer.from(result.bytes));
+      return;
+  }
 }
 
 // ---------------------------------------------------------------------------

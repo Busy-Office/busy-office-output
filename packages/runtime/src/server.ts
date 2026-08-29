@@ -63,7 +63,7 @@ import {
   unresolvedMessageTemplateProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
-import { handleConsoleRequest, handleReviewPost, isConsolePath, parseReviewPath, type ConsoleFacts } from './console.js';
+import { handleConsoleRequest, handleReproduceRequest, handleReviewPost, isConsolePath, parseReproducePath, parseReviewPath, type ConsoleFacts } from './console.js';
 import type { BackoffPolicy, DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Actor } from './authorization/authorization-port.js';
 import { createTemplateLifecycle } from './lifecycle/template-lifecycle.js';
@@ -576,6 +576,15 @@ export function createIngressServer(options: IngressServerOptions = {}) {
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
+        // GAP-26: GET /output/documents/:docId/reproduce — the one reprint
+        // verb with a console control. Dispatched here (async — it calls
+        // through to the port) rather than in `handleConsoleRequest`
+        // (synchronous, RegistryStore reads only).
+        const reproduceDocId = parseReproducePath(path);
+        if (reproduceDocId !== undefined) {
+          await handleReproduceRequest(res, reproduceDocId, query.get('reason'), port, resolveActor(req));
+          return;
+        }
         handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle, resolveActor(req), {
           consoleFacts: options.consoleFacts,
         });
