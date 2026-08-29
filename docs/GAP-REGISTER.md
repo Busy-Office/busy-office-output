@@ -99,19 +99,25 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   lint-enforced.
 - Blocks: GAP-07 verb five.
 
-### GAP-09 — Embedded topology leaks the typst binary into hosts
-- Type: SEAM — **OPEN**
-- T1 `createOutput()` drags the `typst` shell-out into every host process.
-- Closes when: ratified default for hosts (T2 split worker, or renderer
-  isolated behind a process seam) recorded in ADR-007 addendum + HLD §11.
-- Note: lower priority under GAP-01 = standalone product (no active host).
+### GAP-09 — Embedded topology leaks the typst binary into hosts — **CLOSED 2026-08-29**
+- Type: SEAM
+- Ratified (maintainer, in chat): **T2 split worker is the default for any
+  future embedding host** — host embeds the thin API only, rendering runs
+  in a separate worker that owns the binary. Recorded as an ADR-007
+  addendum. Nothing built (no active host under ADR-009).
 
 ### GAP-10 — Email is bytes-only: no message body templating
-- Type: SEAM — **OPEN**
-- EmailChannelSender delivers archived bytes; the expectation is a templated
-  subject/body with the PDF attached. No task exists anywhere.
-- Closes when: task defined with its own DoD + mini-decision on governance
-  (lifecycle-governed vs channel config); built and tested.
+- Type: SEAM — **decision MADE 2026-08-29; build OPEN, Claude-doable**
+- Governance decision (maintainer, in chat): **template — lifecycle-
+  governed.** Email subject/body are templates resolved per document type
+  + locale via the same variant resolution, entering the same
+  draft→review→published lifecycle as document templates, corpus-gated,
+  provenance recorded. Not channel config. Rationale: a payslip body that
+  names an employee is PII-adjacent content and belongs under the same
+  discipline as the payslip itself; consistent with "templates are never
+  copied" and "the runtime is the product."
+- Build task now on ROADMAP with its DoD. Sequenced after Stage 4 clause 2
+  (touches the same delivery/determination seams).
 
 ## Tasks
 

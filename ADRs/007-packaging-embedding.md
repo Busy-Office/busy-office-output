@@ -24,3 +24,18 @@ pins versions like any consumer. Host-side integration points are interfaces
 ## Consequences
 Stage 3 gains the module-API + outbox task; the single-process gate extends
 to "single process can mean inside the host's process".
+
+## Addendum 2026-08-29 — T1 host topology default (gap register GAP-09)
+
+The T1 embedded module (`createOutput()`) drags the `typst` shell-out binary
+into any host process that mounts it — lean for the standalone demo is not
+lean for an embedding host. Ratified directly by the maintainer in chat:
+**T2 split worker is the default for any future embedding host.** A host
+embeds the thin API only; rendering runs in a separate worker process that
+owns `typst` (and `pdf-direct`'s in-process renderer, though that one has
+no binary). The host never needs the binary. This is the T2 topology already
+named above, and matches how `serve()` already separates ingress from the
+drain worker. Under ADR-009 (standalone product, no active host) nothing is
+built now — this records the default so the next embedding conversation
+starts from a decision, not a question. HLD §11 should be read with this
+addendum.
