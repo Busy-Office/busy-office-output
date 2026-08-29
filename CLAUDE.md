@@ -80,10 +80,12 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
   Typst renderer, packages/render-typst/src/normalize-pdf.ts) before hashing
 - External binaries are shelled out to, never reimplemented or npm-bound:
   `typst` (rendering), `pdftotext`/poppler-utils (structural diff),
-  `verapdf` (PDF/A gate). The `Dockerfile` (2026-08-28) pins typst 0.15.1
-  for the container build; `.github/workflows/ci.yml` does NOT yet install
-  any of them (gap register GAP-12) — until it does, every "in CI"
-  compliance claim is local-only.
+  `verapdf` (PDF/A gate). Pinned in two places: the `Dockerfile`
+  (2026-08-28, typst 0.15.1 for the container build) and
+  `.github/ci/install-tools.sh` (2026-08-29, typst 0.15.1 + veraPDF 1.30.2
+  + poppler-utils for CI, PATH-checked before `npm run verify`). CI is
+  green on the real runner as of commit 8c9fa64 (GAP-12 closed) — "in CI"
+  compliance claims are now actually true.
 - **Pre-authorized system installs**: Claude may run `brew install <tool>`
   without asking first when — and only when — ALL of these hold: (1) the
   tool is a local dev-machine binary this project shells out to (matches

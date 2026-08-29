@@ -111,14 +111,16 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   both call sites; `serve()` runs a startup resume sweep;
   `serve-crash-resume.test.ts` green with red/green proof; ROADMAP ticked.
 
-### GAP-12 — CI violates "no claim without a validator in CI"
-- Type: TASK — **OPEN, Claude-doable, one session**
-- Verified 2026-08-29: `.github/workflows/ci.yml` still runs the deleted
-  `spike/pdf-direct` smoke (red since 2026-08-27) and installs no
-  typst/verapdf/poppler — the corpus cannot pass there. Every "in CI"
-  compliance claim is actually local-only.
-- Closes when: CI green on push: pinned typst 0.15.1 + verapdf +
-  poppler-utils installed, spike step removed, `npm run verify` passing.
+### GAP-12 — CI violates "no claim without a validator in CI" — **CLOSED 2026-08-29**
+- Type: TASK
+- Was: ci.yml ran the deleted spike/ step (red since 2026-08-27) and
+  installed no typst/verapdf/poppler — every "in CI" compliance claim
+  was local-only.
+- Closed: commit 8c9fa64, GitHub Actions run 33229511242
+  conclusion=success on the real runner (the two preceding commits
+  failed under the old workflow — genuine red-to-green). typst 0.15.1 +
+  veraPDF 1.30.2 + poppler-utils pinned, PATH-checked, `npm ci` +
+  `npm run verify` passing there.
 
 ## Gate
 
