@@ -90,3 +90,57 @@ Not built, by ruling: `reproduce`'s body, a `preview` that determines, npm
 publishing, the package-map split, plugin/discovery (no directory scan, no
 package.json keywords, no dynamic import by name), hot-reload / unregister /
 re-register, per-type authorization policy.
+
+### Amendment 2026-08-29 (same day, still Proposed) — v1.1: reprint verbs (Stage 5 task 2)
+
+Ruled by arb-chair for Stage 5 task 2; amended in place because the
+addendum is Proposed, not Accepted. Two corrections to the task brief
+drove the shape: `ReproduceInput` on main has no `channel` field (so
+"reproduce" is bytes only, no delivery — GAP-22), and a visible watermark
+is closed by the frozen expression grammar (GAP-23). One verb per KIND of
+side effect: fetch / new artifact / new event.
+
+```ts
+interface ReproduceInput  { docId: string; actor: Actor; reason: string }
+type  ReproduceResult =
+  | { status: 'forbidden' | 'unknown-document' | 'not-archived'
+             | 'actor-required' | 'reason-required'; docId: string }
+  | { status: 'purged'; docId: string; purgedAt: string }
+  | { status: 'reproduced'; docId: string; bytes: Uint8Array;
+      mediaType?: string; reprintLogId: number };
+// `not-implemented` REMOVED — a variant that can never be returned is a lie.
+
+interface RegenerateInput { docId: string; actor: Actor; reason: string;
+                            payload: unknown;
+                            determination?: CallerDeterminationContext }
+type  RegenerateResult =
+  | { status: 'forbidden' | 'unknown-document' | 'actor-required'
+             | 'reason-required'; docId: string }
+  | { status: 'invalid-contract'; /* as EmitResult */ }
+  | { status: 'no-rule-match' | 'no-template-match'
+             | 'unresolved-recipients' | 'unresolved-message-template'; trace }
+  | { status: 'regenerated'; originalDocId: string; docId: string;
+      state: 'REPRINT'; composition: CompositionOutcome; trace };
+
+// reissue: NO verb — it IS emit with a new BusinessEventKey.
+// EmitInput.reissues?: { docId; actor; reason } adds only the audit link.
+```
+
+Semantics: reproduce = `ArchiveStore.retrieve(row.archiveRef)`, bytes
+byte-identical, original row untouched, stamp = a `reprint_log` row
+(migration 0013, append-only: id, doc_id, action, result_doc_id, actor
+role/subject, reason, occurred_at — never payload/bytes/recipients).
+regenerate = a NEW DocumentInstance (state REPRINT) rendered from
+CALLER-SUPPLIED data against the current published template (task 1's
+`liveState`) — the registry holds no payload by design (HLD §1), so a real
+ERP re-emits; never "re-render the old document" (POLICY.md unchanged).
+Non-idempotent by definition; the mint key is distinguished so the
+5-tuple index does not collapse it onto the original. reissue = emit +
+audit link, mints a fresh ORIGINAL. All three call
+`AuthorizationPort.canAccess(actor, originalRow, action)` first — the
+first real caller of that port; `subjectId` and `reason` required.
+States written: ORIGINAL (unchanged), REPRINT (regenerate's new row).
+COPY/DUPLICATE/CANCELLED stay unused — no semantics invented.
+Not built: console buttons (task 4), HTTP transport for the new verbs
+(maintainer decides with task 4), delivery from reproduce (GAP-22), any
+watermark (GAP-23), any byte modification of an archived artifact.

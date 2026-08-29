@@ -41,7 +41,25 @@ import type { TemplateLifecycle } from '@busy-office/output-schema';
 import type { Actor } from '../authorization/authorization-port.js';
 import type { TemplateLifecycleEvent } from '../registry/registry-store.js';
 
-export const LIFECYCLE_STATES: readonly TemplateLifecycle[] = ['draft', 'review', 'approved', 'published', 'retired'];
+/**
+ * The state list is DERIVED from an object that `satisfies
+ * Record<TemplateLifecycle, true>` (GAP-21): a union member missing here is
+ * a compile error (missing property), and a key that is not a union member
+ * is a compile error (excess property). Adding a state to the schema union
+ * therefore cannot compile until this file — and with it the transition
+ * table — is updated. Insertion order is the documented lifecycle order.
+ */
+const LIFECYCLE_STATE_SET = {
+  draft: true,
+  review: true,
+  approved: true,
+  published: true,
+  retired: true,
+} satisfies Record<TemplateLifecycle, true>;
+
+export const LIFECYCLE_STATES: readonly TemplateLifecycle[] = Object.keys(
+  LIFECYCLE_STATE_SET,
+) as (keyof typeof LIFECYCLE_STATE_SET)[];
 
 export type TransitionVerb = 'submit' | 'return' | 'approve' | 'reopen' | 'publish' | 'retire';
 

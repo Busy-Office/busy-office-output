@@ -338,9 +338,14 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   screen (task 4) makes the superseded version's continued live status
   visible so it can be retired explicitly.
 
-### GAP-21 — LIFECYCLE_STATES is a hand-maintained mirror of the schema union
-- Type: TASK — **OPEN, trivial** (surfaced 2026-08-29 by the Stage 5 task-1
-  gate-check)
+### GAP-21 — LIFECYCLE_STATES is a hand-maintained mirror of the schema union — **CLOSED 2026-08-29**
+- Type: TASK — a single `satisfies Record<TemplateLifecycle, true>` on a
+  keyed object enforces BOTH directions (missing member = missing-property
+  error; extra key = excess-property error); the array is derived via
+  `Object.keys`, runtime value and order unchanged. Proven to bite: a fake
+  `'archived'` union member fails `npm run typecheck` pointing at
+  transitions.ts. 394/394.
+- Original finding:
 - `packages/runtime/src/lifecycle/transitions.ts` declares
   `LIFECYCLE_STATES` as an array mirroring `TemplateLifecycle`
   (`packages/schema/src/document/template.ts`). The transition table's
@@ -352,6 +357,35 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   union member is present — a `Record<TemplateLifecycle, true>` keyed
   object is the cheapest), so adding a union member is a compile error
   until the array and table are updated. One-line fix; no behaviour change.
+
+### GAP-22 — Reproduce-and-deliver: reproduce returns bytes only
+- Type: SEAM — **OPEN, low priority** (named by the Stage 5 task-2 ruling)
+- `reproduce` returns the archived bytes and stamps the audit log; it
+  does NOT re-deliver to a channel. Reasons ruled: the registry row holds
+  no recipients (they live on delivery jobs); the email channel needs a
+  message template rendered from a payload the runtime does not hold
+  (GAP-10) — a reproduce-to-email would have to send a bare attachment,
+  which GAP-10 forbids. Task 4's console consumes bytes as a download.
+- Closes when: `reproduce` gains `deliverTo?: { channel, recipients }` for
+  object-store/fs channels only (no message needed), or a decision on
+  what an email re-delivery's subject/body should be without the payload.
+
+### GAP-23 — Visible REPRINT watermark needs a grammar root
+- Type: DECISION — **OPEN, human-only** (named by the Stage 5 task-2 ruling)
+- ROADMAP task 2 says "state stamps as metadata + optional watermark". The
+  metadata stamp is built (reprint_log). A VISIBLE watermark on a
+  regenerated document is closed by the frozen expression grammar:
+  `text.value` must be an envelope-rooted path (roots fixed to
+  schemaVersion/documentType/header/lines/totals, no literals), and every
+  contract is `additionalProperties: false`, so "REPRINT of <docId>"
+  cannot be expressed as a DocNode nor smuggled into the data. Options:
+  a `reprint` root in the grammar (grammar doc first, then parser —
+  reviewed as an ADR-005-style change), or a renderer-level overlay
+  (gold-plating a renderer, CLAUDE.md). The ruling prefers the grammar
+  route if the maintainer wants it at all. Never a modification of
+  archived bytes (POLICY.md).
+- Closes when: the maintainer decides yes/no; if yes, a grammar-doc change
+  precedes the parser change (docs/EXPRESSION-GRAMMAR.md's own rule).
 
 ## Gate
 
