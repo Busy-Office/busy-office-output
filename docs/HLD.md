@@ -110,8 +110,11 @@ ERP-agnostic: busy-office-erp is consumer #1, never owner.
 
 Six sections, eleven screens, depth ≤ 2, one primary action per screen —
 full IA and per-screen specs in `docs/UI-DESIGN.md`. Console pages are
-busy-office-ui pages mounted at `/output`; this is the one shared surface
-between the two products.
+plain server-rendered HTML (no framework, no build step —
+`packages/runtime/src/console.ts`) mounted at `/output`. `busy-office-ui`
+is a separate sibling product whose visual idiom this console follows in
+spirit but deliberately does not import or depend on (CLAUDE.md:
+"divergence from busy-office-ui — accepted: two products, one brand").
 
 ## 13. Decisions
 

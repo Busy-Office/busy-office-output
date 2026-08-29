@@ -11,5 +11,6 @@
 | 006 | Standards-first output (tiered) | **Accepted** — maintainer directive | — |
 | 007 | Packaging and embedding (T1/T2/T3, outbox) | **Accepted** — recommendation adopted as drafted | end of Stage 3 |
 | 008 | Licence and business model (Sidekiq line) | Proposed — human decides | before public release |
+| 009 | Primary objective (standalone product vs ERP subsystem) | **Accepted** — standalone product; busy-office-erp-poc archived, not consumer #1 | — |
 
 A stage does not close with its ADRs open.

@@ -26,6 +26,14 @@ Design records (consult, don't re-derive): `docs/HLD.md` (architecture),
 ## Golden rules (violating these is a failed session)
 - **The runtime is the product.** Rendering is buy-or-thin-wrap; Stages 3–5 are
   where effort goes. Never gold-plate a renderer.
+- **Standalone product, spine non-optional** (ADR-009, Accepted 2026-08-29;
+  gap register GAP-01/GAP-02, ratified in chat). Primary objective is a
+  standalone operator-facing product — `busy-office-erp-poc` is archived,
+  not consumer #1; the embeddable module (`createOutput()`) stays real and
+  tested as an architectural precaution, not the validation path. "Lean"
+  means a small surface an operator/module sees, never a spine-optional
+  engine: registry, archive, idempotency, and reprint semantics are
+  non-optional, always present, regardless of consumer.
 - **ADR-000 and ADR-001 are Accepted** (2026-08-27; Option C hybrid,
   schema-first built now — see `ADRs/000-template-authoring-model.md`,
   `ADRs/001-pagination-location.md`). Stage 1 is open (`GATE-S1-PREWORK`
@@ -71,11 +79,11 @@ closed its exit gate; see `docs/RESULTS.md` for what they found.
   embeds these even when the trailer fields are zeroed; found in Stage 2's
   Typst renderer, packages/render-typst/src/normalize-pdf.ts) before hashing
 - External binaries are shelled out to, never reimplemented or npm-bound:
-  `typst` (rendering) and `pdftotext`/poppler-utils (structural diff). Both
-  are unpinned so far — no Dockerfile/CI exists yet to lock versions; pin
-  before either becomes an actual CI gate.
-  (pattern preserved in git history; see `docs/RESULTS.md` for the
-  measurements it produced)
+  `typst` (rendering), `pdftotext`/poppler-utils (structural diff),
+  `verapdf` (PDF/A gate). The `Dockerfile` (2026-08-28) pins typst 0.15.1
+  for the container build; `.github/workflows/ci.yml` does NOT yet install
+  any of them (gap register GAP-12) — until it does, every "in CI"
+  compliance claim is local-only.
 - **Pre-authorized system installs**: Claude may run `brew install <tool>`
   without asking first when — and only when — ALL of these hold: (1) the
   tool is a local dev-machine binary this project shells out to (matches

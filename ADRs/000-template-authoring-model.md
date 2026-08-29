@@ -197,3 +197,20 @@ ADR must not be cited later as if that evaluation happened.
 **Decision:** Accepted. Option C (hybrid architecture), schema-first
 (Option A) is the only renderer built for Stage 0–2+; Carbone reserved,
 not adopted. See "Practical consequence" above — ADR-001 is now live.
+
+## Addendum 2026-08-29 — Driver 2 answered (gap register GAP-04)
+
+Driver 2 ("who authors templates") was left traceably unanswered above.
+It is now ratified directly by the maintainer in chat: **the implementing
+developer authors templates as code** — `DocNode` trees written directly
+(exactly how every template shipped so far was produced: purchase-order,
+invoice, payslip, all hand-authored by the implementing developer/agent,
+none via a builder or AI loop). The visual builder stays deleted (ADR-005).
+AI-assisted authoring — template-from-sample, adjust-assist — is Stage 7,
+trigger-gated, optional tooling layered on top; it is never required to
+author a template and is not the primary persona. Consistent with ADR-009
+(standalone product): the audience is operators running the product and
+developers authoring its templates, not non-technical business users
+needing office-tool authoring — that requirement, if it ever surfaces for
+a named user, reopens this driver via Carbone/Path B exactly as the
+"reserved, not adopted" language above already provides for.
