@@ -38,8 +38,27 @@
  * out of scope, gated on ADR-004 ("if the registry lands on Postgres
  * anyway"). Nothing here should make that later implementation awkward.
  */
-import type { BusinessEventKey } from '@busy-office/output-schema';
+import type { BusinessEventKey, TemplateLifecycle } from '@busy-office/output-schema';
 import type { DeterminationTrace } from '../determination/trace.js';
+
+/**
+ * One append-only row of the template lifecycle log (ROADMAP Stage 5 task
+ * 1; migrations/0012_add_template_lifecycle.sql). The current state of a
+ * `templateId@version` is its LATEST row — there is no separate "current"
+ * table. `fromState` is `null` on the seed row registration writes. Audit
+ * fields only: never template content, never a payload.
+ */
+export interface TemplateLifecycleEvent {
+  templateId: string;
+  version: string;
+  fromState: TemplateLifecycle | null;
+  toState: TemplateLifecycle;
+  actorRole: string;
+  actorSubjectId: string;
+  reason: string;
+  /** RFC 3339. */
+  occurredAt: string;
+}
 
 /**
  * The idempotency key for ONE resolution (ROADMAP Stage 3 "Fan-out: one
@@ -347,6 +366,28 @@ export interface RegistryStore {
 
   /** Fetch a persisted trace by its id (see `appendTraceLog`). Undefined if none exists. */
   getTraceLog(id: string): DeterminationTrace | undefined;
+
+  /**
+   * Append one template lifecycle row (Stage 5 task 1; migrations/
+   * 0012_add_template_lifecycle.sql) — CHECK-THEN-APPEND in ONE
+   * transaction: the row is written only if the key's current state
+   * (latest row's `toState`, or `null` when the key has no history) equals
+   * `event.fromState`. Returns `true` when appended, `false` when the
+   * precondition failed (the key moved underneath the caller, or a seed
+   * raced an existing seed) — nothing is written in that case. The caller
+   * (src/lifecycle/) evaluates the transition table; this method only
+   * guarantees the log can never record a transition from a state the key
+   * was not actually in.
+   */
+  appendTemplateLifecycleEvent(event: TemplateLifecycleEvent): boolean;
+
+  /** The current lifecycle state of `templateId@version` — its latest log
+   * row's `toState` — or `undefined` when the key has no history. */
+  getTemplateLifecycle(templateId: string, version: string): TemplateLifecycle | undefined;
+
+  /** Every lifecycle row for `templateId@version`, oldest first (the seed
+   * row first). `[]` for an unknown key. */
+  listTemplateLifecycleHistory(templateId: string, version: string): TemplateLifecycleEvent[];
 
   /** Release the underlying connection/handle. Safe to call once, at shutdown. */
   close(): void;

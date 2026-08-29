@@ -36,6 +36,7 @@ import {
   matchesVariant,
   resolveTemplate,
   specificityScore,
+  type TemplateLifecycle,
   type TemplateMeta,
   type VariantKey,
 } from '@busy-office/output-schema';
@@ -125,14 +126,29 @@ function evaluateRules(
   return { entries, firing };
 }
 
-function evaluateTemplateCandidates<T extends { id: string; variant: VariantKey }>(
+/**
+ * Stage 5 task 1 (arb-chair ruling 2026-08-29): ONLY `published` templates
+ * are live candidates. A non-published candidate (draft/review/approved/
+ * retired) is marked `matched: false` with a `lifecycle:` reason and is
+ * NOT handed to `resolveTemplate` — but it STAYS in the trace (HLD §9: no
+ * silent exclusion), so "why did my more-specific draft lose" is
+ * answerable. Callers pass the CURRENT persisted lifecycle overlaid on each
+ * meta (`createTemplateLifecycle().liveState`); this function trusts the
+ * `lifecycle` field it is given. Applies to document AND message templates
+ * alike — same function, same reason string.
+ */
+function evaluateTemplateCandidates<T extends { id: string; variant: VariantKey; lifecycle: TemplateLifecycle }>(
   candidates: readonly T[],
   query: VariantKey,
 ): { entries: TemplateTraceEntry[]; winner?: T } {
   const entries: TemplateTraceEntry[] = candidates.map((candidate) => {
-    const matched = matchesVariant(candidate.variant, query);
+    const live = candidate.lifecycle === 'published';
+    const matched = live && matchesVariant(candidate.variant, query);
     const specificity = specificityScore(candidate.variant);
     const reasons: string[] = [];
+    if (!live) {
+      reasons.push(`lifecycle: ${candidate.lifecycle} — only published templates are live candidates`);
+    }
     if (candidate.variant.documentType !== query.documentType) {
       reasons.push(
         `documentType: candidate requires "${candidate.variant.documentType}", query has "${query.documentType}" — no match`,
@@ -158,7 +174,11 @@ function evaluateTemplateCandidates<T extends { id: string; variant: VariantKey 
   });
   // The authoritative winner MUST come from resolveTemplate itself (Stage 1,
   // not reimplemented here) — never derived from the trace entries above.
-  const winner = resolveTemplate(candidates, query);
+  // Only the live (published) candidates are offered to it.
+  const winner = resolveTemplate(
+    candidates.filter((candidate) => candidate.lifecycle === 'published'),
+    query,
+  );
   return { entries, winner };
 }
 

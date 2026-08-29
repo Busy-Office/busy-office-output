@@ -42,8 +42,34 @@ import type {
   OutboxEntry,
   RegistryStore,
   ResolutionEventKey,
+  TemplateLifecycleEvent,
 } from './registry-store.js';
+import type { TemplateLifecycle } from '@busy-office/output-schema';
 import type { DeterminationTrace } from '../determination/trace.js';
+
+interface TemplateLifecycleRow {
+  template_id: string;
+  version: string;
+  from_state: string | null;
+  to_state: string;
+  actor_role: string;
+  actor_subject_id: string;
+  reason: string;
+  occurred_at: string;
+}
+
+function toLifecycleEvent(row: TemplateLifecycleRow): TemplateLifecycleEvent {
+  return {
+    templateId: row.template_id,
+    version: row.version,
+    fromState: row.from_state as TemplateLifecycle | null,
+    toState: row.to_state as TemplateLifecycle,
+    actorRole: row.actor_role,
+    actorSubjectId: row.actor_subject_id,
+    reason: row.reason,
+    occurredAt: row.occurred_at,
+  };
+}
 
 /** Default page size for `listDocuments` when `query.limit` is omitted. */
 const DEFAULT_LIST_DOCUMENTS_LIMIT = 50;
@@ -364,6 +390,65 @@ export class SqliteRegistryStore implements RegistryStore {
       | { trace: string }
       | undefined;
     return row === undefined ? undefined : (JSON.parse(row.trace) as DeterminationTrace);
+  }
+
+  appendTemplateLifecycleEvent(event: TemplateLifecycleEvent): boolean {
+    // Check-then-append in ONE transaction (registry-store.ts doc): the
+    // precondition read and the insert cannot interleave with another
+    // writer, so the log never records a transition from a state the key
+    // was not in. `BEGIN IMMEDIATE` takes the write lock up front.
+    this.db.exec('BEGIN IMMEDIATE');
+    try {
+      const current = this.selectTemplateLifecycle(event.templateId, event.version) ?? null;
+      if (current !== event.fromState) {
+        this.db.exec('ROLLBACK');
+        return false;
+      }
+      this.db
+        .prepare(
+          `INSERT INTO template_lifecycle_log
+             (template_id, version, from_state, to_state, actor_role, actor_subject_id, reason, occurred_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        )
+        .run(
+          event.templateId,
+          event.version,
+          event.fromState,
+          event.toState,
+          event.actorRole,
+          event.actorSubjectId,
+          event.reason,
+          event.occurredAt,
+        );
+      this.db.exec('COMMIT');
+      return true;
+    } catch (err) {
+      this.db.exec('ROLLBACK');
+      throw err;
+    }
+  }
+
+  getTemplateLifecycle(templateId: string, version: string): TemplateLifecycle | undefined {
+    return this.selectTemplateLifecycle(templateId, version);
+  }
+
+  listTemplateLifecycleHistory(templateId: string, version: string): TemplateLifecycleEvent[] {
+    const rows = this.db
+      .prepare(
+        `SELECT template_id, version, from_state, to_state, actor_role, actor_subject_id, reason, occurred_at
+         FROM template_lifecycle_log WHERE template_id = ? AND version = ? ORDER BY id ASC`,
+      )
+      .all(templateId, version) as unknown as TemplateLifecycleRow[];
+    return rows.map(toLifecycleEvent);
+  }
+
+  private selectTemplateLifecycle(templateId: string, version: string): TemplateLifecycle | undefined {
+    const row = this.db
+      .prepare(
+        'SELECT to_state FROM template_lifecycle_log WHERE template_id = ? AND version = ? ORDER BY id DESC LIMIT 1',
+      )
+      .get(templateId, version) as { to_state: string } | undefined;
+    return row === undefined ? undefined : (row.to_state as TemplateLifecycle);
   }
 
   close(): void {

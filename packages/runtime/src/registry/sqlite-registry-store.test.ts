@@ -312,3 +312,29 @@ describe('SqliteRegistryStore listByEventKey (OutputPort v1 `status`, GAP-07)', 
     store.close();
   });
 });
+
+describe('SqliteRegistryStore template lifecycle log (ROADMAP Stage 5 task 1, migration 0012)', () => {
+  it('append is check-then-append: a stale fromState writes nothing; history is ordered; current is the latest row; unknown key is undefined', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const base = { templateId: 'memo-v1', version: '1.0.0', actorRole: 'author', actorSubjectId: 'alice', reason: 'r', occurredAt: '2026-08-29T00:00:00.000Z' };
+
+    expect(store.getTemplateLifecycle('memo-v1', '1.0.0')).toBeUndefined();
+    expect(store.listTemplateLifecycleHistory('memo-v1', '1.0.0')).toEqual([]);
+
+    expect(store.appendTemplateLifecycleEvent({ ...base, fromState: null, toState: 'draft' })).toBe(true);
+    // A second seed against an existing key: precondition (no history) fails, nothing written.
+    expect(store.appendTemplateLifecycleEvent({ ...base, fromState: null, toState: 'published' })).toBe(false);
+    // A transition from a state the key is NOT in: nothing written.
+    expect(store.appendTemplateLifecycleEvent({ ...base, fromState: 'review', toState: 'approved' })).toBe(false);
+    expect(store.appendTemplateLifecycleEvent({ ...base, fromState: 'draft', toState: 'review', occurredAt: '2026-08-29T00:00:01.000Z' })).toBe(true);
+
+    expect(store.getTemplateLifecycle('memo-v1', '1.0.0')).toBe('review');
+    expect(store.listTemplateLifecycleHistory('memo-v1', '1.0.0')).toEqual([
+      { ...base, fromState: null, toState: 'draft' },
+      { ...base, fromState: 'draft', toState: 'review', occurredAt: '2026-08-29T00:00:01.000Z' },
+    ]);
+    // Keys are (templateId, version): another version is independent.
+    expect(store.getTemplateLifecycle('memo-v1', '2.0.0')).toBeUndefined();
+    store.close();
+  });
+});

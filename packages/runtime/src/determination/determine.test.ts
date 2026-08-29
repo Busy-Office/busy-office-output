@@ -283,3 +283,58 @@ describe('determine() — fan-out (fanOut: true rules co-fire alongside the winn
     expect(result.resolutions[0].ruleId).toBe('po-companyCode-1000');
   });
 });
+
+describe('determine() — template lifecycle (Stage 5 task 1: only `published` templates are live candidates)', () => {
+  const draftMoreSpecific: TemplateMeta = {
+    id: 'po-1000-v2-draft',
+    variant: { documentType: 'purchase-order', companyCode: '1000' },
+    version: '2.1.0',
+    lifecycle: 'draft',
+    renderer: 'typst',
+  };
+  const publishedGlobal: TemplateMeta = templates[0];
+  const ctx1000: DeterminationContext = { ...baseCtx, companyCode: '1000' };
+
+  it('a draft candidate that is more specific than a published one LOSES, and the trace lists it with the lifecycle reason', () => {
+    const result = determine(ctx1000, [rules[0]], [draftMoreSpecific, publishedGlobal]);
+    expect(result.outcome).toBe('matched');
+    if (result.outcome !== 'matched') throw new Error('unreachable');
+    expect(result.resolutions[0].templateId).toBe('po-global-v1');
+    const entry = result.trace.resolutions[0].templates.find((t) => t.templateId === 'po-1000-v2-draft');
+    expect(entry).toMatchObject({ matched: false });
+    expect(entry?.reasons).toContain('lifecycle: draft — only published templates are live candidates');
+    // The variant reasons are still there — excluded, not hidden.
+    expect(entry?.reasons).toContain('companyCode: matched "1000"');
+  });
+
+  it.each(['draft', 'review', 'approved', 'retired'] as const)(
+    'only-match-is-%s → no-template-match with the lifecycle reason in the trace',
+    (lifecycle) => {
+      const only: TemplateMeta = { ...publishedGlobal, id: `po-${lifecycle}`, lifecycle };
+      const result = determine(baseCtx, [rules[0]], [only]);
+      expect(result.outcome).toBe('no-template-match');
+      expect(result.trace.resolutions[0].winningTemplateId).toBeUndefined();
+      expect(result.trace.resolutions[0].templates[0]).toMatchObject({
+        templateId: `po-${lifecycle}`,
+        matched: false,
+        reasons: expect.arrayContaining([`lifecycle: ${lifecycle} — only published templates are live candidates`]),
+      });
+    },
+  );
+
+  it('message templates are governed the same way: only-match-is-draft → unresolved-message-template', () => {
+    const draftMessage = { id: 'po-email-draft', variant: { documentType: 'purchase-order' }, version: '1.0.0', lifecycle: 'draft' as const };
+    const result = determine(baseCtx, [rules[0]], templates, [draftMessage]);
+    expect(result.outcome).toBe('unresolved-message-template');
+    expect(result.trace.resolutions[0].messageTemplates?.[0]).toMatchObject({
+      templateId: 'po-email-draft',
+      matched: false,
+      reasons: expect.arrayContaining(['lifecycle: draft — only published templates are live candidates']),
+    });
+    const published = { ...draftMessage, id: 'po-email-pub', lifecycle: 'published' as const };
+    const ok = determine(baseCtx, [rules[0]], templates, [draftMessage, published]);
+    expect(ok.outcome).toBe('matched');
+    if (ok.outcome !== 'matched') throw new Error('unreachable');
+    expect(ok.resolutions[0].messageTemplateId).toBe('po-email-pub');
+  });
+});

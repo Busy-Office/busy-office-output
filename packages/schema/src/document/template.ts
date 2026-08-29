@@ -19,7 +19,9 @@ export interface TemplateMeta {
   variant: VariantKey;
   version: string;              // immutable once published
   parentId?: string;            // inheritance chain (most-specific-match wins)
-  lifecycle: TemplateLifecycle;
+  lifecycle: TemplateLifecycle; // DECLARED INITIAL state only (Stage 5): seeded once into the runtime's
+                                // persisted lifecycle log on registration; after that the log is the
+                                // state and this field is ignored. Only `published` is a live candidate.
   renderer: string;             // renderer id this template targets (per-template, not global)
   provenance?: 'human' | 'ai-generated' | 'ai-assisted'; // ADR-005: AI output faces the same gates
 }

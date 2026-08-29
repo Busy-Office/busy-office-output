@@ -58,6 +58,7 @@ import {
 import { submitResolution } from '../submit-resolution.js';
 import { createDocumentTypeRegistry, type DocumentTypeRegistry } from '../registration/document-type-registry.js';
 import type { DocumentTypeDefinition, RegistrationResult } from '../registration/document-type-definition.js';
+import { createTemplateLifecycle } from '../lifecycle/template-lifecycle.js';
 
 /**
  * Same shape validation server.ts's `extractDeterminationContext` applies
@@ -327,6 +328,11 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
   // `authorization` is held for Stage 5's `reproduce`; v1 never calls it.
   const _authorization: AuthorizationPort = deps.authorization ?? defaultAuthorizationPort;
   void _authorization;
+  // Stage 5 task 1: template lifecycle state lives in the registry store's
+  // append-only log, NOT in the DocumentTypeRegistry (whose maps are
+  // declaration only and are never mutated by a transition). Seeded on
+  // registration, overlaid on emit's candidates, absent from preview.
+  const lifecycle = createTemplateLifecycle(deps.registryStore);
 
   const composition: CompositionDeps | undefined =
     deps.archiveStore !== undefined && deps.deliveryQueue !== undefined && deps.renderer !== undefined
@@ -394,7 +400,14 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         event: input.businessEvent.event,
         ...sanitizeCallerDeterminationContext(input.determination),
       };
-      const determination = determine(ctx, documentTypes.rules(), documentTypes.templateMetas(), documentTypes.messageTemplateMetas());
+      // Candidates carry their CURRENT persisted lifecycle (Stage 5 task
+      // 1): determine() admits only `published` ones and traces the rest.
+      const determination = determine(
+        ctx,
+        documentTypes.rules(),
+        lifecycle.liveState(documentTypes.templateMetas()),
+        lifecycle.liveState(documentTypes.messageTemplateMetas()),
+      );
       // Persist the TRACE on every outcome (HLD §9: the trace is
       // mandatory; the Rule trace console screen reads trace_log).
       // Non-match: a fresh id (no docId exists); matched: the PRIMARY
@@ -489,7 +502,17 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
     },
 
     registerDocumentType(definition: DocumentTypeDefinition): RegistrationResult {
-      return documentTypes.register(definition);
+      const result = documentTypes.register(definition);
+      if (result.status === 'registered') {
+        // Seed the lifecycle log with each template's DECLARED state
+        // (document AND message templates) — only for keys with no
+        // history; an existing row wins and the declaration is ignored.
+        lifecycle.seedFromRegistration(definition.documentType, [
+          ...definition.templates.map((t) => t.meta),
+          ...(definition.messageTemplates ?? []).map((t) => t.meta),
+        ]);
+      }
+      return result;
     },
 
     async resumeStrandedCompositions(minAgeMs = 0): Promise<ResumeOutcome[]> {

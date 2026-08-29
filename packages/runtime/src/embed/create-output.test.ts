@@ -21,6 +21,9 @@ import { createRuntimeDeps, type RuntimeDeps } from '../index.js';
 import { determine, type DeterminationContext } from '../determination/index.js';
 import { composeRenderArchiveAndEnqueue } from '../composition.js';
 import { createOutput, type OutputPort } from './create-output.js';
+import { createSqliteRegistryStore } from '../registry/sqlite-registry-store.js';
+import { createDocumentTypeRegistry } from '../registration/document-type-registry.js';
+import { createTemplateLifecycle } from '../lifecycle/template-lifecycle.js';
 import { sampleBusinessEventKey, validPurchaseOrder } from '../fixtures.js';
 
 const tempDirs: string[] = [];
@@ -226,5 +229,122 @@ describe('createOutput: rollback test — crash between mint and composition-com
 
     deps2.deliveryQueue.close();
     deps2.registryStore.close();
+  }, 30_000);
+});
+
+describe('createOutput: template lifecycle THROUGH emit (Stage 5 task 1) — only `published` is live; preview is unfiltered', () => {
+  const memoContract = { type: 'object', properties: { header: { type: 'object', properties: { title: { type: 'string' } }, required: ['title'] } }, required: ['header'] };
+  const memoContent = {
+    kind: 'document' as const,
+    page: { size: 'A4' as const, margin: [40, 40, 40, 40] as [number, number, number, number] },
+    children: [{ kind: 'text' as const, value: 'header.title', style: 'title' }],
+  };
+  function memoDefinition(input: {
+    docLifecycles: Record<string, 'draft' | 'review' | 'approved' | 'published' | 'retired'>;
+    messageLifecycle: 'draft' | 'review' | 'approved' | 'published' | 'retired';
+  }) {
+    return {
+      documentType: 'memo',
+      contract: memoContract,
+      templates: [
+        // Global (least specific) and companyCode-1000 (more specific) variants.
+        ...Object.entries(input.docLifecycles).map(([id, lifecycle]) => ({
+          meta: {
+            id,
+            variant: id.includes('1000') ? { documentType: 'memo', companyCode: '1000' } : { documentType: 'memo' },
+            version: '1.0.0',
+            lifecycle,
+            renderer: 'typst',
+          },
+          content: memoContent,
+        })),
+      ],
+      rules: [{ id: 'memo-email', conditions: { documentType: 'memo' }, resolution: { channel: 'email', recipients: ['x@example.com'] } }],
+      messageTemplates: [
+        { meta: { id: 'memo-email-v1', variant: { documentType: 'memo' }, version: '1.0.0', lifecycle: input.messageLifecycle }, channel: 'email' as const, subject: ['Memo'], body: ['Attached.'] },
+      ],
+    };
+  }
+  const memoEvent = { businessObject: 'MEMO', businessObjectId: 'M-1', event: 'memo.issued', templateVersion: '1.0.0' };
+
+  it('a draft candidate more specific than a published one loses; the trace lists it with the lifecycle reason', async () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const port = createOutput({ registryStore: store }); // determination-only port
+    expect(port.registerDocumentType(memoDefinition({ docLifecycles: { 'memo-global': 'published', 'memo-1000-draft': 'draft' }, messageLifecycle: 'published' })).status).toBe('registered');
+
+    const result = await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: memoEvent, determination: { companyCode: '1000' } });
+    expect(result.status).toBe('accepted');
+    if (result.status !== 'accepted') throw new Error('unreachable');
+    expect(result.resolutions[0].templateId).toBe('memo-global');
+    const draftEntry = result.trace.resolutions[0].templates.find((t) => t.templateId === 'memo-1000-draft');
+    expect(draftEntry).toMatchObject({ matched: false, reasons: expect.arrayContaining(['lifecycle: draft — only published templates are live candidates']) });
+    store.close();
+  });
+
+  it.each(['draft', 'review', 'approved', 'retired'] as const)('only-match-is-%s → no-template-match with the reason in the (persisted) trace', async (lifecycle) => {
+    const store = createSqliteRegistryStore(':memory:');
+    const port = createOutput({ registryStore: store });
+    port.registerDocumentType(memoDefinition({ docLifecycles: { 'memo-global': lifecycle }, messageLifecycle: 'published' }));
+
+    const result = await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: memoEvent });
+    expect(result.status).toBe('no-template-match');
+    if (result.status !== 'no-template-match') throw new Error('unreachable');
+    expect(result.trace.resolutions[0].templates[0].reasons).toContain(`lifecycle: ${lifecycle} — only published templates are live candidates`);
+    expect(store.listDocuments()).toEqual([]); // nothing minted
+    store.close();
+  });
+
+  it('message templates are governed too: only-match-is-draft → unresolved-message-template', async () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const port = createOutput({ registryStore: store });
+    port.registerDocumentType(memoDefinition({ docLifecycles: { 'memo-global': 'published' }, messageLifecycle: 'draft' }));
+
+    const result = await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: memoEvent });
+    expect(result.status).toBe('unresolved-message-template');
+    if (result.status !== 'unresolved-message-template') throw new Error('unreachable');
+    expect(result.trace.resolutions[0].messageTemplates?.[0].reasons).toContain('lifecycle: draft — only published templates are live candidates');
+    store.close();
+  });
+
+  it('the PERSISTED state governs emit, not the declaration: publishing a draft through the log makes it live, retiring makes it dead — and the registry maps never change', async () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const documentTypes = createDocumentTypeRegistry();
+    const port = createOutput({ registryStore: store, documentTypes });
+    port.registerDocumentType(memoDefinition({ docLifecycles: { 'memo-global': 'draft' }, messageLifecycle: 'published' }));
+    const declared = JSON.stringify(documentTypes.templateMetas());
+
+    expect((await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: memoEvent })).status).toBe('no-template-match');
+
+    const lifecycle = createTemplateLifecycle(store);
+    const key = { templateId: 'memo-global', version: '1.0.0' };
+    expect(lifecycle.transition(key, 'review', { role: 'author', subjectId: 'alice' }, 'submit')).toMatchObject({ status: 'transitioned' });
+    expect(lifecycle.transition(key, 'approved', { role: 'reviewer', subjectId: 'bob' }, 'ok')).toMatchObject({ status: 'transitioned' });
+    expect(lifecycle.transition(key, 'published', { role: 'approver', subjectId: 'carol' }, 'go')).toMatchObject({ status: 'transitioned' });
+
+    const live = await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: memoEvent });
+    expect(live.status).toBe('accepted');
+
+    expect(lifecycle.transition(key, 'retired', { role: 'approver', subjectId: 'carol' }, 'pulled')).toMatchObject({ status: 'transitioned' });
+    const dead = await port.emit({ documentType: 'memo', payload: { header: { title: 'hi' } }, businessEvent: { ...memoEvent, businessObjectId: 'M-2' } });
+    expect(dead.status).toBe('no-template-match');
+
+    expect(JSON.stringify(documentTypes.templateMetas())).toBe(declared);
+    expect(documentTypes.templateMeta('memo-global')?.lifecycle).toBe('draft');
+    store.close();
+  });
+
+  it('preview renders a `draft` template unchanged (previewing a draft is the point; it mints nothing)', async () => {
+    const dbPath = join(tempDir('lifecycle-preview-db-'), 'registry.db');
+    const deps = createRuntimeDeps(dbPath, tempDir('lifecycle-preview-archive-'), tempDir('lifecycle-preview-outbox-'));
+    const output = buildOutput(deps);
+    expect(output.registerDocumentType(memoDefinition({ docLifecycles: { 'memo-global': 'draft' }, messageLifecycle: 'draft' })).status).toBe('registered');
+
+    const result = await output.preview({ documentType: 'memo', payload: { header: { title: 'Preview of a draft' } }, templateId: 'memo-global' });
+    if (result.status !== 'rendered') throw new Error(`preview failed: ${JSON.stringify(result)}`);
+    expect(result.bytes.length).toBeGreaterThan(0);
+    expect(deps.registryStore.listDocuments()).toEqual([]);
+
+    deps.deliveryQueue.close();
+    deps.registryStore.close();
   }, 30_000);
 });

@@ -1,5 +1,6 @@
 export type {
   DeliveryHistoryEvent,
+  TemplateLifecycleEvent,
   DocumentRegistryRow,
   DocumentState,
   GetOrCreateResult,
