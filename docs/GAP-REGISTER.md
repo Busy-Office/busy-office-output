@@ -331,10 +331,20 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   real governance.
 - Revisit trigger: if a non-developer ever gains write access to
   document-type files without git review, S1's premise fails.
+- 2026-08-29 addendum: GATE-S5-RULINGS item 1 (exit-gate wording read as
+  "through the lifecycle") confirms this entry's existing S1 reading
+  without reopening it — the S1 seed on first registration remains the
+  sole bypass; `registerDocumentType` still does not refuse `published`
+  as an initial state.
 
 ### GAP-20 — Publishing a new version does not retire the superseded one
-- Type: TASK — **OPEN, low priority** (named by the Stage 5 task-1 ruling as
-  "log it, do not solve it")
+- Type: TASK — **CLOSED 2026-08-29** (maintainer ruled directly in chat,
+  part of the GATE-S5-RULINGS bundle, item 5: no auto-retire-on-publish —
+  the first-registered-wins tie-break stands; retire must be explicit.
+  Combined with GAP-25's "code is the surface" ruling, both halves of
+  this entry's "closes when" clause are now answered.) Originally
+  **OPEN, low priority** (named by the Stage 5 task-1 ruling as "log it,
+  do not solve it")
 - Two `published` metas with identical variants tie-break by registration
   order; publishing v2 of a template leaves v1 `published` too. Correct
   for task 1 (auto-retire is a policy, not a state-machine property) but a
@@ -421,8 +431,11 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   authn boundary and documents it in HLD.
 
 ### GAP-25 — `submit` (draft → review) has no operator surface
-- Type: DECISION — **OPEN, human-only** (named by the Stage 5 task-4
-  arb-chair ruling, 2026-08-29)
+- Type: DECISION — **CLOSED 2026-08-29** (maintainer ruled directly in
+  chat, part of the GATE-S5-RULINGS bundle, item 6: **"code is the
+  surface"** is ratified as policy — retire and submit stay code-only,
+  no CLI verb or console control added.) Originally **OPEN, human-only**
+  (named by the Stage 5 task-4 arb-chair ruling, 2026-08-29)
 - The review screen correctly carries no Submit control: submit is the
   author's act, and GAP-18 says the authoring surface is not a console
   screen. Consequence in the standalone product: the only path from
@@ -484,9 +497,15 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   than a re-prioritisable build. This satisfies the "ratified exception"
   arm of the close condition for the purpose of unblocking Stage 5 — it
   does NOT close the gate itself.
+- **Scope of the exception resolved (maintainer, in chat, 2026-08-29,
+  via GATE-S5-CLOSE):** read **broadly** — the exception covers closing
+  Stage 5 and starting Stage 6, not just the building that already
+  happened. No separate exception was needed for Stage 6 to start; Stage
+  5 closed same date (ROADMAP.md).
 - Still closes when: 5-operator demo done, `docs/PREMORTEM.md` written.
   The demo is built and runnable (`npx tsx packages/runtime/src/index.ts`,
-  or the Dockerfile); only the human step remains.
+  or the Dockerfile); only the human step remains. `GATE-S3-THESIS-CHECK`
+  itself stays open — this scope ruling does not close it.
 
 ## Hygiene
 
@@ -507,7 +526,7 @@ GAP-01 ✓ ──┬─▶ GAP-07 contract shape ──▶ GAP-08 registration
 GAP-02 ✓ ──┘
 GAP-04 ✓ ──▶ template-tool scope (settled: developer-as-code)
 GAP-03 ──▶ Stage-4 exit gate
-GAP-13 ──▶ Stage-5 start (unless exception ratified)
+GAP-13 ──▶ Stage-5 start AND close, Stage-6 start (exception ratified 2026-08-29, read broadly) — Stage 5 CLOSED, GATE-S3-THESIS-CHECK itself still open
 GAP-11, GAP-12, GAP-14 ──▶ independent, Claude-doable now
 GAP-05, GAP-06 ──▶ independent, human-only
 ```

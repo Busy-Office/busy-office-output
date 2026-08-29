@@ -11,6 +11,53 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 5 CLOSED: GATE-S5-CLOSE + GATE-S5-RULINGS ruled, GAP-13 scope resolved
+- Did: maintainer ruled directly in chat on the four items blocking Stage
+  5's close. (1) ADR-007's "OutputPort v1 surface" addendum — **Accepted
+  as drafted**. (2) ADR-007's "v1.1 reprint verbs" amendment — **Accepted
+  as drafted**. (3) All seven bundled `GATE-S5-RULINGS` items — **all
+  seven stated defaults ratified as policy** (through-the-lifecycle;
+  two SoD pairings, submitter may publish; regenerate logs on failed
+  composition; `STRANDED_AFTER_MS`=5min; no auto-retire-on-publish;
+  code is the surface for retire/submit; UUID nonce confirmed correct).
+  (4) GAP-13's Stage-5 exception read **broadly** — covers Stage 5's
+  close and Stage 6's start, not just the Stage-5 building already done.
+  `arb-chair` reviewed the reconciliation plan before any file was
+  touched and caught three things I'd have missed: CLAUDE.md's own
+  Status line (stale the moment Stage 5 closes), two stale code comments
+  asserting ADR-007's addenda "still Proposed" (`sqlite-registry-
+  store.ts:7`, `create-output.ts:6` — the former turned out to actually
+  be about ADR-004, already Accepted, a separate pre-existing drift, not
+  today's ruling), and that Stage 5 task 2/5's annotations each bundle
+  multiple maintainer items where only some are resolved by today's
+  ruling (task 2's nonce point; task 5's three OTHER open items —
+  `awsCredentialsConfigured()`'s extra env vars, bare-server Settings
+  404s, the 200-row stuck-scan bound — stay explicitly open, not swept
+  into "ratified" language).
+- Did: reconciled the ruling into every dependent file — ADRs/007-
+  packaging-embedding.md (both addenda flipped to Accepted, content
+  unchanged), ADRs/README.md (007 row), docs/HUMAN-GATES-LOG.md
+  (GATE-S5-CLOSE + GATE-S5-RULINGS closed with full disposition),
+  docs/GAP-REGISTER.md (GAP-20 and GAP-25 closed; GAP-13 scope resolved,
+  gate itself stays open; GAP-19 given a confirming clause; blocking
+  graph updated), ROADMAP.md (Stage 5 header CLOSED, exit-gate paragraph
+  rewritten, task 2/3/5 annotations updated precisely — only the
+  resolved sub-points), CLAUDE.md (Status line: Stages 0-5 closed, Stage
+  6 starting), two code comments. `npm run verify` green 73/73 files,
+  455/455 tests (docs/comment-only changes, no logic touched).
+- Open: the three untouched Stage 5 task-5 items flagged by arb-chair
+  have no GAP-REGISTER entry yet (`awsCredentialsConfigured()`'s extra
+  AWS env vars, bare-server Settings 404s, 200-row stuck-scan bound) —
+  worth a GAP entry next session so they don't silently vanish now that
+  the paragraph around them is mostly resolved. GATE-S3-THESIS-CHECK
+  (GAP-13's underlying gate, the 5-operator demo) remains open,
+  human-only, unaffected by today's scope ruling.
+- Next: Stage 6 (Variant and locale depth) is now the current stage —
+  `/next` should propose its first task (locale packs or the variant
+  exercise). Consider logging the three flagged task-5 items as a new
+  GAP entry first, so they're tracked rather than orphaned in a ROADMAP
+  paragraph.
+
 ## 2026-08-29 — GAP-26 gate-checked and closed
 - Did: independent corpus-qa gate-check of GAP-26 (e174a9c, "Document
   detail's reprint trichotomy: reproduce becomes a real link") — 6

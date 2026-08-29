@@ -42,8 +42,9 @@ addendum.
 
 ## Addendum 2026-08-29 — OutputPort v1 surface (gap register GAP-07 / GAP-08)
 
-**Status: Proposed** — drafted from the arb-chair ruling recorded in
-`docs/GAP-REGISTER.md`; the maintainer ratifies.
+**Status: Accepted** (ratified by the maintainer in chat, 2026-08-29,
+as drafted, no changes) — drafted from the arb-chair ruling recorded in
+`docs/GAP-REGISTER.md`.
 
 The consumer contract this ADR names ("`output-client` — `OutputPort`-
 compatible, topology-blind callers") now has a fixed v1 shape, implemented
@@ -95,10 +96,11 @@ publishing, the package-map split, plugin/discovery (no directory scan, no
 package.json keywords, no dynamic import by name), hot-reload / unregister /
 re-register, per-type authorization policy.
 
-### Amendment 2026-08-29 (same day, still Proposed) — v1.1: reprint verbs (Stage 5 task 2)
+### Amendment 2026-08-29 — v1.1: reprint verbs (Stage 5 task 2) — **Accepted** (ratified by the maintainer in chat, 2026-08-29, as drafted)
 
-Ruled by arb-chair for Stage 5 task 2; amended in place because the
-addendum is Proposed, not Accepted. Two corrections to the task brief
+Ruled by arb-chair for Stage 5 task 2; amended in place while the base
+addendum was still Proposed (both are now Accepted, same day). Two
+corrections to the task brief
 drove the shape: `ReproduceInput` on main has no `channel` field (so
 "reproduce" is bytes only, no delivery — GAP-22), and a visible watermark
 is closed by the frozen expression grammar (GAP-23). One verb per KIND of

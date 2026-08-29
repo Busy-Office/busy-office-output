@@ -9,7 +9,7 @@
 | 004 | Queue backend (embedded vs external) | **Accepted** — Option 1 (SQLite-backed embedded, adapter reserved) | end of Stage 3 |
 | 005 | AI-native template lifecycle | Proposed — skill tasks proceed | Stage 7 entry |
 | 006 | Standards-first output (tiered) | **Accepted** — maintainer directive | — |
-| 007 | Packaging and embedding (T1/T2/T3, outbox) | **Accepted** — recommendation adopted as drafted | end of Stage 3 |
+| 007 | Packaging and embedding (T1/T2/T3, outbox) | **Accepted** — recommendation adopted as drafted; both addenda (OutputPort v1 surface, v1.1 reprint verbs) also **Accepted** 2026-08-29 | end of Stage 3 |
 | 008 | Licence and business model (Sidekiq line) | **Accepted** — Apache-2.0, holder Busy Office; DCO-gated contributions preserve dual-licence optionality | — |
 | 009 | Primary objective (standalone product vs ERP subsystem) | **Accepted** — standalone product; busy-office-erp-poc archived, not consumer #1 | — |
 

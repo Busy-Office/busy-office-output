@@ -3,12 +3,16 @@
 ERP document output runtime: **determination, rendering, archive, delivery,
 audit**. An open-source alternative to commercial ERP output-management
 stacks, renderer-agnostic.
-Status: **Stages 0–4 closed** (Stage 4 exit gate met 2026-08-29: 8,000
+Status: **Stages 0–5 closed** (Stage 4 exit gate met 2026-08-29: 8,000
 per-recipient payslips in 18.63 min, 1.61x inside the window, 2 locales ×
-2 channels, one audit row per resolution; ADR-002 Accepted). **Stage 5
-(Governance) starting** under a maintainer-ratified exception to the
-still-open `GATE-S3-THESIS-CHECK` (gap register GAP-13). Every ADR through
-009 is Accepted except 005 (closes at Stage 7 entry). Two renderers:
+2 channels, one audit row per resolution; ADR-002 Accepted. Stage 5
+exit gate MET and stage CLOSED 2026-08-29 — ADR-007's two addenda
+Accepted as drafted, GATE-S5-CLOSE/GATE-S5-RULINGS closed). **Stage 6
+(Variant and locale depth) starting**, under the still-open
+`GATE-S3-THESIS-CHECK` (gap register GAP-13) — its ratified exception is
+read broadly, covering Stage 5's close and Stage 6's start, not just the
+Stage-5 building that already happened. Every ADR through 009 is
+Accepted except 005 (closes at Stage 7 entry). Two renderers:
 `@busy-office/render-typst` (volume, all document types) and
 `@busy-office/render-pdf-direct` (single-page/Latin/no-carry-forward, both
 PDF/A-2b, veraPDF in the corpus gate). Document types are owner-supplied

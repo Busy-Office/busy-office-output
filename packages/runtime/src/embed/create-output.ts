@@ -3,8 +3,9 @@
  * Stage 3 "Embeddable module (ADR-007)"; ADR-007's T1 "embedded module"),
  * now carrying **OutputPort v1.1** — the six-verb consumer contract the
  * GAP-07/GAP-08 arb-chair ruling (2026-08-29, docs/GAP-REGISTER.md; ADR-007
- * addendum, Proposed) fixed, amended the same day for Stage 5 task 2's
- * reprint verbs (ADR-007 "Amendment 2026-08-29 — v1.1"):
+ * addendum, Accepted 2026-08-29) fixed, amended the same day for Stage 5
+ * task 2's reprint verbs (ADR-007 "Amendment 2026-08-29 — v1.1", also
+ * Accepted 2026-08-29):
  *
  *   emit                   validate → determine → mint → compose → archive → enqueue
  *                          (+ optional `reissues` audit link: reissue IS emit with a new key)

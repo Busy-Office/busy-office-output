@@ -11,6 +11,20 @@ that move.
 
 ## Processed
 
+- GATE-S5-CLOSE + GATE-S5-RULINGS + GAP-13 scope: maintainer ruled directly
+  in chat, 2026-08-29 (not via this file — logged here for the record,
+  mirroring the GATE-S1-PREWORK pattern). ADR-007's two addenda (OutputPort
+  v1 surface; v1.1 reprint verbs) Accepted as drafted, no changes. All
+  seven GATE-S5-RULINGS items ratified at their stated defaults:
+  (1) through-the-lifecycle, (2) two SoD pairings/submitter-may-publish,
+  (3) regenerate logs on failed composition, (4) STRANDED_AFTER_MS=5min,
+  (5) no auto-retire-on-publish (GAP-20 closed), (6) code is the surface
+  for retire/submit (GAP-25 closed), (7) UUID nonce confirmed correct.
+  GAP-13's Stage-5 exception read broadly — covers Stage 5's close and
+  Stage 6's start, not just the building already done. Stage 5 marked
+  CLOSED in ROADMAP.md same date; Stage 6 unblocked. ADRs/007-*.md,
+  ADRs/README.md, docs/HUMAN-GATES-LOG.md, docs/GAP-REGISTER.md,
+  CLAUDE.md, ROADMAP.md, two stale code comments all reconciled.
 - skip carbone — decided 2026-08-26. GATE-CARBONE closed (not benchmarked,
   skipped by decision); ROADMAP.md carbone-author and CCL-read [HUMAN]
   tasks marked SKIPPED; Q6 (/adr 000 draft) unblocked.

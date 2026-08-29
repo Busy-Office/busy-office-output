@@ -2,9 +2,9 @@
  * SqliteRegistryStore: the default embedded `RegistryStore` implementation
  * (ROADMAP Stage 3). Uses Node's built-in `node:sqlite` (`DatabaseSync`) —
  * deliberately NOT `better-sqlite3` (an extra native binding) and NOT
- * Postgres (that implementation of `RegistryStore` is gated on ADR-004,
- * "if the registry lands on Postgres anyway" — building it now would
- * silently pre-decide an ADR that is still Proposed). `node:sqlite` is
+ * Postgres (ADR-004 is Accepted — Option 1, SQLite-backed embedded, with
+ * a Postgres `RegistryStore` adapter deliberately reserved but unbuilt:
+ * no named consumer needs it yet, not an undecided ADR). `node:sqlite` is
  * confirmed present and stable on this project's Node baseline (>=22; this
  * machine runs v26.3.0) and needed nothing beyond what's in core.
  *
