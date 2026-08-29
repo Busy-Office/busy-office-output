@@ -78,7 +78,29 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 ## Seams
 
 ### GAP-07 — Consumer contract: five verbs, two exist
-- Type: SEAM — **OPEN**, unblocked by GAP-01/02 (now decided)
+- Type: SEAM — **design RULED 2026-08-29 (arb-chair); build OPEN, sequenced
+  after Stage 4 clause 2** (four of five files overlap — binding).
+- Ruling summary (full text in the arb-chair transcript; this is the
+  builder's contract):
+  - **All five verbs typed now.** `emit` (rename of submitEvent, no alias —
+    no external consumer exists), `preview` (render only: no registry row,
+    archive, delivery, trace, or docId; requires `templateId`, does NOT run
+    determination), `status(BusinessEventKey) → DocumentStatus[]` (a
+    projection that deliberately EXCLUDES ownerId — PII; needs one new
+    `RegistryStore.listByEventKey`, no migration), `reproduce` (Stage 5 —
+    an honest typed stub whose ONLY v1 return is
+    `{ status: 'not-implemented', availableFrom: 'stage-5' }`; no throw, no
+    authz call inside the stub), `registerDocumentType` (verb 5 = GAP-08).
+    `resumeStrandedCompositions` stays as an operational method.
+  - Consumer round-trip = `serve()`: `handleEvent` becomes a thin transport
+    over `port.emit`; new `POST /render` → `preview`; new
+    `GET /documents?businessObject=…` → `status`. Contract tests in
+    `output-port.contract.test.ts`.
+  - **Must not build:** `reproduce` body, a `preview` that runs
+    determination, npm publishing, the ADR-007 package-map split (deferral
+    holds — no external consumer even exists), plugin/discovery, hot-reload.
+  - Record the v1 surface as an ADR-007 addendum (Proposed, maintainer
+    ratifies).
 - `emit` exists (OutputPort); `preview` named in HLD §4, never built;
   `status(businessKey)` missing; `reproduce(docId, channel)` has an
   AuthorizationPort but no callable operation (Stage 5);
@@ -90,7 +112,42 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   ERP module.
 
 ### GAP-08 — Registration inversion: engine owns the document types
-- Type: SEAM — **OPEN**
+- Type: SEAM — **design RULED 2026-08-29 (arb-chair); build OPEN, with
+  GAP-07 in one session, sequenced after Stage 4 clause 2.**
+- Ruling summary (builder's contract):
+  - `registerDocumentType(definition: DocumentTypeDefinition)` — synchronous,
+    process-local, in-order, no unregister. `DocumentTypeDefinition =
+    { documentType, contract (JSON Schema object; engine compiles it — ajv
+    strict + x-pii keyword), templates: {meta: TemplateMeta, content:
+    DocNode}[], rules: OutputRule[] }`. Result: registered | duplicate |
+    invalid (contract fails to compile, duplicate template id, rule
+    documentType ≠ definition's). Lives in RUNTIME
+    (`src/registration/document-type-definition.ts`), not schema — it
+    composes only existing types, and OutputRule lives in runtime. Zero
+    schema change; no tenth DocNode kind; no grammar change.
+  - **Built-ins move to `packages/runtime/document-types/`** (sibling of
+    `rules/`, OUTSIDE `src/`), not a new package — "no package before its
+    stage" and the ADR-007-split deferral both forbid a package, but
+    leaving them in-tree fails the gap's own wording: the hardcoded map in
+    `template-content.ts` IS the gap, and a file move is the minimum that
+    deletes it. Contract JSON stays in `packages/schema/contracts/` (moving
+    it touches RENAME-POLICY for no gain); each `document-types/<type>.ts`
+    reads it and exports one definition. `src/index.ts` (the composition
+    root) registers all three through the port — the built-ins themselves
+    round-trip verb 5. A synthetic `test/document-types/sample-memo/`
+    proves registration from outside the engine tree.
+  - Engine deletions: `src/render/template-content.ts` (gone),
+    `KNOWN_DOCUMENT_TYPES`/`DocumentType` union (→ `string`), hardcoded
+    validators, `load-rules.ts`'s default path + module cache
+    (registration IS the cache), `CreateOutputDeps.rules`/
+    `templateCandidates` overrides (tests register a type instead).
+  - **Lint = a vitest test**, not ESLint/dependency-cruiser (repo has no
+    ESLint; a toolchain for one rule is gold-plating):
+    `src/registration/engine-boundary.test.ts` walks `src/**/*.ts`
+    (excluding tests and `src/index.ts`), fails on any import of
+    `document-types/`, `rules/`, `contracts/`, or the schema contracts
+    path; also asserts `template-content.ts` no longer exists. Runs inside
+    `npm run verify`.
 - Contracts, rules, and template content live inside the engine tree
   (`packages/schema/contracts/`, `packages/runtime/rules/`, hardcoded
   lookup in `render/template-content.ts`). No registration seam exists.
