@@ -285,9 +285,16 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   after GAP-07/08 lands (same tree).
 
 ### GAP-17 — Residual per-type switches in the engine after GAP-08
-- Type: SEAM — **OPEN, low priority** (surfaced 2026-08-29 by the GAP-07/08
+- Type: SEAM — **CLOSED 2026-08-29** at `ed81ace`; gate-check PASS 8/8
+  (corpus-qa, scratch worktree). `retentionYears` + `ownerIdPath` on
+  `DocumentTypeDefinition`, validated atomically at registration (NaN and
+  non-integers rejected; path parsed by the frozen grammar); all three
+  switches gone; built-ins byte-identical (6/10/3, `header.employeeId`);
+  generic proof via a test-local `locker-slip` type; boundary lint fires on
+  planted `documentType === 'payslip'` / `case 'invoice':` and stays silent
+  on the same text in comments. (Surfaced 2026-08-29 by the GAP-07/08
   gate-check, which correctly noted the commit message's "engine knows no
-  document type" was overstated)
+  document type" was overstated.)
 - GAP-08's wording was the hardcoded template map, and that is gone. But
   three per-type switches remain in engine source, each a `documentType
   === 'payslip'`-style branch rather than something the document type's
