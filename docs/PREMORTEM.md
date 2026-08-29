@@ -58,3 +58,23 @@ and today they have no open-source option.
 | 1 — template-from-sample | 3 real templates authored | 0         |
 | 2 — adjust-assist        | 5 asks by name            | 0         |
 | 3 — shadow parity        | 1 named legacy estate     | 0         |
+
+## Demo readiness (technical only — not operator evidence)
+
+2026-08-29: the demo itself confirmed working end-to-end, in a fresh
+`podman` container built from this repo's `Dockerfile` (zero external
+services beyond the baked-in `typst` binary) — not a re-assertion of an
+older claim, run again today. `POST /event` on a real purchase-order
+fixture → HTTP 202 in 28–67ms, real rule trace (6 rules evaluated,
+correct one fired), real Typst render, PDF/A-2b archived, delivery job
+enqueued. Screens visually confirmed in an actual browser (not just
+curl): Overview ("Nothing needs attention"), Registry (both fired
+events listed), Document detail (full audit trail: docId, business
+event key, templateVersion/rendererVersion, archiveRef, retentionUntil,
+PDF/A-2b + veraPDF-verified, delivery history) and the reprint
+trichotomy (Reproduce correctly refuses without a proxy-asserted actor
+identity — GAP-24 — rather than guessing one; Regenerate/Reissue
+correctly shown as ERP-caller-only). This is readiness evidence only —
+it says the demo works, not what an operator thinks of it. The
+Predictions/Scoring/Decision sections above are unchanged and still
+entirely unscored.
