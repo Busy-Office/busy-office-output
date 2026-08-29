@@ -10,7 +10,7 @@
  * identical — same frozen nine kinds, same expressions.
  *
  * `payslipPdfDirectTemplate` is the tree wired VERBATIM into
- * packages/runtime/src/render/template-content.ts under
+ * packages/runtime/document-types/ (registered via OutputPort) under
  * `payslip-companyCode-1000-v1` (the one real template routed to
  * pdf-direct). Keep the two byte-identical.
  */

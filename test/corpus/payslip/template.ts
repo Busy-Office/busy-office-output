@@ -1,6 +1,6 @@
 /**
  * The payslip DocNode tree — kept byte-identical to the entry wired into
- * packages/runtime/src/render/template-content.ts under
+ * packages/runtime/document-types/ (registered via OutputPort) under
  * `payslip-global-v1` (packages/runtime/rules/templates/payslip-global.json
  * carries that id). "Compact" per the task name: header identity block,
  * one earnings/deductions line table, a totals block — no node kind or

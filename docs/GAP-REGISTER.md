@@ -77,9 +77,13 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 
 ## Seams
 
-### GAP-07 — Consumer contract: five verbs, two exist
-- Type: SEAM — **design RULED 2026-08-29 (arb-chair); build OPEN, sequenced
-  after Stage 4 clause 2** (four of five files overlap — binding).
+### GAP-07 — Consumer contract: five verbs, two exist — **CLOSED 2026-08-29**
+- Type: SEAM — closed by commit 3978a77; corpus-qa re-derived all 10
+  checks PASS (live serve() round-trip, reproduce stub proven to touch
+  neither registry nor authz, status projection proven PII-free). ADR-007
+  addendum recording the v1 surface is PROPOSED — the maintainer's
+  ratification is a separate act the close does not depend on.
+- Ruling that was the builder's contract (retained for the record):
 - Ruling summary (full text in the arb-chair transcript; this is the
   builder's contract):
   - **All five verbs typed now.** `emit` (rename of submitEvent, no alias —
@@ -111,9 +115,13 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   round-trip is this project's own `serve()`/console path, not an external
   ERP module.
 
-### GAP-08 — Registration inversion: engine owns the document types
-- Type: SEAM — **design RULED 2026-08-29 (arb-chair); build OPEN, with
-  GAP-07 in one session, sequenced after Stage 4 clause 2.**
+### GAP-08 — Registration inversion: engine owns the document types — **CLOSED 2026-08-29**
+- Type: SEAM — closed by commit 3978a77 (with GAP-07). The gap's wording
+  was the hardcoded template map: deleted; built-ins moved to
+  packages/runtime/document-types/; sample-memo registers from outside
+  the tree; the vitest boundary lint is proven to bite. Residual per-type
+  switches OUTSIDE the gap's wording are logged separately as GAP-17.
+- Ruling that was the builder's contract (retained for the record):
 - Ruling summary (builder's contract):
   - `registerDocumentType(definition: DocumentTypeDefinition)` — synchronous,
     process-local, in-order, no unregister. `DocumentTypeDefinition =
@@ -236,6 +244,28 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   the now-unused `IdempotencyStore` facade is deleted outright (the cleaner
   fix — GAP-11's commit already named it a cleanup candidate). Sequenced
   after GAP-07/08 lands (same tree).
+
+### GAP-17 — Residual per-type switches in the engine after GAP-08
+- Type: SEAM — **OPEN, low priority** (surfaced 2026-08-29 by the GAP-07/08
+  gate-check, which correctly noted the commit message's "engine knows no
+  document type" was overstated)
+- GAP-08's wording was the hardcoded template map, and that is gone. But
+  three per-type switches remain in engine source, each a `documentType
+  === 'payslip'`-style branch rather than something the document type's
+  owner supplies via `DocumentTypeDefinition`:
+  - `archive/retention-policy.ts` hardcodes retention years per type
+    (purchase-order 3, invoice 10, payslip 6, default 10);
+  - `authorization/authorization-port.ts` branches on `'payslip'` and
+    `extractPayslipOwnerId` is called from `create-output.ts`;
+  - `console.ts` gates the lock glyph on `'payslip'`.
+- Closes when: `DocumentTypeDefinition` optionally carries `retentionYears`
+  and an `ownerIdPath` (or extractor), the three switches read from the
+  registry instead, and the engine-boundary test grows a rule that no
+  non-test engine file string-compares a `documentType` literal. NOT
+  urgent: the standalone product ships with exactly these three built-in
+  types, so the switches are correct today — this is about the seam being
+  fully honest, not a defect.
+- Sequenced after GAP-10 and GAP-16 (same files).
 
 ## Gate
 
