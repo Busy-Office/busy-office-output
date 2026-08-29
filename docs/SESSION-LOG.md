@@ -43,8 +43,11 @@ Newest first. One entry per Claude Code session. Template:
   ruling), Settings (four read-only fact groups, closed `ConsoleFacts`
   with a compile-time credential-key lock), nav on every page,
   `ListDocumentsQuery.state` making render-failed rows visible for the
-  first time — evidence: `npm run verify` 446/446 (independent).
-  **Gate-check in flight** (task 5 + whole-stage `/gate-check 5`).
+  first time — evidence: `npm run verify` 446/446 (independent); gate-
+  checked 446/446 incl. a NO-SECRET sweep of 8 planted strings across 9+
+  routes and headers, and a LIVE catch of the type-level credential lock
+  (planting `accessKeyId` into `ConsoleFacts` fails `tsc` with the
+  lock's own error). Ticked 7e8e742.
 - Did: docs — GAP-24 (proxy-asserted actor), GAP-25 (submit has no
   operator surface), GAP-20 update (first-registered wins on ties;
   visibility arm built) — 51366b1, 2e2c07d.
@@ -53,18 +56,33 @@ Newest first. One entry per Claude Code session. Template:
   "short tool calls, targeted vitest" constraint — no further stalls.
   `idempotency.test.ts` flaked once under two concurrent full-suite
   runs (empty HTTP body), green on every rerun — watch in CI.
-- Open: task 5 tick + Stage 5 exit-gate line await the corpus-qa
-  verdict. **Stage 5 cannot close** until the maintainer accepts ADR-007's
-  two Proposed addenda (OutputPort v1 surface; v1.1 reprint verbs +
-  console-write line) — "no stage closes with its ADRs open".
-- Open (maintainer rulings, see GATE-S5-RULINGS): exit-gate wording
-  "through the lifecycle" vs "by any means" (S1 seed); submitter-may-
-  publish SoD scope; REPRINT + log row written when composition then
-  fails; `STRANDED_AFTER_MS` = 5 min; auto-retire-on-publish (GAP-20);
-  retire/submit surfaces (GAP-25); GAP-18, GAP-23 unchanged.
-- Next: on task 5 PASS → tick, annotate the Stage 5 exit gate, then
-  Stage 6 entry conditions per ROADMAP.md (do not start Stage 6 tasks
-  while ADR-007 addenda are Proposed without an explicit exception).
+- Did: Stage 5 EXIT GATE re-run at 3a78ef9, all three proofs — pure
+  table (`transitions.test.ts` 9/9, 48/48 full file), through-the-port
+  (`stage5-exit-gate.test.ts` 3/3), through-the-screen
+  (`stage5-exit-gate-screen.test.ts` 7/7). **MET.** All five Stage 5
+  tasks now carry an independent gate-check verdict in git history.
+  Annotated ROADMAP.md, ticked task 5. 7e8e742.
+- Open: **Stage 5 built and gate-MET but does not close today** — the
+  maintainer has not yet accepted ADR-007's two Proposed addenda
+  (OutputPort v1 surface; v1.1 reprint verbs + console-write line) —
+  "no stage closes with its ADRs open" (GATE-S5-CLOSE). Separately,
+  GAP-13's ratified exception text authorized proceeding INTO Stage 5;
+  it is silent on closing it or starting Stage 6 — flagged narrow-vs-
+  broad reading, not assumed either way (also folded into
+  GATE-S5-CLOSE).
+- Open (maintainer rulings, see GATE-S5-RULINGS, defaults stated per
+  item and in force until answered): exit-gate wording "through the
+  lifecycle" vs "by any means" (S1 seed); submitter-may-publish SoD
+  scope; REPRINT + log row written when composition then fails;
+  `STRANDED_AFTER_MS` = 5 min; `awsCredentialsConfigured()` reads two
+  AWS env vars beyond the three ratified path vars (boolean only);
+  auto-retire-on-publish (GAP-20); retire/submit surfaces (GAP-25);
+  GAP-18, GAP-23 unchanged.
+- Next: this loop tick holds at the Stage 5/Stage 6 boundary — no Stage
+  6 task starts while GATE-S5-CLOSE is open. On the maintainer's
+  ruling: either close Stage 5 in docs (a short commit) and begin Stage
+  6 entry conditions per ROADMAP.md, or address whatever the ADR
+  decision requires first.
 
 ## 2026-08-29 — Stage 4 build tasks CLOSED (GAP-07/08/10/16); authoring-assist roundtable
 - Did: GAP-07/08 landed (3978a77 — healed main after my docs commit
