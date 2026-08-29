@@ -1,18 +1,22 @@
 /**
  * Bursting/fan-out DoD test (ROADMAP Stage 3: "Fan-out: one event → N
  * resolutions ... DoD: bursting test = fan-out test"). Deliberately wires
- * `determine()` to the REAL registry-backed idempotency store (not a mock)
- * so this proves the whole path the task asked for: one event matching
- * several rules produces N distinct resolutions, each independently
- * traceable, each minting its own docId — and replaying the exact same
- * event again returns the SAME N docIds, never 2N.
+ * `determine()` to the REAL mint path — `submitResolution` over a
+ * registry-backed `RegistryStore` (not a mock, and not a facade: the old
+ * `IdempotencyStore` wrapper was deleted under GAP-16 because it minted a
+ * NULL locale) — so this proves the whole path the task asked for: one
+ * event matching several rules produces N distinct resolutions, each
+ * independently traceable, each minting its own docId — and replaying the
+ * exact same event again returns the SAME N docIds, never 2N.
  */
 import { describe, expect, it } from 'vitest';
 import type { TemplateMeta } from '@busy-office/output-schema';
-import { determine } from './determine.js';
+import { determine, type Resolution } from './determine.js';
 import type { DeterminationContext, OutputRule } from './rule-types.js';
-import { createRegistryIdempotencyStore } from '../idempotency-store.js';
+import { submitResolution } from '../submit-resolution.js';
 import { createSqliteRegistryStore } from '../registry/sqlite-registry-store.js';
+import type { RegistryStore } from '../registry/registry-store.js';
+import { validInvoice } from '../fixtures.js';
 
 // Mirrors the real fixture set in packages/runtime/rules/output-rules/ +
 // rules/templates/ (invoice-default-email + invoice-archival-copy fanOut
@@ -61,6 +65,37 @@ function processEvent() {
   return determination;
 }
 
+/**
+ * Mint one docId per resolution the way server.ts / create-output.ts do:
+ * through `submitResolution`. `composition: undefined` = no render/archive
+ * backends, so this is the plain `getOrCreateByResolutionKey` mint (see
+ * submit-resolution.ts's header) — with `resolution.locale` threaded through.
+ */
+async function mintAll(
+  registryStore: RegistryStore,
+  key: typeof businessEventKey,
+  resolutions: Resolution[],
+) {
+  const minted = await Promise.all(
+    resolutions.map(async (r) => {
+      const { docId, replayed } = await submitResolution(registryStore, undefined, key, r, validInvoice(), 'invoice', undefined);
+      return { ruleId: r.ruleId, docId, replayed };
+    }),
+  );
+  return minted.sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+}
+
+function resolutionFor(ruleId: string, overrides: Partial<Resolution> = {}): Resolution {
+  return {
+    ruleId,
+    templateId: 'invoice-global-v1',
+    templateVersion: '1.0.0',
+    channel: 'object-store',
+    recipients: ['archive://invoices/ap'],
+    ...overrides,
+  };
+}
+
 describe('bursting = fan-out: one event → N resolutions, each with a stable docId on replay', () => {
   it('one invoice.posted event fires 3 rules → 3 distinct resolutions, each independently traceable', () => {
     const determination = processEvent();
@@ -81,13 +116,11 @@ describe('bursting = fan-out: one event → N resolutions, each with a stable do
     expect(determination.trace.rules.every((r) => r.matched)).toBe(true);
   });
 
-  it('replaying the exact same event mints the SAME 3 docIds, never 6', () => {
-    const idempotencyStore = createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
+  it('replaying the exact same event mints the SAME 3 docIds, never 6', async () => {
+    const registryStore = createSqliteRegistryStore(':memory:');
 
     const first = processEvent();
-    const firstDocIds = first.resolutions
-      .map((r) => ({ ruleId: r.ruleId, ...idempotencyStore.getOrCreateForResolution(businessEventKey, r.ruleId) }))
-      .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+    const firstDocIds = await mintAll(registryStore, businessEventKey, first.resolutions);
 
     expect(firstDocIds).toHaveLength(3);
     expect(firstDocIds.every((r) => r.replayed === false)).toBe(true);
@@ -96,22 +129,39 @@ describe('bursting = fan-out: one event → N resolutions, each with a stable do
     // Replay: re-run determination (a fresh event with the identical
     // payload/rules) and look each resolution's docId up again.
     const second = processEvent();
-    const secondDocIds = second.resolutions
-      .map((r) => ({ ruleId: r.ruleId, ...idempotencyStore.getOrCreateForResolution(businessEventKey, r.ruleId) }))
-      .sort((a, b) => a.ruleId.localeCompare(b.ruleId));
+    const secondDocIds = await mintAll(registryStore, businessEventKey, second.resolutions);
 
     expect(secondDocIds).toHaveLength(3); // still 3, not 6
     expect(secondDocIds.every((r) => r.replayed === true)).toBe(true);
     expect(secondDocIds.map((r) => r.docId)).toEqual(firstDocIds.map((r) => r.docId)); // same docIds, in ruleId order
   });
 
-  it('a different resolution from a DIFFERENT event gets its own docId, never collides with an unrelated rule', () => {
-    const idempotencyStore = createRegistryIdempotencyStore(createSqliteRegistryStore(':memory:'));
-    const otherKey = { ...businessEventKey, businessObjectId: '5100009999' };
+  it('each fanned-out row carries the locale ITS rule resolved, not NULL (GAP-16)', async () => {
+    const registryStore = createSqliteRegistryStore(':memory:');
 
-    const a = idempotencyStore.getOrCreateForResolution(businessEventKey, 'invoice-archival-copy');
-    const b = idempotencyStore.getOrCreateForResolution(otherKey, 'invoice-archival-copy');
-    const c = idempotencyStore.getOrCreateForResolution(businessEventKey, 'invoice-tax-authority-copy');
+    const minted = await mintAll(registryStore, businessEventKey, processEvent().resolutions);
+    const byRule = Object.fromEntries(minted.map((m) => [m.ruleId, registryStore.getByDocId(m.docId)]));
+
+    expect(byRule['invoice-tax-authority-copy']?.locale).toBe('de-DE');
+    expect(byRule['invoice-archival-copy']?.locale ?? null).toBeNull(); // rule named no locale — row honestly has none
+  });
+
+  it('a different resolution from a DIFFERENT event gets its own docId, never collides with an unrelated rule', async () => {
+    const registryStore = createSqliteRegistryStore(':memory:');
+    const otherKey = { ...businessEventKey, businessObjectId: '5100009999' };
+    const data = validInvoice();
+
+    const a = await submitResolution(registryStore, undefined, businessEventKey, resolutionFor('invoice-archival-copy'), data, 'invoice', undefined);
+    const b = await submitResolution(registryStore, undefined, otherKey, resolutionFor('invoice-archival-copy'), data, 'invoice', undefined);
+    const c = await submitResolution(
+      registryStore,
+      undefined,
+      businessEventKey,
+      resolutionFor('invoice-tax-authority-copy', { recipients: ['archive://tax-authority'], locale: 'de-DE' }),
+      data,
+      'invoice',
+      undefined,
+    );
 
     expect(new Set([a.docId, b.docId, c.docId]).size).toBe(3);
   });

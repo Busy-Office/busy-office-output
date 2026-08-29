@@ -27,7 +27,6 @@
  */
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import type { BusinessEventKey } from '@busy-office/output-schema';
-import type { IdempotencyStore } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
 import type { CallerDeterminationContext } from './determination/index.js';
@@ -428,13 +427,6 @@ async function handleDocuments(res: ServerResponse, query: URLSearchParams, port
 }
 
 export interface IngressServerOptions {
-  /**
-   * @deprecated Accepted for call-site compatibility but NO LONGER READ
-   * (GAP-11): minting goes through the port's shared submit-resolution.ts
-   * step against `registryStore`, not through the `IdempotencyStore`
-   * facade.
-   */
-  idempotencyStore?: IdempotencyStore;
   /**
    * The port every route adapts. When supplied, `registryStore` /
    * `composition` are only used for the console routes and the

@@ -11,6 +11,42 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 4 build tasks CLOSED (GAP-07/08/10/16); authoring-assist roundtable
+- Did: GAP-07/08 landed (3978a77 — healed main after my docs commit
+  c4788b5 accidentally swept in the agent's staged template-content.ts
+  deletion; noted plainly): OutputPort v1 all five verbs, reproduce as a
+  compile-time-visible not-implemented stub, built-ins moved out of src/,
+  sample-memo registers from outside the tree, vitest boundary lint proven
+  to bite. Gate-check 10/10 incl. a live serve() round-trip; it caught my
+  commit message overstating "engine knows no document type" → GAP-17
+  logged (retention/authz/console-lock per-type switches remain). GAP-10
+  landed (1b7d4b5): email subject/body as lifecycle-governed templates,
+  MessageSegment[] reusing the frozen grammar, evaluated at enqueue so
+  delivery never re-reads the payload, unresolved-message-template
+  outcome; gate-check 10/10 with mutation testing proving the no-value-
+  outside-expressions clause is enforced twice. GAP-16: facade deleted on
+  a caller inventory, idempotency guarantee re-homed on the real mint path
+  with coverage growing. 308/308.
+  The maintainer's "DocNode projection editor" proposal went to an arb-
+  chair roundtable → SPLIT: the AI pipeline half is a sharper spec of
+  Stage 7 tracks 1+2 (trigger-gated, unchanged); the projection-editor
+  half is the builder GAP-04 deleted and violates UI-DESIGN principle 5.
+  Three claims failed code contact (no DocNode JSON Schema; codegen
+  clobbers hand-authored document-types/*.ts; provenance already exists).
+  Filed verbatim at docs/proposals/authoring-assist.md with the ruling as
+  header — NOT an ADR-005 addendum; GAP-18 (human ratify/reject) logged;
+  nothing queued. Stale "builder gated on stability" risk line struck.
+- Open: GAP-13 (thesis check — human; Stage-5 exception ratified), GAP-17
+  (residual per-type switches, low priority), GAP-18 (authoring-assist
+  ratify/reject — human), template-from-sample on redacted samples
+  (blocked on real samples). Every buildable Stage 4 task is closed and
+  Stage 4's exit gate is met.
+- Next: Stage 5 (Governance) under the ratified GAP-13 exception. First
+  task — template lifecycle state machine + DEV→QAS→PRD transport with
+  author/reviewer/approver/reason recorded — needs an arb-chair scoping
+  ruling first (it implies an actor model beyond AuthorizationPort's
+  minimal Actor, and touches TemplateMeta.lifecycle in packages/schema).
+
 ## 2026-08-29 — Stage 4 exit gate MET (4/4); GAP-09/10 decided; GAP-07/08 in build
 - Did: arb-chair ruled clause 2 — recipients/locale are caller-supplied
   determination context, rule may override (decisive driver: HLD §1 puts

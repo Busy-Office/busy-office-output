@@ -59,7 +59,6 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
     outboxDir = tempDir('e2e-outbox-');
     deps = createRuntimeDeps(join(dbDir, 'registry.db'), tempDir('e2e-archive-'), outboxDir);
     server = createIngressServer({
-      idempotencyStore: deps.idempotencyStore,
       registryStore: deps.registryStore,
       composition: deps.composition,
     });

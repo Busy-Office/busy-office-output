@@ -75,6 +75,34 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   via the operator's own OS/print infrastructure. No site named; the
   Deferred wall entry stands as-is.
 
+### GAP-18 — Authoring-assist proposal: ratify or reject (the split)
+- Type: DECISION — **OPEN, human-only** (proposal drafted by the
+  maintainer 2026-08-29; roundtable-ruled the same day)
+- The maintainer's "DocNode projection editor" draft is filed verbatim at
+  `docs/proposals/authoring-assist.md` with the roundtable ruling as its
+  header. NOT an ADR-005 addendum; nothing queued.
+- Roundtable verdict: **SPLIT.** The AI pipeline half (sample/copy/blank
+  → AI draft → RFC 6902 patch adjust with a diff oracle → export, accept
+  as `draft`/`ai-assisted`, redaction gate, bounded retries) is in scope
+  as a sharper spec of Stage 7 tracks 1+2, trigger-gated, unchanged. The
+  projection-editor half (outline + inspector + prompt, a setup screen,
+  `npm run builder`) is out of scope — it is the builder GAP-04 ratified
+  as deleted, and violates UI-DESIGN principle 5 (conversation OR form,
+  never both; source editing stays in the user's editor).
+- Sub-items ruled by the chair (recorded so they aren't reopened): OQ-A
+  (Stage-7 trigger) is NOT open — ROADMAP already names one trigger per
+  track; track 1 stands at 0/3. OQ-B (persisted definition store) is out
+  of scope — collides with four GAP-08 "must not build" items.
+- Three claims did not survive the code (no DocNode JSON Schema exists;
+  codegen would clobber hand-authored document-types/*.ts; `provenance`
+  already exists) — listed in the proposal header.
+- Closes when: the maintainer ratifies WITH the split (then: Stage 7
+  tracks 1+2 gain "spec: docs/proposals/authoring-assist.md", UI-DESIGN's
+  absent-list gains "no tree/outline/inspector editor (GAP-04)", HLD §12
+  notes the developer authoring surface is not a console screen) — or
+  rejects it (file stays as history). Either way, no build until a Stage
+  7 trigger fires. The loop changes nothing in its queue on this gap.
+
 ## Seams
 
 ### GAP-07 — Consumer contract: five verbs, two exist — **CLOSED 2026-08-29**
@@ -171,8 +199,15 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   in a separate worker that owns the binary. Recorded as an ADR-007
   addendum. Nothing built (no active host under ADR-009).
 
-### GAP-10 — Email is bytes-only: no message body templating
-- Type: SEAM — **decision MADE 2026-08-29; build OPEN, Claude-doable**
+### GAP-10 — Email is bytes-only: no message body templating — **CLOSED 2026-08-29**
+- Type: SEAM — built 1b7d4b5; corpus-qa re-derived all 10 checks PASS with
+  mutation testing: the no-value-outside-expressions clause is enforced
+  twice (byte-for-byte reconstruction from the registered template AND a
+  payload-needle sweep), proven by a renderer-side leak failing both. The
+  check also noted the prescribed template-side mutation cannot exercise
+  the sweep (an expr added to the template is by definition allowed) — a
+  per-type expression ALLOWLIST would be a new policy, not a gap here.
+- Original decision:
 - Governance decision (maintainer, in chat): **template — lifecycle-
   governed.** Email subject/body are templates resolved per document type
   + locale via the same variant resolution, entering the same
@@ -230,9 +265,13 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   row and a Typst-rendered row carry different, correct values; the
   console's `template@ver · renderer@ver` line stops rendering "—".
 
-### GAP-16 — idempotency-store.ts wrapper mints NULL locale
-- Type: TASK — **OPEN, Claude-doable, trivial** (surfaced 2026-08-29 by the
-  Stage 4 gate re-check)
+### GAP-16 — idempotency-store.ts wrapper mints NULL locale — **CLOSED 2026-08-29**
+- Type: TASK — the facade was DELETED (the cleaner of the two named fixes)
+  on a grep-based caller inventory: no live code used it. Idempotency
+  guarantee re-homed onto the real mint path with coverage growing.
+  IngressServerOptions.idempotencyStore removed — a public-API change,
+  acceptable under ADR-009 and already documented as ignored since GAP-11.
+- Original finding:
 - `idempotency-store.ts`'s `getOrCreateForResolution` wrapper calls
   `registryStore.getOrCreateByResolutionKey` without the `locale` param
   clause 2 added. Not on the server or embed mint path (both go through

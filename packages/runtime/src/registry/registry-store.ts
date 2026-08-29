@@ -1,14 +1,15 @@
 /**
  * RegistryStore port (ROADMAP Stage 3, HLD §3 "Data model (registry-centric)":
  * DocumentInstance + DeliveryAttempt). One row per artifact, forever
- * (CLAUDE.md golden rule) — this is the durable replacement for
- * idempotency-store.ts's in-memory Map, and the seam later Stage 3 tasks
- * (archive store, delivery queue) attach to without this file changing.
+ * (CLAUDE.md golden rule) — this is the durable replacement for the
+ * original in-memory idempotency Map (its `IdempotencyStore` facade was
+ * deleted under GAP-16; submit-resolution.ts calls this port directly), and
+ * the seam later Stage 3 tasks (archive store, delivery queue) attach to
+ * without this file changing.
  *
  * Deliberately minimal for THIS task's DoD — no more than what idempotency
  * replay + a registry row + state + delivery history need:
- *   - getOrCreateByEventKey: the idempotency lookup (replaces
- *     IdempotencyStore.getOrCreate one-for-one), mints docId on first
+ *   - getOrCreateByEventKey: the idempotency lookup — mints docId on first
  *     sighting, returns the same row on replay.
  *   - getByDocId: read a row back by its primary key.
  *   - updateState: transition ORIGINAL/COPY/DUPLICATE/REPRINT/CANCELLED/DRAFT.

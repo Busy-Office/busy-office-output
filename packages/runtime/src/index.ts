@@ -20,8 +20,6 @@ export type {
 export { CHANNELS_REQUIRING_MESSAGE, checkMessageTemplate, messageTemplateExpressions, renderMessage } from './message/message-template.js';
 export type { MessageSegment, MessageTemplate, MessageTemplateMeta, RenderedMessage } from './message/message-template.js';
 export type { ProblemDetails, SchemaValidationError } from './problem.js';
-export { createRegistryIdempotencyStore } from './idempotency-store.js';
-export type { IdempotencyStore, IdempotencyResult } from './idempotency-store.js';
 export {
   createSqliteRegistryStore,
   SqliteRegistryStore,
@@ -137,7 +135,6 @@ import { createIngressServer as createIngressServerRaw, type IngressServerOption
 import { createOutput, type OutputPort } from './embed/create-output.js';
 import { createDocumentTypeRegistry, type DocumentTypeRegistry } from './registration/document-type-registry.js';
 import { builtinDocumentTypes } from '../document-types/index.js';
-import { createRegistryIdempotencyStore, type IdempotencyStore } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
 import { FsArchiveStore } from './archive/fs-archive-store.js';
@@ -175,8 +172,10 @@ export function defaultOutboxDir(): string {
 
 /**
  * The full set of backends a single-process runtime needs — registry,
- * archive, delivery queue, renderer, and the derived idempotency/
- * composition/channel-sender wrappers that sit on top of them. `serve()`
+ * archive, delivery queue, renderer, and the derived composition/
+ * channel-sender wrappers that sit on top of them (idempotency is the
+ * registry's own `getOrCreateByResolutionKey` / `mintWithOutbox`, reached
+ * only through submit-resolution.ts — no separate facade). `serve()`
  * builds one of these with the default on-disk paths; exported separately
  * so a caller (or a test wanting the exact wiring `serve()` uses, without
  * the HTTP `listen()` call or the real interval-driven worker) can build
@@ -186,7 +185,6 @@ export interface RuntimeDeps {
   registryStore: RegistryStore;
   archiveStore: ArchiveStore;
   deliveryQueue: DeliveryQueue;
-  idempotencyStore: IdempotencyStore;
   composition: CompositionDeps;
   /** The document-type registry `composition` and `output` share. The
    * three built-ins are already registered in it (through `output`). */
@@ -220,7 +218,6 @@ export function createRuntimeDeps(
     mkdirSync(dirname(dbPath), { recursive: true });
   }
   const registryStore = createSqliteRegistryStore(dbPath);
-  const idempotencyStore = createRegistryIdempotencyStore(registryStore);
   const archiveStore = new FsArchiveStore(archiveDir);
   const backoffPolicy = DEFAULT_BACKOFF_POLICY;
   const deliveryQueue = createSqliteDeliveryQueue(dbPath, { registryStore, archiveStore, backoffPolicy });
@@ -236,7 +233,7 @@ export function createRuntimeDeps(
   const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, documentTypes, renderer, renderers };
   const output = createOutput({ registryStore, archiveStore, deliveryQueue, renderer, renderers, documentTypes });
   registerBuiltinDocumentTypes(output);
-  return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, documentTypes, output, channelSender, backoffPolicy };
+  return { registryStore, archiveStore, deliveryQueue, composition, documentTypes, output, channelSender, backoffPolicy };
 }
 
 /**

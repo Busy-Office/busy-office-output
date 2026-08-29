@@ -2,9 +2,15 @@
  * Idempotency on BusinessEventKey, end-to-end through POST /event (ROADMAP
  * Stage 3: "replayed event returns existing docId; write this test first").
  *
- * The store backing this is the durable document registry (registry/),
- * defaulted here to an in-memory (`:memory:`) SQLite instance for test
- * speed/isolation — see idempotency-store.ts's header comment.
+ * This is THE idempotency-guarantee test: it goes through the real mint
+ * path (`handleEvent` -> `submitResolution` -> `RegistryStore`), the same
+ * one `serve()` and the embedded port use. The store backing it is the
+ * durable document registry (registry/), defaulted here to an in-memory
+ * (`:memory:`) SQLite instance for test speed/isolation. (The former
+ * `IdempotencyStore` facade and its unit test were deleted under GAP-16 —
+ * the facade was on no live path and minted a NULL locale; the contract it
+ * proved lives here now.) Persistence-across-restart is covered in
+ * registry/sqlite-registry-store.test.ts.
  */
 import type { AddressInfo } from 'node:net';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -60,6 +66,20 @@ describe('POST /event idempotency on BusinessEventKey', () => {
     expect(first.status).toBe(202);
     expect(other.status).toBe(202);
     expect(other.json.docId).not.toBe(first.json.docId);
+  });
+
+  it('templateVersion is part of the key: same object/event, different template version, different docId', async () => {
+    const first = await post(
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000003', templateVersion: '1.0.0' })),
+    );
+    const reprocessedOnNewTemplate = await post(
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000003', templateVersion: '2.0.0' })),
+    );
+
+    expect(first.status).toBe(202);
+    expect(reprocessedOnNewTemplate.status).toBe(202);
+    expect(reprocessedOnNewTemplate.json.replayed).toBe(false);
+    expect(reprocessedOnNewTemplate.json.docId).not.toBe(first.json.docId);
   });
 
   it('rejects a contract-valid payload missing the businessEvent envelope with 400, not a silent accept', async () => {
