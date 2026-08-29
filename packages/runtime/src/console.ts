@@ -1,12 +1,29 @@
 /**
- * The read-only console (ROADMAP Stage 3 "Minimal console, read-only",
- * docs/UI-DESIGN.md). Three GET-only, server-rendered HTML screens, no
- * build step, no client framework, no forms besides one plain GET search
- * box — mounted under `/output` by server.ts:
+ * The console (ROADMAP Stage 3 "Minimal console, read-only", extended by
+ * Stage 5 task 4 "Review-and-approve screen"; docs/UI-DESIGN.md).
+ * Server-rendered HTML screens, no build step, no client framework, no
+ * client JS — mounted under `/output` by server.ts:
  *
  *   - GET /output/documents            — Registry
  *   - GET /output/documents/:docId     — Document detail
  *   - GET /output/trace/:id            — Rule trace
+ *   - GET /output/operations           — Operations (delivery queue)
+ *   - GET /output/templates            — Templates list (variants + log-truth lifecycle)
+ *   - GET|POST /output/templates/:templateId/:version/review — Review-and-approve
+ *
+ * The console is read-only on the DOCUMENT registry (ADR-007 addendum).
+ * The single write is `POST .../review`, which appends ONE row to the
+ * append-only `template_lifecycle_log` through `TemplateLifecycleService.
+ * transition` — every refusal code comes from lifecycle/transitions.ts,
+ * never re-implemented here. The document-type registry is reached
+ * through the narrow read-only `TemplateSource` below: the console cannot
+ * register, mutate, or generate anything.
+ *
+ * Actor identity on the review screen is PROXY-ASSERTED lifecycle-audit
+ * identity only (`X-Actor-Subject` / `X-Actor-Role`, or an injectable
+ * `resolveActor` — see server.ts). It is never authenticated here, never
+ * passed to `AuthorizationPort`, and never used for owner/PII scoping. No
+ * fallback identity: no subject means no transition (400 `actor-required`).
  *
  * Design brief this implements verbatim (binding, from a console-designer
  * review — not re-derived here): plain typographic weight only, no
@@ -25,12 +42,56 @@
  * those nulls, never fabricate or hide them.
  */
 import type { ServerResponse } from 'node:http';
-import type { DocumentRegistryRow, RegistryStore } from './registry/registry-store.js';
+import type { DocNode, TemplateLifecycle, TemplateMeta, VariantKey } from '@busy-office/output-schema';
+import type { DocumentRegistryRow, RegistryStore, TemplateLifecycleEvent } from './registry/registry-store.js';
 import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/trace.js';
 import type { BackoffPolicy, DeliveryJob, DeliveryJobStatus, DeliveryQueue } from './delivery/delivery-queue.js';
-import type { OwnerScopeSource } from './authorization/authorization-port.js';
-import { notFoundProblem } from './problem.js';
+import type { Actor, OwnerScopeSource } from './authorization/authorization-port.js';
+import type { OutputRule } from './determination/rule-types.js';
+import { CHANNELS_REQUIRING_MESSAGE, type MessageTemplate, type MessageTemplateMeta } from './message/message-template.js';
+import type { TemplateLifecycleKey, TemplateLifecycleService } from './lifecycle/template-lifecycle.js';
+import { standingApproval, type TransitionRefusal } from './lifecycle/transitions.js';
+import { formatDiffRow, structuralDiff, type DiffRow } from './lifecycle/structural-diff.js';
+import { actorRequiredProblem, crossSiteRequestProblem, notFoundProblem, unknownReviewActionProblem } from './problem.js';
 import { sendHtml, sendProblem } from './http-helpers.js';
+
+/**
+ * The read-only slice of `DocumentTypeRegistry` the console sees (Stage 5
+ * task 4 arb-chair ruling): satisfied by the real registry, but with no
+ * `register` — the console cannot add or mutate a document type. Includes
+ * `ownerIdPath` so it subsumes `OwnerScopeSource` (the Registry lock).
+ */
+export interface TemplateSource extends OwnerScopeSource {
+  templateMetas(): readonly TemplateMeta[];
+  templateMeta(templateId: string): TemplateMeta | undefined;
+  templateContent(templateId: string): DocNode | undefined;
+  messageTemplateMetas(): readonly MessageTemplateMeta[];
+  messageTemplate(id: string): MessageTemplate | undefined;
+  rules(): readonly OutputRule[];
+}
+
+/** The four form verbs the review screen accepts, mapped to the lifecycle
+ * TARGET state — the transition table (transitions.ts) decides whether
+ * the edge exists from the current state; this map only names the target. */
+const REVIEW_ACTIONS: Readonly<Record<string, TemplateLifecycle>> = {
+  approve: 'approved',
+  publish: 'published',
+  return: 'draft',
+  reopen: 'draft',
+};
+
+const REVIEW_PATH = /^\/output\/templates\/([^/]+)\/([^/]+)\/review$/;
+
+/** The review route's key, or `undefined` when `path` is not that route. */
+export function parseReviewPath(path: string): TemplateLifecycleKey | undefined {
+  const match = REVIEW_PATH.exec(path);
+  if (match === null) return undefined;
+  try {
+    return { templateId: decodeURIComponent(match[1]), version: decodeURIComponent(match[2]) };
+  } catch {
+    return undefined;
+  }
+}
 
 /** Registry screen's page size — also what a "load more" link advances by. */
 const DOCUMENTS_PAGE_SIZE = 50;
@@ -47,7 +108,9 @@ export function isConsolePath(path: string): boolean {
     path === '/output/documents' ||
     path.startsWith('/output/documents/') ||
     path.startsWith('/output/trace/') ||
-    path === '/output/operations'
+    path === '/output/operations' ||
+    path === '/output/templates' ||
+    path.startsWith('/output/templates/')
   );
 }
 
@@ -92,6 +155,9 @@ const PAGE_STYLE = `
   .rule-row ul, .template-row ul { margin: 0.3rem 0 0 1.2rem; padding: 0; }
   .resolution-block { border: 1px solid #888; padding: 0.6rem 0.8rem; margin-bottom: 0.8rem; }
   .resolution-block h3 { font-size: 0.9rem; margin: 0 0 0.4rem; font-weight: 600; }
+  form.review textarea { font-family: inherit; font-size: 0.9rem; padding: 0.3rem 0.5rem; width: 36rem; max-width: 100%; display: block; }
+  .primary { font-weight: 600; }
+  .refusal { border: 1px solid #888; padding: 0.4rem 0.7rem; margin: 0.4rem 0; font-size: 0.85rem; }
 `;
 
 function renderPage(title: string, bodyHtml: string): string {
@@ -315,6 +381,325 @@ ${loadMore}`,
   );
 }
 
+// ---------------------------------------------------------------------------
+// Templates list + Review-and-approve (Stage 5 task 4)
+// ---------------------------------------------------------------------------
+
+const VARIANT_FIELDS = ['companyCode', 'country', 'partnerId', 'locale'] as const;
+
+function variantFieldsText(variant: VariantKey): string {
+  const parts = VARIANT_FIELDS.filter((f) => variant[f] !== undefined).map((f) => `${f}=${escapeHtml(String(variant[f]))}`);
+  return parts.length === 0 ? '(all variants)' : parts.join(' · ');
+}
+
+/** Deep equality over the five `VariantKey` fields, nothing else. */
+function sameVariant(a: VariantKey, b: VariantKey): boolean {
+  return a.documentType === b.documentType && VARIANT_FIELDS.every((f) => a[f] === b[f]);
+}
+
+function reviewHref(key: TemplateLifecycleKey): string {
+  return `/output/templates/${encodeURIComponent(key.templateId)}/${encodeURIComponent(key.version)}/review`;
+}
+
+/** Lifecycle as the LOG says it is (`lifecycle.current`), never the
+ * declared meta — a key with no log row is said so, not guessed. */
+function logTruthLifecycle(lifecycle: TemplateLifecycleService, meta: { id: string; version: string; lifecycle: TemplateLifecycle }): string {
+  const current = lifecycle.current({ templateId: meta.id, version: meta.version });
+  return current === undefined ? `${escapeHtml(meta.lifecycle)} (declared — no lifecycle record)` : escapeHtml(current);
+}
+
+/** A meta of either kind, with the facts the two screens print. */
+interface GovernedTemplate {
+  kind: 'document' | 'message';
+  meta: TemplateMeta | MessageTemplateMeta;
+  parentId: string | undefined;
+  renderer: string | undefined;
+}
+
+function governedTemplates(source: TemplateSource): GovernedTemplate[] {
+  return [
+    ...source.templateMetas().map((meta): GovernedTemplate => ({ kind: 'document', meta, parentId: meta.parentId, renderer: meta.renderer })),
+    ...source.messageTemplateMetas().map((meta): GovernedTemplate => ({ kind: 'message', meta, parentId: undefined, renderer: undefined })),
+  ];
+}
+
+function findGoverned(source: TemplateSource, key: TemplateLifecycleKey): GovernedTemplate | undefined {
+  return governedTemplates(source).find((t) => t.meta.id === key.templateId && t.meta.version === key.version);
+}
+
+function renderTemplatesRow(t: GovernedTemplate, depth: number, lifecycle: TemplateLifecycleService): string {
+  const key = { templateId: t.meta.id, version: t.meta.version };
+  const indent = depth === 0 ? '' : `style="margin-left: ${depth * 1.5}rem"`;
+  return `<li class="row" ${indent}>
+  <div><a href="${reviewHref(key)}">${escapeHtml(t.meta.id)}@${escapeHtml(t.meta.version)}</a>${t.kind === 'message' ? ' · message' : ''}</div>
+  <div>${escapeHtml(t.meta.variant.documentType)} · ${variantFieldsText(t.meta.variant)}</div>
+  <div>${logTruthLifecycle(lifecycle, t.meta)}</div>
+</li>`;
+}
+
+/**
+ * Tree order: roots in registration order, each followed by its
+ * `parentId` children (indent = inherits). A template whose parent is
+ * not registered, or a cycle, is listed at the root — never dropped.
+ */
+function renderTemplatesPage(source: TemplateSource, lifecycle: TemplateLifecycleService): string {
+  const all = governedTemplates(source);
+  const ids = new Set(all.map((t) => t.meta.id));
+  const rows: string[] = [];
+  const seen = new Set<string>();
+  const walk = (t: GovernedTemplate, depth: number): void => {
+    if (seen.has(t.meta.id)) return;
+    seen.add(t.meta.id);
+    rows.push(renderTemplatesRow(t, depth, lifecycle));
+    for (const child of all) if (child.parentId === t.meta.id) walk(child, depth + 1);
+  };
+  for (const t of all) if (t.parentId === undefined || !ids.has(t.parentId)) walk(t, 0);
+  for (const t of all) walk(t, 0); // anything left (cycles) at the root
+  return renderPage(
+    'Templates',
+    `<h1>Templates</h1>
+<ul class="rows">
+${rows.join('\n')}
+</ul>`,
+  );
+}
+
+/** What the review screen compares for one key: the registered content
+ * (a `DocNode` tree, or a message template's `{ subject, body }`), or
+ * `undefined` for a meta-only registration. */
+function comparableContent(source: TemplateSource, t: GovernedTemplate): unknown {
+  if (t.kind === 'message') {
+    const template = source.messageTemplate(t.meta.id);
+    return template === undefined ? undefined : { subject: template.subject, body: template.body };
+  }
+  return source.templateContent(t.meta.id);
+}
+
+function metaSlice(t: GovernedTemplate): Record<string, unknown> {
+  return { renderer: t.renderer, parentId: t.parentId, provenance: t.meta.provenance };
+}
+
+function renderDiffRows(rows: DiffRow[]): string {
+  return `<ul class="plain">
+${rows.map((r) => `<li>${escapeHtml(formatDiffRow(r))}</li>`).join('\n')}
+</ul>`;
+}
+
+/**
+ * The compare section. Baseline = every registered template of the same
+ * kind with a deep-equal `VariantKey`, whose LOG lifecycle is `published`,
+ * and whose key differs (GAP-20 visibility: the live version stays live
+ * after this one publishes, until it is retired). Content diff + meta diff
+ * per baseline; the prose cases (none / meta-only / identical) are stated
+ * in words, never as an empty list.
+ */
+function renderCompareSection(source: TemplateSource, lifecycle: TemplateLifecycleService, subject: GovernedTemplate): string {
+  const baselines = governedTemplates(source).filter(
+    (t) =>
+      t.kind === subject.kind &&
+      !(t.meta.id === subject.meta.id && t.meta.version === subject.meta.version) &&
+      sameVariant(t.meta.variant, subject.meta.variant) &&
+      lifecycle.current({ templateId: t.meta.id, version: t.meta.version }) === 'published',
+  );
+  if (baselines.length === 0) {
+    return '<section><h2>Compare</h2><p>no published version of this variant — first publication</p></section>';
+  }
+  const proposedContent = comparableContent(source, subject);
+  const blocks = baselines.map((baseline) => {
+    const label = `live now: ${escapeHtml(baseline.meta.id)}@${escapeHtml(baseline.meta.version)} — stays live after publish until retired`;
+    let contentHtml: string;
+    if (proposedContent === undefined) {
+      contentHtml = '<p>meta-only — no content registered</p>';
+    } else {
+      const baseContent = comparableContent(source, baseline);
+      if (baseContent === undefined) {
+        contentHtml = '<p>baseline is meta-only — no content registered to compare against</p>';
+      } else {
+        const rows = structuralDiff(baseContent, proposedContent);
+        contentHtml = rows.length === 0 ? '<p>no structural change</p>' : renderDiffRows(rows);
+      }
+    }
+    const metaRows = structuralDiff(metaSlice(baseline), metaSlice(subject), '/meta');
+    const metaHtml = metaRows.length === 0 ? '<p>no meta change</p>' : renderDiffRows(metaRows);
+    return `<div class="resolution-block">
+  <h3>${label}</h3>
+  ${contentHtml}
+  ${metaHtml}
+</div>`;
+  });
+  return `<section><h2>Compare</h2>
+${blocks.join('\n')}
+</section>`;
+}
+
+/**
+ * Blast radius: how many registered rules CAN resolve onto this variant —
+ * same documentType, and no rule-fixed field (resolution override, else
+ * condition) that contradicts a field the variant constrains. A field the
+ * rule leaves open may be supplied by the event, so it counts. Message
+ * templates additionally need a channel that carries a message.
+ */
+function blastRadius(rules: readonly OutputRule[], subject: GovernedTemplate): number {
+  const variant = subject.meta.variant;
+  return rules.filter((rule) => {
+    if (rule.conditions.documentType !== variant.documentType) return false;
+    if (subject.kind === 'message' && !CHANNELS_REQUIRING_MESSAGE.has(rule.resolution.channel)) return false;
+    for (const field of VARIANT_FIELDS) {
+      const want = variant[field];
+      if (want === undefined) continue;
+      const fixed = rule.resolution[field] ?? (field === 'locale' ? undefined : rule.conditions[field]);
+      if (fixed !== undefined && fixed !== want) return false;
+    }
+    return true;
+  }).length;
+}
+
+function actorText(actor: Actor | undefined): string {
+  return actor?.subjectId !== undefined && actor.subjectId.trim() !== ''
+    ? `acting as ${escapeHtml(actor.subjectId)} (${escapeHtml(actor.role)})`
+    : 'no actor identity on this request';
+}
+
+function refusalHtml(code: TransitionRefusal | undefined): string {
+  if (code === undefined) return '';
+  return `<p class="refusal" role="alert" data-refusal="${escapeHtml(code)}">refused: ${escapeHtml(code)}</p>`;
+}
+
+/** Exactly one primary per phase, none outside review/approved; the
+ * secondary is the plain "send back" verb. `submit` and `retire` are
+ * deliberately not controls here (MUST NOT BUILD). */
+function phaseControls(state: TemplateLifecycle | undefined, refusal: TransitionRefusal | undefined): string {
+  const underPrimary = refusal !== undefined && refusal !== 'reason-required' ? refusalHtml(refusal) : '';
+  switch (state) {
+    case 'review':
+      return `<div><button type="submit" class="primary" name="action" value="approve">Approve</button>
+  <button type="submit" name="action" value="return">Send back to draft</button></div>${underPrimary}`;
+    case 'approved':
+      return `<div><button type="submit" class="primary" name="action" value="publish">Publish</button>
+  <button type="submit" name="action" value="reopen">Send back to draft</button></div>${underPrimary}`;
+    case 'draft':
+      return `<p>draft — submit for review happens where drafts are made</p>${underPrimary}`;
+    case 'published':
+      return `<p>published — live</p>${underPrimary}`;
+    case 'retired':
+      return `<p>retired — terminal</p>${underPrimary}`;
+    case undefined:
+      return `<p>no lifecycle record for this key</p>${underPrimary}`;
+  }
+}
+
+function historyRow(e: TemplateLifecycleEvent): string {
+  return `<li>${escapeHtml(e.fromState ?? 'seed')} → ${escapeHtml(e.toState)} · ${escapeHtml(e.actorSubjectId)} (${escapeHtml(e.actorRole)}) · ${escapeHtml(e.reason)} · ${escapeHtml(e.occurredAt)}</li>`;
+}
+
+interface ReviewRender {
+  actor: Actor | undefined;
+  /** The refusal to show, if this render answers a refused POST. */
+  refusal?: TransitionRefusal;
+  /** The typed reason to preserve across a refused POST. */
+  reason?: string;
+}
+
+function renderReviewPage(source: TemplateSource, lifecycle: TemplateLifecycleService, subject: GovernedTemplate, opts: ReviewRender): string {
+  const key = { templateId: subject.meta.id, version: subject.meta.version };
+  const state = lifecycle.current(key);
+  const history = lifecycle.history(key);
+  const approval = standingApproval(history);
+  const seed = history.find((e) => e.fromState === null);
+  const approvalText =
+    approval !== undefined
+      ? `${escapeHtml(approval.actorSubjectId)} (${escapeHtml(approval.actorRole)}) · ${escapeHtml(approval.reason)} · ${escapeHtml(approval.occurredAt)}`
+      : `none${seed !== undefined ? ` (seeded by ${escapeHtml(seed.actorSubjectId)})` : ''}`;
+  const reasonRefusal = opts.refusal === 'reason-required' ? refusalHtml(opts.refusal) : '';
+  const historyHtml = history.length === 0 ? '<p>No lifecycle history.</p>' : `<ul class="plain">\n${history.map(historyRow).join('\n')}\n</ul>`;
+
+  return renderPage(
+    `Review ${subject.meta.id}@${subject.meta.version}`,
+    `<h1>Review-and-approve</h1>
+<div class="trace-header">${escapeHtml(subject.meta.id)}@${escapeHtml(subject.meta.version)} · ${escapeHtml(subject.meta.variant.documentType)} · ${variantFieldsText(subject.meta.variant)} · ${subject.kind === 'message' ? 'message' : orDash(subject.renderer)} · ${orDash(subject.meta.provenance)}</div>
+<div class="trace-header">${state === undefined ? 'no lifecycle record' : escapeHtml(state)} · approval record: ${approvalText}</div>
+<div class="trace-header">${actorText(opts.actor)}</div>
+${renderCompareSection(source, lifecycle, subject)}
+<section><h2>Blast radius</h2><p>${blastRadius(source.rules(), subject)} registered rule(s) can resolve onto this variant</p></section>
+<section>
+  <h2>Decision</h2>
+  <form class="review" method="POST" action="${reviewHref(key)}">
+    <label>reason (recorded in the audit log)
+      <textarea name="reason" required rows="3">${escapeHtml(opts.reason ?? '')}</textarea>
+    </label>
+    ${reasonRefusal}
+    ${phaseControls(state, opts.refusal)}
+  </form>
+</section>
+<section>
+  <h2>Lifecycle history</h2>
+  ${historyHtml}
+</section>
+<p><a href="/output/templates">Templates</a></p>`,
+  );
+}
+
+/** What the review POST needs beyond the response: the read-only template
+ * source, the lifecycle service (its only writer here), and the actor the
+ * transport resolved — `undefined` when none was asserted. */
+export interface ReviewPostRequest {
+  path: string;
+  form: URLSearchParams;
+  actor: Actor | undefined;
+  /** The request's `Sec-Fetch-Site` header, if any. */
+  secFetchSite: string | undefined;
+}
+
+/**
+ * `POST /output/templates/:templateId/:version/review`. Order of checks:
+ * cross-site (403) → route/key known (404) → actor asserted (400) → action
+ * known (400) → `lifecycle.transition` (refusal → 422 re-render with the
+ * message under the owning control; success → 303 to the list). Nothing
+ * is appended on any non-303 path — the service appends nothing on a
+ * refusal, and every earlier check returns before calling it. Nothing
+ * from the form (reason, subject) is logged.
+ */
+export function handleReviewPost(
+  res: ServerResponse,
+  request: ReviewPostRequest,
+  source: TemplateSource | undefined,
+  lifecycle: TemplateLifecycleService,
+): void {
+  if (request.secFetchSite !== undefined && request.secFetchSite !== 'same-origin' && request.secFetchSite !== 'none') {
+    sendProblem(res, crossSiteRequestProblem());
+    return;
+  }
+  const key = parseReviewPath(request.path);
+  const subject = key !== undefined && source !== undefined ? findGoverned(source, key) : undefined;
+  if (key === undefined || source === undefined || subject === undefined || lifecycle.current(key) === undefined) {
+    sendProblem(res, notFoundProblem(request.path));
+    return;
+  }
+  const actor = request.actor;
+  if (actor === undefined || typeof actor.subjectId !== 'string' || actor.subjectId.trim() === '') {
+    sendProblem(res, actorRequiredProblem());
+    return;
+  }
+  const action = request.form.get('action') ?? '';
+  const target = Object.prototype.hasOwnProperty.call(REVIEW_ACTIONS, action) ? REVIEW_ACTIONS[action] : undefined;
+  if (target === undefined) {
+    sendProblem(res, unknownReviewActionProblem());
+    return;
+  }
+  const reason = request.form.get('reason') ?? '';
+  const result = lifecycle.transition(key, target, actor, reason);
+  if (result.status === 'refused') {
+    if (result.refused === 'unknown-template') {
+      sendProblem(res, notFoundProblem(request.path));
+      return;
+    }
+    sendHtml(res, 422, renderReviewPage(source, lifecycle, subject, { actor, refusal: result.refused, reason }));
+    return;
+  }
+  res.writeHead(303, { Location: '/output/templates', 'Content-Length': 0 });
+  res.end();
+}
+
 /**
  * Dispatch one already-GET-verified `/output/*` request. Synchronous
  * (RegistryStore is `node:sqlite`, itself synchronous) — no `Promise`
@@ -327,11 +712,36 @@ export function handleConsoleRequest(
   registryStore: RegistryStore,
   deliveryQueue?: DeliveryQueue,
   backoffPolicy?: BackoffPolicy,
-  /** The document-type registry, for "is this row's type owner-scoped?"
-   * (the Registry screen's lock glyph, GAP-17). Read-only; optional so a
-   * bare server without a registry still serves the screens. */
-  documentTypes?: OwnerScopeSource,
+  /** The document-type registry's read-only slice: "is this row's type
+   * owner-scoped?" (the Registry lock, GAP-17) and the Templates/review
+   * screens' metas, content, and rules. Optional so a bare server without
+   * a registry still serves the document screens (templates 404). */
+  documentTypes?: TemplateSource,
+  /** The lifecycle service sharing `registryStore` — log-truth lifecycle
+   * for the Templates/review screens. Optional for the same reason. */
+  lifecycle?: TemplateLifecycleService,
+  /** The transport-resolved actor (review screen's "acting as" line). */
+  actor?: Actor,
 ): void {
+  if (path === '/output/templates' || path.startsWith('/output/templates/')) {
+    if (documentTypes === undefined || lifecycle === undefined) {
+      sendProblem(res, notFoundProblem(path));
+      return;
+    }
+    if (path === '/output/templates') {
+      sendHtml(res, 200, renderTemplatesPage(documentTypes, lifecycle));
+      return;
+    }
+    const key = parseReviewPath(path);
+    const subject = key === undefined ? undefined : findGoverned(documentTypes, key);
+    if (subject === undefined) {
+      sendProblem(res, notFoundProblem(path));
+      return;
+    }
+    sendHtml(res, 200, renderReviewPage(documentTypes, lifecycle, subject, { actor }));
+    return;
+  }
+
   if (path === '/output/operations') {
     if (deliveryQueue === undefined || backoffPolicy === undefined) {
       sendProblem(res, notFoundProblem(path));

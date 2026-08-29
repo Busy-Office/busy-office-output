@@ -84,7 +84,11 @@ and runs in `npm run verify`.
 HTTP transport over the port (`serve()`): `POST /event` → `emit` (response
 shape unchanged), `POST /render` → `preview` (bytes back; HLD §4), `GET
 /documents?businessObject=&businessObjectId=&event=&templateVersion=` →
-`status`. The console stays read-only on the registry.
+`status`. The console stays read-only on the document registry; the
+single exception is `POST /output/templates/:id/:ver/review`, which writes
+only the lifecycle log (Stage 5 task 4); the actor is proxy-asserted
+(`X-Actor-*`, injectable `resolveActor`), lifecycle-audit identity only,
+never fed to AuthorizationPort.
 
 Not built, by ruling: `reproduce`'s body, a `preview` that determines, npm
 publishing, the package-map split, plugin/discovery (no directory scan, no

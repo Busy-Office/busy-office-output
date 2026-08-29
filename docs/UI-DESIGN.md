@@ -19,7 +19,7 @@ pages mounted at `/output` in a host app, or served by `bo-output serve`.
 |---|---|---|---|
 | Overview | failures-first home | jump to failure | Stage 5 |
 | Documents | registry · document detail (reprint trichotomy) | reproduce | Stage 3 |
-| Templates | list (variants+lifecycle) · workspace · review-and-approve | accept as draft / approve | S3 list, S7 workspace, S5 review |
+| Templates | list (variants+lifecycle) · workspace · review-and-approve | accept as draft / approve | S5 list, S7 workspace, S5 review |
 | Rules | read-only rules · event log → trace | open trace | Stage 3 |
 | Operations | delivery queue · shadow parity | retry delivery | S4 queue, parity with shadow track |
 | Settings | four flat groups (channels, retention, renderers, access) | save | Stage 5 |
@@ -48,9 +48,10 @@ workspace converging · review publish → templates.
   to compare), what it costs (one impact line: pages · gates · blast radius),
   a prompt, and Accept as draft. Nothing else. Source/history behind ⌘K and
   the user's editor. Generation is this same screen in a converging state.
-- **Review-and-approve**: current vs proposed (same compare mechanic), gates
-  and blast radius, mandatory reason, Approve as the only primary — the
-  Stage 5 gate as a screen.
+- **Review-and-approve**: current vs proposed (structural DocNode diff
+  against the live same-variant version — S7 reuses it), blast radius,
+  mandatory reason, one primary per phase: Approve in review, Publish in
+  approved, never both — the Stage 5 gate as a screen.
 - **Operations**: delivery rows (retry n / poison / sent) — retry never
   re-renders; shadow parity strip with the cutover gate (≥ target for N
   consecutive days).

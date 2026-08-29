@@ -195,6 +195,38 @@ export function methodNotAllowedProblem(method: string | undefined): ProblemDeta
   };
 }
 
+/** Review screen POST (Stage 5 task 4): no `X-Actor-Subject` / no
+ * `resolveActor` identity on the request — nothing is appended. */
+export function actorRequiredProblem(): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/actor-required`,
+    title: 'Actor required',
+    status: 400,
+    detail: 'A lifecycle transition needs an actor identity (X-Actor-Subject); none was asserted on this request.',
+  };
+}
+
+/** Review screen POST: `Sec-Fetch-Site` says the form came from another
+ * site — refused before anything is read or appended. */
+export function crossSiteRequestProblem(): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/cross-site-request`,
+    title: 'Cross-site request refused',
+    status: 403,
+    detail: 'Console forms are accepted from the console origin only.',
+  };
+}
+
+/** Review screen POST: `action` is not one of the phase verbs. */
+export function unknownReviewActionProblem(): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/unknown-review-action`,
+    title: 'Unknown review action',
+    status: 400,
+    detail: 'Form field "action" must be one of approve, publish, return, reopen.',
+  };
+}
+
 export function notFoundProblem(path: string | undefined): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/not-found`,

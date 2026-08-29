@@ -9,7 +9,18 @@
  *   POST /event      → port.emit      (optional CloudEvents 1.0 envelope, ADR-006)
  *   POST /render     → port.preview   (HLD §4: no archive, no delivery, no registry)
  *   GET  /documents  → port.status    (?businessObject=&businessObjectId=&event=&templateVersion=)
- *   GET  /output/*   → read-only console (console.ts), straight on the registry
+ *   GET  /output/*   → console (console.ts), read-only on the document registry
+ *   POST /output/templates/:id/:ver/review → the ONE console write (Stage 5
+ *                      task 4): appends a lifecycle-log row through
+ *                      `TemplateLifecycleService.transition`; every other
+ *                      `/output/*` path stays 405 on anything but GET.
+ *
+ * Actor identity for that POST (and the review screen's "acting as" line)
+ * is PROXY-ASSERTED lifecycle-audit identity only: `resolveActor` (default:
+ * `X-Actor-Subject` / `X-Actor-Role`, role defaulting to `console`). It is
+ * never authenticated here, NEVER passed to `AuthorizationPort` or any
+ * owner/PII scoping, and there is no fallback identity — no subject, no
+ * transition.
  *
  * Built on Node's built-in `http` module rather than a framework: three
  * routes do not earn a routing/middleware layer, and CLAUDE.md's
@@ -50,8 +61,29 @@ import {
   unresolvedMessageTemplateProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
-import { handleConsoleRequest, isConsolePath } from './console.js';
+import { handleConsoleRequest, handleReviewPost, isConsolePath, parseReviewPath } from './console.js';
 import type { BackoffPolicy, DeliveryQueue } from './delivery/delivery-queue.js';
+import type { Actor } from './authorization/authorization-port.js';
+import { createTemplateLifecycle } from './lifecycle/template-lifecycle.js';
+
+/**
+ * Default `resolveActor`: the proxy-asserted `X-Actor-Subject` (required
+ * for an identity at all) and `X-Actor-Role` (default `console`). Blank or
+ * absent subject → `undefined`, never a fallback identity.
+ */
+function headerActor(req: IncomingMessage): Actor | undefined {
+  const subject = req.headers['x-actor-subject'];
+  const role = req.headers['x-actor-role'];
+  const subjectId = Array.isArray(subject) ? subject[0] : subject;
+  if (typeof subjectId !== 'string' || subjectId.trim() === '') return undefined;
+  const roleValue = Array.isArray(role) ? role[0] : role;
+  return { role: typeof roleValue === 'string' && roleValue.trim() !== '' ? roleValue.trim() : 'console', subjectId: subjectId.trim() };
+}
+
+function headerValue(req: IncomingMessage, name: string): string | undefined {
+  const value = req.headers[name];
+  return Array.isArray(value) ? value[0] : value;
+}
 
 const MAX_BODY_BYTES = 10 * 1024 * 1024; // 10 MiB — guards against unbounded body reads
 
@@ -466,12 +498,26 @@ export interface IngressServerOptions {
    * hardcoded `DEFAULT_BACKOFF_POLICY`. Required alongside `deliveryQueue`
    * for `/output/operations` to render (both or neither). */
   backoffPolicy?: BackoffPolicy;
+  /**
+   * Who is acting on the review screen (Stage 5 task 4). PROXY-ASSERTED
+   * lifecycle-audit identity only — never authenticated by this server,
+   * NEVER handed to `AuthorizationPort` or any owner/PII scoping. Default
+   * reads `X-Actor-Subject` / `X-Actor-Role` (role defaults to `console`).
+   * Return `undefined` for "no identity" — there is no fallback; a POST
+   * without one is refused 400 `actor-required` and appends nothing.
+   */
+  resolveActor?: (req: IncomingMessage) => Actor | undefined;
 }
 
 export function createIngressServer(options: IngressServerOptions = {}) {
   const registryStore = options.registryStore ?? createSqliteRegistryStore(':memory:');
   const composition = options.composition;
   const documentTypes = options.documentTypes ?? composition?.documentTypes;
+  // The console's lifecycle service shares the store `createOutput` writes
+  // through, so the Templates/review screens read log truth and the one
+  // console write lands in the same append-only log `emit` reads.
+  const lifecycle = createTemplateLifecycle(registryStore);
+  const resolveActor = options.resolveActor ?? headerActor;
   const port: OutputPort =
     options.output ??
     createOutput({
@@ -494,15 +540,33 @@ export function createIngressServer(options: IngressServerOptions = {}) {
       const url = req.url ?? '/';
       const path = url.split('?')[0];
 
-      // Read-only console (ROADMAP Stage 3 "Minimal console, read-only",
-      // docs/UI-DESIGN.md): GET-only, mounted at /output — see console.ts.
+      // Console (ROADMAP Stage 3 "Minimal console, read-only" + Stage 5
+      // task 4 review screen, docs/UI-DESIGN.md), mounted at /output — see
+      // console.ts. GET everywhere; POST ONLY on the exact review route
+      // (allowlist, not a prefix); every other method / path is 405.
       if (isConsolePath(path)) {
+        if (req.method === 'POST' && parseReviewPath(path) !== undefined) {
+          let raw: string;
+          try {
+            raw = await readBody(req);
+          } catch {
+            sendProblem(res, malformedRequestProblem('Failed to read request body.'));
+            return;
+          }
+          handleReviewPost(
+            res,
+            { path, form: new URLSearchParams(raw), actor: resolveActor(req), secFetchSite: headerValue(req, 'sec-fetch-site') },
+            documentTypes,
+            lifecycle,
+          );
+          return;
+        }
         if (req.method !== 'GET') {
           sendProblem(res, methodNotAllowedProblem(req.method));
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
-        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes);
+        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle, resolveActor(req));
         return;
       }
 
