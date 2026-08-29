@@ -11,6 +11,61 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 5 tasks 1–5 built; exit gate MET; GAP-17 closed
+- Did: **GAP-17** (ed81ace) — retention years + owner-scoping become
+  owner-supplied on `DocumentTypeDefinition`, boundary lint gains a
+  no-`documentType`-literal rule — evidence: corpus-qa 8/8 incl. a plant
+  proof that the lint fires and ignores comments; closed 0adf70a.
+- Did: **Stage 5 task 2** reprint semantics (a494c6f) — migration 0013
+  `reprint_log`; `reproduce` = bytes only, original untouched;
+  `regenerate` = new REPRINT row from caller-supplied data against the
+  current published template under a distinguished mint key
+  `regenerate:<docId>:<nonce>`; `reissue` = `emit` + audit link; all three
+  call AuthorizationPort FIRST — evidence: `npm run verify` 411/411;
+  corpus-qa 9/9 incl. a v2-publish probe and an authz-before-guards
+  probe (forbidden even with no subjectId + blank reason, zero store
+  calls). Ticked ac93e34.
+- Did: **Stage 5 task 3** — the exit gate (1cbdacc) — `publish` requires a
+  STANDING approve row (`approval-record-required`), publisher ≠ approver
+  (SoD); proven through the real port — evidence: 423/423; corpus-qa 9
+  adversarial probes refused incl. cross-key forgery and a publisher
+  race; the ONLY path to `published` without an approve row is GAP-19's
+  ratified S1 seed on first registration. Ticked 4ab1688.
+- Did: **Stage 5 task 4** (1a9fde9) — Templates list + review-and-approve
+  screen: the console's first write (exact-route POST, lifecycle log
+  only), phase-primary, DocNode tree-diff compare, proxy-asserted actor
+  via `resolveActor` — evidence: 430/430; corpus-qa 6/6 incl. forged
+  verbs, traversal, 32-body PII sweep, GAP-20 cross-labels, concurrent
+  publish race. arb-chair ruling recorded in UI-DESIGN (:22, review
+  line) and ADR-007 addendum (still Proposed). Ticked ac93e34.
+- Did: **Stage 5 task 5** (3a78ef9) — Overview (four failure groups,
+  worst-first, byte-exact all-green body, "today's volume" dropped by
+  ruling), Settings (four read-only fact groups, closed `ConsoleFacts`
+  with a compile-time credential-key lock), nav on every page,
+  `ListDocumentsQuery.state` making render-failed rows visible for the
+  first time — evidence: `npm run verify` 446/446 (independent).
+  **Gate-check in flight** (task 5 + whole-stage `/gate-check 5`).
+- Did: docs — GAP-24 (proxy-asserted actor), GAP-25 (submit has no
+  operator surface), GAP-20 update (first-registered wins on ties;
+  visibility arm built) — 51366b1, 2e2c07d.
+- Process: three subagents stalled on the 600 s stream watchdog (two in
+  one dispatch); state was intact each time, re-dispatched with a
+  "short tool calls, targeted vitest" constraint — no further stalls.
+  `idempotency.test.ts` flaked once under two concurrent full-suite
+  runs (empty HTTP body), green on every rerun — watch in CI.
+- Open: task 5 tick + Stage 5 exit-gate line await the corpus-qa
+  verdict. **Stage 5 cannot close** until the maintainer accepts ADR-007's
+  two Proposed addenda (OutputPort v1 surface; v1.1 reprint verbs +
+  console-write line) — "no stage closes with its ADRs open".
+- Open (maintainer rulings, see GATE-S5-RULINGS): exit-gate wording
+  "through the lifecycle" vs "by any means" (S1 seed); submitter-may-
+  publish SoD scope; REPRINT + log row written when composition then
+  fails; `STRANDED_AFTER_MS` = 5 min; auto-retire-on-publish (GAP-20);
+  retire/submit surfaces (GAP-25); GAP-18, GAP-23 unchanged.
+- Next: on task 5 PASS → tick, annotate the Stage 5 exit gate, then
+  Stage 6 entry conditions per ROADMAP.md (do not start Stage 6 tasks
+  while ADR-007 addenda are Proposed without an explicit exception).
+
 ## 2026-08-29 — Stage 4 build tasks CLOSED (GAP-07/08/10/16); authoring-assist roundtable
 - Did: GAP-07/08 landed (3978a77 — healed main after my docs commit
   c4788b5 accidentally swept in the agent's staged template-content.ts
