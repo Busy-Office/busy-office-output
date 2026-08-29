@@ -172,7 +172,7 @@ are done.
 - [x] **GAP-03** Bursting measurement: run 8,000 docs Typst-only through the real pipeline (fan-out, real render/archive/enqueue), record ms/doc + total wall-clock against the 30-min window in `docs/RESULTS.md` — DoD: numbers in RESULTS.md *(2026-08-29: MEASURED, not projected — 8,000 payslips run to completion through the full pipeline (validate+determine+mint+render+archive+enqueue) in 18.64 min, 139.8 ms/doc, **1.61x inside the 30-min window** single-process; concurrency-4 extrapolated from N=2,000: 6.5 min, 4.62x. Render is 99% of per-doc cost (138.7 of 139.8 ms). docs/RESULTS.md §Bursting — real pipeline; bench: `npm run bench:burst`, not part of npm test)*; **[HUMAN]** then decides ADR-002 on them — **still open, human-only**
 - [ ] **GAP-07/08** Consumer contract + registration seam (design ratified by GAP-01/02 = standalone product): `OutputPort` v1 typed with all five verbs (`emit`, `preview`, `status`, `reproduce`, `registerDocumentType`) + one document type registering from outside the engine tree — DoD: contract tests, lint-enforced boundary. *Needs an arb-chair design ruling before build.*
 - [ ] **GAP-10** Email message body templating: subject/body template with the PDF attached, mini-decision on governance (lifecycle-governed vs channel config) — DoD: built and tested. *Needs a decision before build.*
-- [ ] **[HUMAN]** **GAP-05** ADR-008 licence choice + LICENSE file (interim "evaluation only" already in README)
+- [x] **[HUMAN]** **GAP-05** ADR-008 licence choice + LICENSE file (interim "evaluation only" already in README) *(2026-08-29: Apache-2.0, holder Busy Office — LICENSE, NOTICE, CONTRIBUTING.md with DCO, SPDX field in every package.json, README updated. npm trusted publishing + erp-graph edge flip are follow-ups outside this repo)*
 - [x] **[HUMAN]** **GAP-06** Print scope: name a site that can't use PDF+OS spooler, or ratify "PDF is the print path" *(2026-08-29: ratified "PDF is the print path" — no print agent enters scope, Deferred wall entry stands)*
 - [ ] **[HUMAN]** **GAP-09** Embedded-topology typst-binary leak: ratify T2 split worker vs renderer-behind-a-process-seam as the host default (low priority under ADR-009 standalone product — no active host)
 
@@ -219,7 +219,7 @@ infrastructure, governed by the Stage 5 lifecycle.
 ### Tracks (each with its own entry trigger)
 - [ ] **Template-from-sample, productized** — upload sample → generate → converge → land as `draft`. Trigger: the Stage 2/4 skill has authored ≥3 real templates successfully.
 - [ ] **Adjust-assist workspace** — per the grilled spec in `docs/UI-DESIGN.md`: document, proposed tint, one impact line, one prompt, Accept as draft; source/history stay in the user's editor. Trigger: previewer exists and ≥5 external requests by name.
-- [ ] **Shadow parity mode** — run the pipeline alongside a legacy output system, structural-diff every live document pair, parity dashboard as cutover evidence. Trigger: a named migration target (e.g. a Smart Forms estate).
+- [ ] **Shadow parity mode** — run the pipeline alongside a legacy output system, structural-diff every live document pair, parity dashboard as cutover evidence. Trigger: a named migration target (an estate on a commercial ERP suite's legacy form tooling).
 
 ### Hard constraints (from ADR-005, non-negotiable)
 AI output faces the same corpus gates; provenance recorded; patches not

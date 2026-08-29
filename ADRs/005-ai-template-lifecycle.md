@@ -32,7 +32,8 @@ measurable and failure is loud. The same loop, run continuously against live
 legacy output, is **shadow parity mode** — the migration story: generate the
 candidate template from the legacy sample, shadow-diff every real document
 pair against the legacy system's output, cut over when parity holds. For
-SAPscript/Smart Forms estates this is the adoption funnel.
+estates built on a commercial ERP suite's legacy form/output tooling, this
+is the adoption funnel.
 
 ## Non-negotiable constraints (hold under every option)
 

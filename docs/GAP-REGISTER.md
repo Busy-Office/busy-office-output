@@ -54,13 +54,19 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   optional, never the primary persona. Visual builder stays deleted.
 - Closed by: `ADRs/000-template-authoring-model.md` addendum 2026-08-29.
 
-### GAP-05 — Licence: public repo, no LICENSE (ADR-008)
-- Type: DECISION — **INTERIM-CLOSED 2026-08-29**, full close still human-only
-- Repo is publicly clonable with no LICENSE file — default all-rights-
-  reserved. ADR-008's "before any public release" trigger has arguably fired.
-- Interim close condition met: README now states "No licence yet —
-  evaluation only" explicitly. Full close still needs ADR-008 Accepted +
-  LICENSE committed — a human-only decision (OSI licence choice, trademark).
+### GAP-05 — Licence: public repo, no LICENSE (ADR-008) — **CLOSED 2026-08-29**
+- Type: DECISION
+- Decided (maintainer, in chat, on a maintainer-authored ADR-008 draft):
+  **Apache-2.0**, copyright holder Busy Office. Explicit patent grant
+  fits the enterprise back-office audience; DCO-gated contributions keep
+  future dual-licensing legally clean; "stay unlicensed" was strictly
+  dominated (closes every present door, preserves no future option).
+- Closed: `LICENSE` (canonical Apache-2.0 text), `NOTICE`,
+  `CONTRIBUTING.md` (DCO required on every commit), SPDX
+  `"license": "Apache-2.0"` in root + all four package.json files, README
+  "evaluation only" paragraph replaced. Follow-ups not in this repo's
+  scope: npm trusted publishing (needs the maintainer's OIDC setup), the
+  erp-graph edge flip (lives in busy-office-erp).
 
 ### GAP-06 — Print scope vs the Deferred wall — **CLOSED 2026-08-29**
 - Type: DECISION

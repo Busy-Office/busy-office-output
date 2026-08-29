@@ -12,8 +12,9 @@ external services (`npx tsx packages/runtime/src/index.ts`, or the
 a read-only console at `/output`, retention enforcement, and
 document-level authorization are built and tested. **Not yet validated by
 real operators** — Stage 3's thesis check (show the demo to 5 real
-operators) is still open. **No licence yet — evaluation only** (ADR-008
-open); this repo is not yet legally usable beyond looking. ADR-000
+operators) is still open. **Licensed Apache-2.0** (ADR-008, accepted
+2026-08-29; see `LICENSE`, `NOTICE`, and the DCO requirement in
+`CONTRIBUTING.md`). ADR-000
 (authoring model) and ADR-001 (pagination) are Accepted — schema-first,
 Typst for paginated/compliant/non-Latin documents; ADR-002 (volume
 renderer) is still open on stale numbers.
