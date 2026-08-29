@@ -11,6 +11,31 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — GAP-26 gate-checked and closed
+- Did: independent corpus-qa gate-check of GAP-26 (e174a9c, "Document
+  detail's reprint trichotomy: reproduce becomes a real link") — 6
+  criteria checked against code and test runs, not the commit message:
+  `npm run verify` green (73/73 files, 455/455 tests, plus
+  `document-detail-reproduce.test.ts` 9/9 in isolation); `reproduce`
+  route confirmed to share the same `admitReprint`/`OutputPort.reproduce`
+  authorization path as `regenerate`/`reissue`, no bypass; refusal
+  mapping (404 unknown-document, 403 forbidden, 400 actor/reason-
+  required, 410 purged, 409 not-archived) verified correct; PII sweep
+  incl. a wrong-owner 403 case with the archive-retrieve spy never
+  called; `regenerate`/`reissue` confirmed still plain inert text (no
+  `<a>`); DoD confirmed — byte-identical stream, exactly one
+  `reprint_log` row via Stage 5 task 2's existing `stampReprint` path,
+  zero rows logged on any refusal. GAP-26 marked CLOSED in
+  docs/GAP-REGISTER.md.
+- Open: nothing new. Stage 5 remains built + gate-MET but not closeable
+  today — still blocked on the maintainer accepting ADR-007's two
+  Proposed addenda (GATE-S5-CLOSE), and GATE-S5-RULINGS' open items are
+  unchanged.
+- Next: either the maintainer rules on GATE-S5-CLOSE/GATE-S5-RULINGS to
+  actually close Stage 5, or continue picking off untracked loose ends
+  like GAP-26 was — check docs/GAP-REGISTER.md for anything else BUILT-
+  but-ungated or newly named by scope rulings.
+
 ## 2026-08-29 — Stage 5 tasks 1–5 built; exit gate MET; GAP-17 closed
 - Did: **GAP-17** (ed81ace) — retention years + owner-scoping become
   owner-supplied on `DocumentTypeDefinition`, boundary lint gains a

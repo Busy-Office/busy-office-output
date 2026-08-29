@@ -433,11 +433,20 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   GAP-18 authoring surface, or "code is the surface" recorded as policy.
 
 ### GAP-26 — Document detail's reprint trichotomy is inert placeholder text
-- Type: TASK — **BUILT, gate-check pending** (e174a9c, 2026-08-29; named
-  by an arb-chair scope
-  ruling, 2026-08-29, dispatched to check whether this was GAP-22 — it
-  is not: GAP-22 is `reproduce`'s re-delivery channel, a different
-  problem)
+- Type: TASK — **CLOSED** (built e174a9c, gate-checked 2026-08-29 by
+  corpus-qa, independent of the build session: `npm run verify` green
+  73/73 files incl. `document-detail-reproduce.test.ts` 9/9 in
+  isolation; auth path confirmed to run through the same
+  `admitReprint`/`OutputPort.reproduce` helper as `regenerate`/`reissue`,
+  no re-implemented checks in console.ts/server.ts; refusal mapping
+  (404/403/400×2/410/409) verified against code, not the commit message;
+  PII sweep incl. a wrong-owner 403 with the archive-retrieve spy never
+  called; `regenerate`/`reissue` confirmed still plain text, no `<a>`;
+  DoD confirmed — byte-identical stream, exactly one `reprint_log` row
+  via the existing Stage 5 task 2 `stampReprint` path, zero rows on
+  refusal. Named by an arb-chair scope ruling, 2026-08-29, dispatched to
+  check whether this was GAP-22 — it is not: GAP-22 is `reproduce`'s
+  re-delivery channel, a different problem)
 - Stage 3's Document detail task closed with the trichotomy line
   ("Reproduce (archive bytes, stamped) — not yet available in this
   console" ×3, console.ts:353-355) deliberately scoped as "inert text —
