@@ -120,8 +120,8 @@ export function selectRenderer(deps: CompositionDeps, resolution: Pick<Resolutio
  * `documentType` — see that module for the periods chosen and why they
  * are not a real legal/regulatory decision.
  */
-export function defaultRetentionUntil(documentType: string): string {
-  return retentionUntilFor(documentType);
+export function defaultRetentionUntil(documentTypes: Pick<DocumentTypeRegistry, 'retentionYears'>, documentType: string): string {
+  return retentionUntilFor(documentTypes, documentType);
 }
 
 /**
@@ -151,7 +151,7 @@ export async function composeRenderArchiveAndEnqueue(
       ir: { irVersion: '1', root: docNode, data },
     });
 
-    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)(data.documentType);
+    const retentionUntil = (deps.retentionUntil ?? ((t: string) => defaultRetentionUntil(deps.documentTypes, t)))(data.documentType);
     const archiveRef = await archiveArtifact({
       archiveStore: deps.archiveStore,
       registryStore: deps.registryStore,
@@ -223,7 +223,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
 
     const mergedBytes = await mergePdfs([coverBytes, mainArtifact.bytes, termsAndConditionsBytes]);
 
-    const retentionUntil = (deps.retentionUntil ?? defaultRetentionUntil)(data.documentType);
+    const retentionUntil = (deps.retentionUntil ?? ((t: string) => defaultRetentionUntil(deps.documentTypes, t)))(data.documentType);
     const archiveRef = await archiveArtifact({
       archiveStore: deps.archiveStore,
       registryStore: deps.registryStore,

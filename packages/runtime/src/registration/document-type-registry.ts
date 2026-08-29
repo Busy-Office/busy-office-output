@@ -28,6 +28,7 @@ import { createContractCompiler, type CompiledContract, type ContractValidationR
 import type { OutputRule } from '../determination/rule-types.js';
 import type { DocumentTypeDefinition, RegistrationProblem, RegistrationResult } from './document-type-definition.js';
 import { checkMessageTemplate, type MessageTemplate, type MessageTemplateMeta } from '../message/message-template.js';
+import { parseExpression } from '@busy-office/output-schema';
 
 export interface DocumentTypeRegistry {
   register(definition: DocumentTypeDefinition): RegistrationResult;
@@ -56,11 +57,21 @@ export interface DocumentTypeRegistry {
   messageTemplate(id: string): MessageTemplate | undefined;
   /** Registered document types, in registration order. */
   documentTypes(): readonly string[];
+  /** The owner-supplied retention period in years (GAP-17), or `undefined`
+   * when the type supplied none (the retention policy then applies its
+   * default) or is not registered. */
+  retentionYears(documentType: string): number | undefined;
+  /** The owner-supplied envelope dot-path to the document's natural-person
+   * owner (GAP-17), or `undefined` when the type is not owner-scoped or is
+   * not registered. */
+  ownerIdPath(documentType: string): string | undefined;
 }
 
 interface RegisteredType {
   contract: CompiledContract;
   templateIds: string[];
+  retentionYears: number | undefined;
+  ownerIdPath: string | undefined;
 }
 
 export function createDocumentTypeRegistry(): DocumentTypeRegistry {
@@ -122,6 +133,25 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
       }
       problems.push(...checkMessageTemplate(template, path));
     });
+    // GAP-17: owner-supplied per-type facts. Both optional; both rejected
+    // atomically when present-but-wrong, like every other field.
+    if (definition.retentionYears !== undefined) {
+      const years = definition.retentionYears;
+      if (typeof years !== 'number' || !Number.isInteger(years) || years <= 0) {
+        problems.push({ path: 'retentionYears', message: 'retentionYears must be a positive integer (whole years)' });
+      }
+    }
+    if (definition.ownerIdPath !== undefined) {
+      if (typeof definition.ownerIdPath !== 'string') {
+        problems.push({ path: 'ownerIdPath', message: 'ownerIdPath must be an envelope-rooted dot-path string' });
+      } else {
+        try {
+          parseExpression(definition.ownerIdPath);
+        } catch (err) {
+          problems.push({ path: 'ownerIdPath', message: err instanceof Error ? err.message : String(err) });
+        }
+      }
+    }
     definition.rules.forEach((rule, i) => {
       if (rule.conditions?.documentType !== definition.documentType) {
         problems.push({
@@ -162,7 +192,12 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
         messageTemplateIds.push(template.meta.id);
       }
       rules.push(...definition.rules);
-      types.set(documentType, { contract: compiled.contract, templateIds });
+      types.set(documentType, {
+        contract: compiled.contract,
+        templateIds,
+        retentionYears: definition.retentionYears,
+        ownerIdPath: definition.ownerIdPath,
+      });
       return { status: 'registered', documentType, templateIds, messageTemplateIds };
     },
 
@@ -198,6 +233,12 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
     },
     documentTypes(): readonly string[] {
       return [...types.keys()];
+    },
+    retentionYears(documentType: string): number | undefined {
+      return types.get(documentType)?.retentionYears;
+    },
+    ownerIdPath(documentType: string): string | undefined {
+      return types.get(documentType)?.ownerIdPath;
     },
   };
 }

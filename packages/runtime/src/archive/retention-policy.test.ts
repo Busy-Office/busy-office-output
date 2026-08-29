@@ -5,7 +5,16 @@
  * an unknown documentType still gets a conservative, non-null fallback.
  */
 import { describe, expect, it } from 'vitest';
-import { retentionUntilFor, retentionYearsFor } from './retention-policy.js';
+import { DEFAULT_RETENTION_YEARS, retentionUntilFor as retentionUntilForRaw, retentionYearsFor as retentionYearsForRaw } from './retention-policy.js';
+import { createDocumentTypeRegistry } from '../registration/document-type-registry.js';
+import { builtinDocumentTypes } from '../../document-types/index.js';
+
+// GAP-17: the periods come from each built-in's OWN definition; the policy
+// reads them off the registry and holds only the default itself.
+const registry = createDocumentTypeRegistry();
+for (const definition of builtinDocumentTypes) expect(registry.register(definition).status).toBe('registered');
+const retentionYearsFor = (documentType: string) => retentionYearsForRaw(registry, documentType);
+const retentionUntilFor = (documentType: string, now?: Date) => retentionUntilForRaw(registry, documentType, now);
 
 describe('retentionYearsFor', () => {
   it('varies by document type', () => {
@@ -22,6 +31,20 @@ describe('retentionYearsFor', () => {
 
   it('falls back to a conservative default for an unknown document type', () => {
     expect(retentionYearsFor('some-future-doc-type')).toBeGreaterThan(0);
+  });
+
+  it('reads the built-ins\' owner-supplied numbers (byte-identical to the pre-GAP-17 table)', () => {
+    expect(retentionYearsFor('payslip')).toBe(6);
+    expect(retentionYearsFor('invoice')).toBe(10);
+    expect(retentionYearsFor('purchase-order')).toBe(3);
+  });
+
+  it('a registered type that supplies no retentionYears gets the default; one that does is honoured', () => {
+    const own = createDocumentTypeRegistry();
+    own.register({ documentType: 'memo', contract: { type: 'object' }, templates: [], rules: [] });
+    own.register({ documentType: 'ledger', contract: { type: 'object' }, templates: [], rules: [], retentionYears: 30 });
+    expect(retentionYearsForRaw(own, 'memo')).toBe(DEFAULT_RETENTION_YEARS);
+    expect(retentionYearsForRaw(own, 'ledger')).toBe(30);
   });
 });
 

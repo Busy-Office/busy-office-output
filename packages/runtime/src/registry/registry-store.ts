@@ -143,8 +143,8 @@ export interface DocumentRegistryRow {
    * migrations/0006_add_document_type.sql, or via any caller that omits
    * the optional `documentType` argument to a mint method — never `null`,
    * same NOT-NULL-DEFAULT-'' reasoning as `ruleId` above. The Registry
-   * console screen gates its payslip lock glyph strictly on
-   * `documentType === 'payslip'`.
+   * console screen gates its lock glyph on whether the registered type is
+   * owner-scoped (supplies an `ownerIdPath`, GAP-17) — never on the name.
    */
   documentType: string;
   /**

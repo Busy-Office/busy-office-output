@@ -114,7 +114,7 @@ export { createTemplateLifecycle } from './lifecycle/template-lifecycle.js';
 export type { TemplateLifecycleService, TemplateLifecycleKey, TransitionResult, SeedOutcome } from './lifecycle/template-lifecycle.js';
 export { LIFECYCLE_TRANSITIONS, evaluateTransition } from './lifecycle/transitions.js';
 export type { LifecycleTransition, TransitionRefusal, TransitionVerb } from './lifecycle/transitions.js';
-export { defaultAuthorizationPort, extractPayslipOwnerId } from './authorization/authorization-port.js';
+export { createDefaultAuthorizationPort, extractOwnerId } from './authorization/authorization-port.js';
 export type { AuthorizationPort, Actor, ReprintAction } from './authorization/authorization-port.js';
 export type {
   CreateOutputDeps,

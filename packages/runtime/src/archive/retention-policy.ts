@@ -4,6 +4,14 @@
  * `defaultRetentionUntil` — a single fixed 10-year default for every
  * document type, explicitly documented there as a Stage 3 stand-in.
  *
+ * GAP-17: the per-type numbers are NOT in this file. Each document type's
+ * OWNER supplies `retentionYears` on its `DocumentTypeDefinition`
+ * (packages/runtime/document-types/{invoice,payslip,purchase-order}.ts for
+ * the built-ins) and this policy reads them from the `DocumentTypeRegistry`;
+ * the engine holds only the default. The rationale below for the three
+ * built-in periods is kept here as the record of why those definitions
+ * carry the numbers they do.
+ *
  * NOT a real legal/regulatory decision (same caveat the Stage 3 stand-in
  * carried): these are plausible, commonly-cited orders of magnitude for
  * each document type, not a jurisdiction-specific compliance ruling. A
@@ -31,19 +39,20 @@
  *     shorter, type-specific period until someone adds one.
  */
 
-/** Retention period, in whole years, keyed by `DataContractEnvelope.documentType`. */
-const RETENTION_YEARS_BY_DOCUMENT_TYPE: Record<string, number> = {
-  'purchase-order': 3,
-  invoice: 10,
-  payslip: 6,
-};
+import type { DocumentTypeRegistry } from '../registration/document-type-registry.js';
 
-/** Fallback for any `documentType` with no explicit entry above. */
-const DEFAULT_RETENTION_YEARS = 10;
+/** What the policy reads: the registry's owner-supplied retention years
+ * (GAP-17). `Pick` so tests and hosts can hand in the narrowest thing. */
+export type RetentionSource = Pick<DocumentTypeRegistry, 'retentionYears'>;
 
-/** The retention period, in years, this policy assigns to `documentType`. */
-export function retentionYearsFor(documentType: string): number {
-  return RETENTION_YEARS_BY_DOCUMENT_TYPE[documentType] ?? DEFAULT_RETENTION_YEARS;
+/** Fallback for any `documentType` whose definition supplies no
+ * `retentionYears` (or that is not registered at all). */
+export const DEFAULT_RETENTION_YEARS = 10;
+
+/** The retention period, in years, for `documentType`: the registered
+ * definition's `retentionYears`, else the conservative default. */
+export function retentionYearsFor(documentTypes: RetentionSource, documentType: string): number {
+  return documentTypes.retentionYears(documentType) ?? DEFAULT_RETENTION_YEARS;
 }
 
 /**
@@ -53,8 +62,8 @@ export function retentionYearsFor(documentType: string): number {
  * wall-clock time — same pattern as `composition.ts`'s old
  * `defaultRetentionUntil`.
  */
-export function retentionUntilFor(documentType: string, now: Date = new Date()): string {
-  const years = retentionYearsFor(documentType);
+export function retentionUntilFor(documentTypes: RetentionSource, documentType: string, now: Date = new Date()): string {
+  const years = retentionYearsFor(documentTypes, documentType);
   const d = new Date(now);
   d.setUTCFullYear(d.getUTCFullYear() + years);
   return d.toISOString();

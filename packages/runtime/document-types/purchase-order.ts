@@ -77,6 +77,9 @@ export const purchaseOrder: DocumentTypeDefinition = {
   // of them); `po-companyCode-1000-v1` is meta-only — see header comment.
   templates: templatesFor('purchase-order', { 'po-global-v1': purchaseOrderTemplate }),
   rules: rulesFor('purchase-order'),
+  // GAP-17: 3 years — see archive/retention-policy.ts for the rationale.
+  // No ownerIdPath: a purchase order has no natural-person owner.
+  retentionYears: 3,
   // GAP-10: the email rule needs a governed subject/body. One wildcard-
   // locale template; generic wording, no legal copy — see
   // document-types/payslip.ts for the locale-varying case.

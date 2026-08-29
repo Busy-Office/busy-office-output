@@ -3,10 +3,14 @@
  * under `packages/runtime/src/` knows NO document type. Concretely, no
  * engine file may import `document-types/`, `rules/`, `contracts/`, or the
  * schema package's contracts path; the hardcoded `template-content.ts`
- * must not exist; and the `KNOWN_DOCUMENT_TYPES` list must not come back
- * under any name. Only the composition root (`src/index.ts`) and test
- * files are exempt — the root is WHERE registration happens, and tests
- * legitimately register the built-ins.
+ * must not exist; the `KNOWN_DOCUMENT_TYPES` list must not come back
+ * under any name; and (GAP-17) no engine file may string-compare a
+ * `documentType` against a built-in's name — retention, owner-scoping,
+ * and the console lock are facts the type's OWNER supplies through
+ * `DocumentTypeDefinition`, read back from the registry. Only the
+ * composition root (`src/index.ts`) and test files are exempt — the root
+ * is WHERE registration happens, and tests legitimately register the
+ * built-ins.
  *
  * A vitest test rather than ESLint / dependency-cruiser: the repo has no
  * ESLint, and a toolchain for one rule is gold-plating. This runs inside
@@ -26,6 +30,25 @@ const FORBIDDEN_SPECIFIERS: ReadonlyArray<{ pattern: RegExp; why: string }> = [
   { pattern: /contracts\//, why: 'contract JSON is read by document-types/, never by the engine' },
   { pattern: /@busy-office\/output-schema\/contracts/, why: 'the schema package contracts path is a document-type source' },
 ];
+
+/** The built-in document-type names, assembled so this file never contains
+ * a comparison literal itself. */
+const BUILTIN_NAMES = ['purchase-order', 'invoice', 'payslip'].join('|');
+
+/** GAP-17: string comparisons of a `documentType` against a built-in name,
+ * in either operand order, and `case '<name>':` switch arms. */
+const FORBIDDEN_LITERAL_COMPARISONS: ReadonlyArray<{ pattern: RegExp; why: string }> = [
+  { pattern: new RegExp(`documentType\\s*[!=]==?\\s*['"](?:${BUILTIN_NAMES})['"]`), why: 'documentType compared to a built-in name' },
+  { pattern: new RegExp(`['"](?:${BUILTIN_NAMES})['"]\\s*[!=]==?\\s*documentType`), why: 'a built-in name compared to documentType' },
+  { pattern: new RegExp(`\\bcase\\s+['"](?:${BUILTIN_NAMES})['"]\\s*:`), why: 'switch arm on a built-in name' },
+];
+
+/** Strips `/* ... *\/` and `// ...` comments so the GAP-17 rule reads code,
+ * not prose that legitimately mentions a built-in by name. Regex, not a
+ * parser — good enough for the literals this lint cares about. */
+function stripComments(source: string): string {
+  return source.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:'"`])\/\/[^\n]*/g, '$1');
+}
 
 /** Every `.ts` under `src/` except `*.test.ts` and `src/index.ts`. */
 function engineFiles(dir: string): string[] {
@@ -85,6 +108,18 @@ describe('engine boundary (GAP-08): src/** knows no document type', () => {
 
   it('src/render/template-content.ts (the hardcoded template map) no longer exists', () => {
     expect(existsSync(join(SRC_DIR, 'render', 'template-content.ts'))).toBe(false);
+  });
+
+  it('GAP-17: no engine file string-compares a documentType against a built-in name', () => {
+    const violations: string[] = [];
+    for (const file of files) {
+      const code = stripComments(readFileSync(file, 'utf8'));
+      for (const { pattern, why } of FORBIDDEN_LITERAL_COMPARISONS) {
+        const match = pattern.exec(code);
+        if (match !== null) violations.push(`${relative(SRC_DIR, file)}: \`${match[0]}\` — ${why}`);
+      }
+    }
+    expect(violations).toEqual([]);
   });
 
   it('KNOWN_DOCUMENT_TYPES occurs zero times under src/ (excluding this lint)', () => {

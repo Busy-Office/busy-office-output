@@ -201,5 +201,12 @@ export const payslip: DocumentTypeDefinition = {
     'payslip-companyCode-1000-v1': payslipPdfDirectTemplate,
   }),
   rules: rulesFor('payslip'),
+  // GAP-17: owner-supplied facts the engine used to hardcode by name.
+  // 6 years — see archive/retention-policy.ts for the (non-legal) rationale.
+  retentionYears: 6,
+  // Owner-scoped: header.employeeId is the natural person this payslip is
+  // about (opaque internal id, never logged). Drives ownerId at mint, the
+  // default AuthorizationPort's hr-clerk/employee rule, and the console lock.
+  ownerIdPath: 'header.employeeId',
   messageTemplates: [payslipEmailEnUS, payslipEmailDeDE],
 };

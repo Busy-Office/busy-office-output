@@ -25,7 +25,8 @@ import { createRuntimeDeps, registerBuiltinDocumentTypes, type RuntimeDeps } fro
 import { createIngressServer } from '../server.js';
 import { createSqliteRegistryStore } from '../registry/sqlite-registry-store.js';
 import type { RegistryStore } from '../registry/registry-store.js';
-import { defaultAuthorizationPort } from '../authorization/authorization-port.js';
+import { createDefaultAuthorizationPort } from '../authorization/authorization-port.js';
+import { createDocumentTypeRegistry } from '../registration/document-type-registry.js';
 import { builtinDocumentTypes, invoice } from '../../document-types/index.js';
 import { createOutput, type OutputPort } from './create-output.js';
 import { sampleBusinessEventKey, validInvoice, validPayslip, validPurchaseOrder, withBusinessEvent } from '../fixtures.js';
@@ -184,8 +185,9 @@ describe('OutputPort v1 — reproduce (Stage 5 stub)', () => {
   it('returns not-implemented and touches neither the registry nor the authorization port', async () => {
     const registryStore = createSqliteRegistryStore(':memory:');
     const registrySpies = spyOnEveryMethod(registryStore);
-    const authzSpy = vi.spyOn(defaultAuthorizationPort, 'canAccess');
-    const port = createOutput({ registryStore, authorization: defaultAuthorizationPort });
+    const authorization = createDefaultAuthorizationPort(createDocumentTypeRegistry());
+    const authzSpy = vi.spyOn(authorization, 'canAccess');
+    const port = createOutput({ registryStore, authorization });
 
     const result = await port.reproduce({ docId: 'any-doc-id', actor: { role: 'hr-clerk' } });
     expect(result).toEqual({ status: 'not-implemented', availableFrom: 'stage-5' });
@@ -260,6 +262,25 @@ describe('OutputPort v1 — registerDocumentType', () => {
     expect(result.status).toBe('invalid');
     if (result.status !== 'invalid') throw new Error('unreachable');
     expect(result.problems[0].path).toBe('contract');
+    registryStore.close();
+  });
+
+  it('GAP-17: rejects a non-positive/non-integer retentionYears or an ownerIdPath outside the frozen grammar, atomically', () => {
+    const { port, registryStore } = bare();
+    for (const retentionYears of [0, -3, 2.5, Number.NaN]) {
+      const result = port.registerDocumentType({ ...invoice, retentionYears });
+      expect(result.status).toBe('invalid');
+      if (result.status !== 'invalid') throw new Error('unreachable');
+      expect(result.problems).toEqual([{ path: 'retentionYears', message: expect.stringContaining('positive integer') }]);
+    }
+    for (const ownerIdPath of ['', 'header.employeeId.', 'header[0]', 'lines.*.id', '$.header']) {
+      const result = port.registerDocumentType({ ...invoice, ownerIdPath });
+      expect(result.status).toBe('invalid');
+      if (result.status !== 'invalid') throw new Error('unreachable');
+      expect(result.problems.map((p) => p.path)).toEqual(['ownerIdPath']);
+    }
+    // Nothing registered by any rejection — the corrected definition still succeeds.
+    expect(port.registerDocumentType({ ...invoice, retentionYears: 7, ownerIdPath: 'header.buyer.contactId' }).status).toBe('registered');
     registryStore.close();
   });
 });

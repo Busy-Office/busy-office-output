@@ -502,7 +502,7 @@ export function createIngressServer(options: IngressServerOptions = {}) {
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
-        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy);
+        handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes);
         return;
       }
 

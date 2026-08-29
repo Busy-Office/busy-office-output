@@ -40,7 +40,7 @@ import type { DeliveryHistoryEvent, DocumentRegistryRow, DocumentState, Registry
 import type { ArchiveStore } from '../archive/archive-store.js';
 import type { DeliveryQueue } from '../delivery/delivery-queue.js';
 import type { SchemaValidationError } from '../problem.js';
-import { defaultAuthorizationPort, extractPayslipOwnerId, type Actor, type AuthorizationPort } from '../authorization/authorization-port.js';
+import { createDefaultAuthorizationPort, extractOwnerId, type Actor, type AuthorizationPort } from '../authorization/authorization-port.js';
 import {
   determine,
   type CallerDeterminationContext,
@@ -114,7 +114,8 @@ export interface CreateOutputDeps {
   documentTypes?: DocumentTypeRegistry;
   /** Document-level authorization (ROADMAP Stage 4). Typed on the deps
    * now so Stage 5's `reproduce` body can consult it without changing this
-   * shape; the v1 stub never calls it. Defaults to `defaultAuthorizationPort`. */
+   * shape; the v1 stub never calls it. Defaults to `createDefaultAuthorizationPort`
+   * over this port's document-type registry. */
   authorization?: AuthorizationPort;
 }
 
@@ -326,7 +327,7 @@ function toDocumentStatus(row: DocumentRegistryRow, trace: DeterminationTrace | 
 export function createOutput(deps: CreateOutputDeps): OutputPort {
   const documentTypes = deps.documentTypes ?? createDocumentTypeRegistry();
   // `authorization` is held for Stage 5's `reproduce`; v1 never calls it.
-  const _authorization: AuthorizationPort = deps.authorization ?? defaultAuthorizationPort;
+  const _authorization: AuthorizationPort = deps.authorization ?? createDefaultAuthorizationPort(documentTypes);
   void _authorization;
   // Stage 5 task 1: template lifecycle state lives in the registry store's
   // append-only log, NOT in the DocumentTypeRegistry (whose maps are
@@ -362,7 +363,8 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       resolution,
       data,
       documentType,
-      extractPayslipOwnerId(documentType, data),
+      // GAP-17: the owner is wherever the type's OWNER said it is (registry).
+      extractOwnerId(documentTypes.ownerIdPath(documentType), data),
     );
 
     return {

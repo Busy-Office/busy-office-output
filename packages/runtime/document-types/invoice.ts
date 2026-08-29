@@ -74,6 +74,9 @@ export const invoice: DocumentTypeDefinition = {
   contract: readContract('invoice.schema.json'),
   templates: templatesFor('invoice', { 'invoice-global-v1': invoiceTemplate }),
   rules: rulesFor('invoice'),
+  // GAP-17: 10 years — see archive/retention-policy.ts for the rationale.
+  // No ownerIdPath: an invoice has no natural-person owner.
+  retentionYears: 10,
   // GAP-10: the email rule needs a governed subject/body. One wildcard-
   // locale template (no locale-specific wording exists for invoices yet);
   // generic, no legal copy — see document-types/payslip.ts for the

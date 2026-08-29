@@ -71,6 +71,28 @@ export interface DocumentTypeDefinition {
    * `src/message/message-template.ts`.
    */
   messageTemplates?: MessageTemplate[];
+  /**
+   * Retention period in whole years for every artifact of this type
+   * (GAP-17). A positive integer; the OWNER of the document type supplies
+   * it because "payslip ≠ purchase order lifespan" is a fact about the
+   * type, not the engine. Optional: a type that supplies nothing gets the
+   * engine's conservative default (10 years — `archive/retention-policy.ts`)
+   * so an unpoliced type is never under-retained by accident. NOT a legal
+   * ruling — see that module's caveat.
+   */
+  retentionYears?: number;
+  /**
+   * Envelope-rooted dot-path (docs/EXPRESSION-GRAMMAR.md, validated with
+   * `parseExpression` at registration) to the natural person who OWNS each
+   * document of this type — e.g. the built-in payslip's
+   * `'header.employeeId'`. Supplying it makes the type OWNER-SCOPED
+   * (GAP-17): the value is evaluated at mint and persisted as the registry
+   * row's `ownerId`, the default `AuthorizationPort` applies the
+   * hr-clerk / owning-employee rule to the type instead of the coarse
+   * default-allow, and the console marks its rows. A type without one has
+   * no natural-person owner (purchase orders, invoices, memos).
+   */
+  ownerIdPath?: string;
 }
 
 /** One reason a definition was rejected. `path` is a human-readable

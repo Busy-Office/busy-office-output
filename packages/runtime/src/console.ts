@@ -28,6 +28,7 @@ import type { ServerResponse } from 'node:http';
 import type { DocumentRegistryRow, RegistryStore } from './registry/registry-store.js';
 import type { DeterminationTrace, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/trace.js';
 import type { BackoffPolicy, DeliveryJob, DeliveryJobStatus, DeliveryQueue } from './delivery/delivery-queue.js';
+import type { OwnerScopeSource } from './authorization/authorization-port.js';
 import { notFoundProblem } from './problem.js';
 import { sendHtml, sendProblem } from './http-helpers.js';
 
@@ -122,7 +123,7 @@ function lastDeliveryLine(row: DocumentRegistryRow): string {
   return `<div>${escapeHtml(last.status)} ${escapeHtml(last.occurredAt)}${crossLink}</div>`;
 }
 
-function renderDocumentsPage(registryStore: RegistryStore, query: URLSearchParams): string {
+function renderDocumentsPage(registryStore: RegistryStore, query: URLSearchParams, documentTypes: OwnerScopeSource | undefined): string {
   const search = query.get('q') ?? '';
   const offset = Number.parseInt(query.get('offset') ?? '0', 10) || 0;
   // Fetch one extra row to know whether a "load more" link is warranted,
@@ -134,7 +135,10 @@ function renderDocumentsPage(registryStore: RegistryStore, query: URLSearchParam
 
   const rowsHtml = rows
     .map((row) => {
-      const lock = row.documentType === 'payslip' ? ' 🔒' : '';
+      // Owner-scoped rows (the registered type supplies an `ownerIdPath`,
+      // GAP-17 — the built-in payslip does) carry the lock glyph. No
+      // registry threaded in (bare server) -> no type is owner-scoped.
+      const lock = documentTypes?.ownerIdPath(row.documentType) !== undefined ? ' 🔒' : '';
       return `<li class="row">
   <div><a href="/output/documents/${encodeURIComponent(row.docId)}">${escapeHtml(row.docId)}</a>${lock}</div>
   <div>${escapeHtml(row.state)}</div>
@@ -323,6 +327,10 @@ export function handleConsoleRequest(
   registryStore: RegistryStore,
   deliveryQueue?: DeliveryQueue,
   backoffPolicy?: BackoffPolicy,
+  /** The document-type registry, for "is this row's type owner-scoped?"
+   * (the Registry screen's lock glyph, GAP-17). Read-only; optional so a
+   * bare server without a registry still serves the screens. */
+  documentTypes?: OwnerScopeSource,
 ): void {
   if (path === '/output/operations') {
     if (deliveryQueue === undefined || backoffPolicy === undefined) {
@@ -334,7 +342,7 @@ export function handleConsoleRequest(
   }
 
   if (path === '/output/documents') {
-    sendHtml(res, 200, renderDocumentsPage(registryStore, query));
+    sendHtml(res, 200, renderDocumentsPage(registryStore, query, documentTypes));
     return;
   }
 
