@@ -113,6 +113,10 @@ describe('PDF attachment concatenation (ROADMAP Stage 4)', () => {
       expect(row).toBeDefined();
       expect(row?.state).toBe('ORIGINAL');
       expect(row?.archiveRef).toBe(outcome.archiveRef);
+      // GAP-15: the concatenation path persists the renderer identity too —
+      // the merge is a page-level concatenation, not a second renderer.
+      const renderer = deps.composition.renderer;
+      expect(row?.rendererVersion).toBe(`${renderer.id}@${renderer.version}`);
 
       const mergedBytes = await deps.archiveStore.retrieve(outcome.archiveRef);
       expect(Buffer.from(mergedBytes.slice(0, 5)).toString('latin1')).toBe('%PDF-');

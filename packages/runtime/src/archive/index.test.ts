@@ -9,7 +9,7 @@ import type { BusinessEventKey } from '@busy-office/output-schema';
 import { createSqliteRegistryStore } from '../registry/sqlite-registry-store.js';
 import { FsArchiveStore } from './fs-archive-store.js';
 import { archiveArtifact } from './index.js';
-import { mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, existsSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -42,12 +42,15 @@ describe('archiveArtifact', () => {
       bytes,
       mediaType: 'application/pdf',
       retentionUntil: '2033-01-01T00:00:00Z',
+      renderer: { id: 'fake-renderer', version: '9.9.9' },
     });
 
     const updated = registryStore.getByDocId(row.docId);
     expect(updated?.state).toBe('ORIGINAL');
     expect(updated?.archiveRef).toBe(archiveRef);
     expect(updated?.retentionUntil).toBe('2033-01-01T00:00:00Z');
+    // GAP-15: rendererId@version lands in the same write as archiveRef.
+    expect(updated?.rendererVersion).toBe('fake-renderer@9.9.9');
 
     // And the bytes are actually retrievable back through the store.
     const retrieved = await archiveStore.retrieve(archiveRef);
@@ -73,6 +76,7 @@ describe('archiveArtifact', () => {
         bytes,
         mediaType: 'application/pdf',
         retentionUntil: undefined as unknown as string,
+        renderer: { id: 'fake-renderer', version: '9.9.9' },
       }),
     ).rejects.toThrow(TypeError);
 
@@ -80,10 +84,41 @@ describe('archiveArtifact', () => {
     expect(unchanged?.state).toBe('DRAFT');
     expect(unchanged?.archiveRef).toBeNull();
     expect(unchanged?.retentionUntil).toBeNull();
+    expect(unchanged?.rendererVersion).toBeNull();
 
     registryStore.close();
     if (existsSync(dir)) {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it('an unidentifiable renderer (empty version) is rejected before any bytes are written — no archived-but-renderer-unknown row', async () => {
+    const registryStore = createSqliteRegistryStore(':memory:');
+    const dir = mkdtempSync(join(tmpdir(), 'archive-wiring-renderer-test-'));
+    const archiveStore = new FsArchiveStore(dir);
+
+    const { row } = registryStore.getOrCreateByEventKey(key());
+
+    await expect(
+      archiveArtifact({
+        archiveStore,
+        registryStore,
+        docId: row.docId,
+        bytes: new TextEncoder().encode('%PDF-1.7 fake artifact'),
+        mediaType: 'application/pdf',
+        retentionUntil: '2033-01-01T00:00:00Z',
+        renderer: { id: 'typst', version: '' },
+      }),
+    ).rejects.toThrow(TypeError);
+
+    const unchanged = registryStore.getByDocId(row.docId);
+    expect(unchanged?.state).toBe('DRAFT');
+    expect(unchanged?.archiveRef).toBeNull();
+    expect(unchanged?.rendererVersion).toBeNull();
+    // Nothing reached the archive store.
+    expect(readdirSync(dir)).toEqual([]);
+
+    registryStore.close();
+    rmSync(dir, { recursive: true, force: true });
   });
 });

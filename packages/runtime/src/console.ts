@@ -18,9 +18,11 @@
  * docs/UI-DESIGN.md's five principles).
  *
  * inputHash/outputHash/rendererVersion are rendered "—" wherever null —
- * this task does not compute them (composition.ts still leaves them
- * unset); the console must be honest about that gap, never fabricate or
- * hide it.
+ * inputHash/outputHash are not yet computed (composition.ts leaves them
+ * unset); rendererVersion (`rendererId@version`, GAP-15) is written by
+ * `archiveArtifact` at archive time, so it is null only for DRAFT rows and
+ * rows archived before it was persisted. The console must be honest about
+ * those nulls, never fabricate or hide them.
  */
 import type { ServerResponse } from 'node:http';
 import type { DocumentRegistryRow, RegistryStore } from './registry/registry-store.js';

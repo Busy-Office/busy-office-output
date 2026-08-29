@@ -119,6 +119,11 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
       expect(row?.state).toBe('ORIGINAL');
       expect(row?.archiveRef).toBe(archiveRef);
       expect(row?.retentionUntil).toBe(resolution.composition.retentionUntil);
+      // GAP-15: the audit row names the renderer that produced the bytes,
+      // derived from the real TypstRenderer instance (not a hardcoded string).
+      const typst = deps.composition.renderer;
+      expect(typst.id).toBe('typst');
+      expect(row?.rendererVersion).toBe(`typst@${typst.version}`);
 
       // Delivery was enqueued, not yet attempted.
       const jobBeforeDrain = deps.deliveryQueue.getJob(deliveryJobId);
@@ -228,6 +233,14 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
       const pdfa = await verifyPdfA(archivedBytes, '2b');
       expect(pdfa.failures).toEqual([]);
       expect(pdfa.compliant).toBe(true);
+
+      // GAP-15: the registry row carries pdf-direct's id@version — a value
+      // different from the Typst row above, read off the real renderer.
+      const pdfDirect = deps.composition.renderers?.['pdf-direct'];
+      expect(pdfDirect?.id).toBe('pdf-direct');
+      const row = deps.registryStore.getByDocId(json.docId as string);
+      expect(row?.rendererVersion).toBe(`pdf-direct@${pdfDirect?.version}`);
+      expect(row?.rendererVersion).not.toBe(`typst@${deps.composition.renderer.version}`);
 
       const attempts = await drainOnce(deps.deliveryQueue, deps.channelSender);
       expect(attempts.find((a) => a.job.id === resolution.composition.deliveryJobId)?.outcome).toBe('delivered');

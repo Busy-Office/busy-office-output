@@ -11,6 +11,7 @@
  * don't. Delivery, fan-out and rule determination are NOT here — this is
  * archive-only, per the task that produced this file.
  */
+import type { Renderer } from '@busy-office/output-schema';
 import type { ArchiveStore } from './archive-store.js';
 import type { RegistryStore } from '../registry/registry-store.js';
 
@@ -32,21 +33,43 @@ export interface ArchiveArtifactInput {
   /** RFC 3339 timestamp. Mandatory — validated by `archiveStore.archive`
    * before any bytes are written. */
   retentionUntil: string;
+  /** The renderer that produced `bytes` (GAP-15; HLD §3 "template+renderer
+   * versions" on the audit row). Persisted as `id@version` in the same
+   * registry write that sets archiveRef, so a row is never
+   * archived-but-renderer-unknown. */
+  renderer: Pick<Renderer, 'id' | 'version'>;
+}
+
+/** The registry's `rendererVersion` wire format: `<rendererId>@<version>`,
+ * e.g. `typst@0.15.1` / `pdf-direct@1.17.1` — the same shape the console's
+ * `template@ver · renderer@ver` line displays. */
+export function rendererVersionString(renderer: Pick<Renderer, 'id' | 'version'>): string {
+  if (typeof renderer.id !== 'string' || renderer.id.trim() === '') {
+    throw new TypeError('archiveArtifact requires a renderer with a non-empty id.');
+  }
+  if (typeof renderer.version !== 'string' || renderer.version.trim() === '') {
+    throw new TypeError(`archiveArtifact requires a non-empty version for renderer '${renderer.id}'.`);
+  }
+  return `${renderer.id}@${renderer.version}`;
 }
 
 /**
  * Archive an artifact's bytes and update its registry row to match:
- * archiveRef set, state DRAFT -> ORIGINAL. Returns the archiveRef.
- * Throws (without touching the registry row) if the underlying archive
- * write fails for any reason, including a missing/invalid retentionUntil.
+ * archiveRef + rendererVersion set, state DRAFT -> ORIGINAL. Returns the
+ * archiveRef. Throws (without touching the registry row) if the underlying
+ * archive write fails for any reason, including a missing/invalid
+ * retentionUntil or an unidentifiable renderer.
  */
 export async function archiveArtifact(input: ArchiveArtifactInput): Promise<string> {
+  // Validate before writing bytes: a bad renderer identity must not leave
+  // orphaned archive bytes behind, same as a bad retentionUntil.
+  const rendererVersion = rendererVersionString(input.renderer);
   const archiveRef = await input.archiveStore.archive({
     bytes: input.bytes,
     mediaType: input.mediaType,
     retentionUntil: input.retentionUntil,
   });
-  input.registryStore.updateArchiveRef(input.docId, archiveRef, input.retentionUntil);
+  input.registryStore.updateArchiveRef(input.docId, archiveRef, input.retentionUntil, rendererVersion);
   input.registryStore.updateState(input.docId, 'ORIGINAL');
   return archiveRef;
 }

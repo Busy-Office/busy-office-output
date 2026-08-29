@@ -115,7 +115,8 @@ export async function composeRenderArchiveAndEnqueue(
   }
 
   try {
-    const artifact = await selectRenderer(deps, resolution).render({
+    const renderer = selectRenderer(deps, resolution);
+    const artifact = await renderer.render({
       kind: 'ir',
       ir: { irVersion: '1', root: docNode, data },
     });
@@ -128,6 +129,7 @@ export async function composeRenderArchiveAndEnqueue(
       bytes: artifact.bytes,
       mediaType: artifact.mediaType,
       retentionUntil,
+      renderer,
     });
 
     const job = deps.deliveryQueue.enqueue({
@@ -197,6 +199,9 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
       bytes: mergedBytes,
       mediaType: mainArtifact.mediaType,
       retentionUntil,
+      // The merged PDF's page content came from this renderer; the merge
+      // itself is a page-level concatenation, not a second rendering.
+      renderer,
     });
 
     const job = deps.deliveryQueue.enqueue({

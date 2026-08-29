@@ -102,6 +102,50 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
     expect(body).toContain(`/output/trace/${docId}`);
   });
 
+  it('GAP-15: `template@ver · renderer@ver` shows the real rendererId@version for an archived row and stays "—" for a DRAFT row', async () => {
+    // DRAFT (never archived): rendererVersion is legitimately null -> "—".
+    const draft = registryStore.getOrCreateByEventKey({
+      businessObject: 'EKKO',
+      businessObjectId: 'console-renderer-draft',
+      event: 'po.released',
+      templateVersion: '1.0.0',
+    }).row;
+    const draftDetail = await getHtml(`/output/documents/${draft.docId}`);
+    expect(draftDetail.status).toBe(200);
+    expect(draftDetail.body).toContain('<dt>templateVersion · rendererVersion</dt><dd>1.0.0 · —</dd>');
+
+    // Archived through the real archiveArtifact seam with a renderer identity.
+    const archived = registryStore.getOrCreateByEventKey({
+      businessObject: 'EKKO',
+      businessObjectId: 'console-renderer-archived',
+      event: 'po.released',
+      templateVersion: '1.0.0',
+    }).row;
+    const archiveRoot = mkdtempSync(join(tmpdir(), 'console-renderer-archive-'));
+    try {
+      await archiveArtifact({
+        archiveStore: new FsArchiveStore(archiveRoot),
+        registryStore,
+        docId: archived.docId,
+        bytes: new TextEncoder().encode('%PDF-1.7 fake bytes'),
+        mediaType: 'application/pdf',
+        retentionUntil: '2030-01-01T00:00:00Z',
+        renderer: { id: 'pdf-direct', version: '1.17.1' },
+      });
+    } finally {
+      rmSync(archiveRoot, { recursive: true, force: true });
+    }
+
+    const archivedDetail = await getHtml(`/output/documents/${archived.docId}`);
+    expect(archivedDetail.status).toBe(200);
+    expect(archivedDetail.body).toContain('<dt>templateVersion · rendererVersion</dt><dd>1.0.0 · pdf-direct@1.17.1</dd>');
+
+    // Registry list row carries the same segment; the DRAFT row still shows "—".
+    const list = await getHtml('/output/documents?q=console-renderer-');
+    expect(list.body).toContain('<div>1.0.0 · pdf-direct@1.17.1</div>');
+    expect(list.body).toContain('<div>1.0.0 · —</div>');
+  });
+
   it('Document detail 404s (problem+json) for an unknown docId', async () => {
     const res = await fetch(`${baseUrl}/output/documents/does-not-exist`);
     expect(res.status).toBe(404);
@@ -224,6 +268,7 @@ describe('Operations screen (GET /output/operations) and its poison cross-links'
         bytes: new TextEncoder().encode('%PDF-1.7 fake bytes'),
         mediaType: 'application/pdf',
         retentionUntil: '2030-01-01T00:00:00Z',
+        renderer: { id: 'fake-renderer', version: '0.0.1' },
       });
       return row.docId;
     }

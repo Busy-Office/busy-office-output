@@ -255,17 +255,22 @@ export class SqliteRegistryStore implements RegistryStore {
     }
   }
 
-  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void {
+  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string, rendererVersion: string): void {
     if (typeof archiveRef !== 'string' || archiveRef.trim() === '') {
       throw new TypeError('updateArchiveRef requires a non-empty archiveRef.');
     }
     if (typeof retentionUntil !== 'string' || retentionUntil.trim() === '') {
       throw new TypeError('updateArchiveRef requires a non-empty retentionUntil.');
     }
+    if (typeof rendererVersion !== 'string' || rendererVersion.trim() === '') {
+      throw new TypeError('updateArchiveRef requires a non-empty rendererVersion (rendererId@version).');
+    }
     const now = new Date().toISOString();
     const result = this.db
-      .prepare('UPDATE document_registry SET archive_ref = ?, retention_until = ?, updated_at = ? WHERE doc_id = ?')
-      .run(archiveRef, retentionUntil, now, docId);
+      .prepare(
+        'UPDATE document_registry SET archive_ref = ?, retention_until = ?, renderer_version = ?, updated_at = ? WHERE doc_id = ?',
+      )
+      .run(archiveRef, retentionUntil, rendererVersion, now, docId);
     if (result.changes === 0) {
       throw new Error(`Cannot update archiveRef: no registry row for docId ${docId}.`);
     }

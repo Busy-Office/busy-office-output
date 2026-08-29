@@ -89,6 +89,7 @@ async function setUpArchivedArtifact(): Promise<Fixture> {
     bytes: originalBytes,
     mediaType: 'application/pdf',
     retentionUntil: '2030-01-01T00:00:00Z',
+    renderer: { id: 'fake-renderer', version: '0.0.1' },
   });
 
   return { dbPath, registryStore, archiveStore, docId: row.docId, archiveRef, originalBytes };
@@ -310,6 +311,7 @@ describe('SqliteDeliveryQueue', () => {
           bytes: new TextEncoder().encode('%PDF-1.7 fake bytes'),
           mediaType: 'application/pdf',
           retentionUntil: '2030-01-01T00:00:00Z',
+          renderer: { id: 'fake-renderer', version: '0.0.1' },
         });
         return row.docId;
       }

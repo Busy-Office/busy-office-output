@@ -277,8 +277,13 @@ export interface RegistryStore {
    * `assertValidRetentionUntil` in src/archive/archive-store.ts, which
    * every `ArchiveStore.archive()` call runs through before bytes are
    * even written).
+   *
+   * `rendererVersion` (GAP-15): `<rendererId>@<version>` of the renderer
+   * that produced the archived bytes — written in the SAME update as
+   * archiveRef so the audit row can never be archived-but-renderer-unknown.
+   * Rows archived before this column was written legitimately carry null.
    */
-  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string): void;
+  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string, rendererVersion: string): void;
 
   /**
    * Every archived row (`archiveRef` set, not yet purged) whose
