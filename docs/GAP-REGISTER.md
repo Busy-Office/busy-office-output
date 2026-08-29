@@ -433,7 +433,8 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   GAP-18 authoring surface, or "code is the surface" recorded as policy.
 
 ### GAP-26 — Document detail's reprint trichotomy is inert placeholder text
-- Type: TASK — **OPEN, Claude-doable now** (named by an arb-chair scope
+- Type: TASK — **BUILT, gate-check pending** (e174a9c, 2026-08-29; named
+  by an arb-chair scope
   ruling, 2026-08-29, dispatched to check whether this was GAP-22 — it
   is not: GAP-22 is `reproduce`'s re-delivery channel, a different
   problem)
