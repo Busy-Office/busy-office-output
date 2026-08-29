@@ -483,6 +483,61 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   controls for either is a deliberately-absent-list matter needing its
   own arb-chair ruling, not a default extension of this task.
 
+### GAP-27 — `parentId` content-merge algorithm specified in Stage 1, silently never built through four stage closures
+- Type: SEAM — **identified 2026-08-29** (arb-chair, dispatched to scope
+  Stage 6 task 2 before any code was written)
+- `docs/VARIANT-RESOLUTION.md`'s "parentId inheritance" section explicitly
+  assigned content merging to "the Stage 2 composition layer": walk the
+  `parentId` chain (`resolveParentChain`, already built + unit-tested at
+  Stage 1) child-to-parent, child wins on conflicts. It never happened —
+  `resolveParentChain` has exactly one caller outside its own test file
+  (none); `packages/runtime/src/composition.ts` never walks `parentId`;
+  every registered template variant supplies its own complete, independent
+  `DocNode` tree. Stages 2, 3, 4, and 5 all closed their exit gates without
+  anyone noticing this named Stage-1 dependency was never delivered — a
+  gate-discipline lesson, not just a missing feature.
+- Ruling: buildable now, scoped narrowly. The frozen `DocNode` kinds
+  (`packages/schema/src/document/nodes.ts`, ADR-000) only give stable
+  per-node addressing inside `fieldGrid.fields[].label`,
+  `table.columns[].key`, and `totals.rows[].label` — merge scoped to
+  exactly those three, child-wins by label/key, walking the chain
+  most-specific-to-root. `section`/`document`/`header`/`footer`.`children`
+  arrays have no stable identity to diff against; inventing one (index or
+  kind-position heuristics) would be gold-plating nothing in the spec or
+  the frozen types authorizes. Those containers stay whole-subtree:
+  inherit unchanged, or fully replace — no array-diffing. No new ADR
+  needed — this is the forced consequence of ADR-000's already-frozen
+  node kinds and the Stage 1 spec, not a competing design choice. A
+  future stage wanting richer array-level merging on `section`/`document`
+  children would need to un-freeze or extend ADR-000 first.
+- Closes when: Stage 6 task 2 lands the scoped merge above with resolver +
+  render tests proving country/company/customer overrides via inheritance
+  with zero template forking — cite those tests as closure evidence.
+- **CLOSED 2026-08-29.** `packages/schema/src/variant/merge.ts`
+  (`mergeTemplateContent`) implements exactly the scoped algorithm above,
+  and — the part this gap actually named as the failure — is now called
+  from `DocumentTypeRegistry.templateContent()`
+  (packages/runtime/src/registration/document-type-registry.ts), which
+  walks `resolveParentChain` and folds every layer with content through
+  `mergeTemplateContent`. That is the same `templateContent()`
+  `composeRenderArchiveAndEnqueue` (composition.ts) calls for every
+  resolution — real path, not a second unused function. Registration also
+  gained parentId-existence + cycle validation, atomically, in the same
+  file. Evidence: `packages/schema/src/variant/merge.test.ts` (13 tests:
+  each mergeable kind, whole-subtree replace, ambiguous/zero-match
+  throws, and `resolveTemplate`+`resolveParentChain`+`mergeTemplateContent`
+  composed end-to-end); `packages/runtime/src/registration/
+  document-type-registry-variant-inheritance.test.ts` (9 tests: a base +
+  country/company/customer overrides registered as `parentId`-linked
+  templates, each override's content a bare `fieldGrid`/`totals` fragment
+  — never a `kind: 'document'` tree — proven via `registry.
+  templateContent()`); `test/corpus/purchase-order/
+  014-variant-inheritance.test.ts` (5 tests: the same 3 overrides
+  rendered through a real `typst compile` of the existing
+  `purchaseOrderTemplate`, overridden label present only in the override's
+  extracted PDF text, everything else identical to the base render).
+  `npm run verify`: 80 files / 508 tests (was 77/481).
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators

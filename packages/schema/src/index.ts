@@ -5,4 +5,5 @@ export * from './document/nodes.js';
 export * from './ir/layout-ir.js';
 export * from './renderer.js';
 export * from './variant/resolve.js';
+export * from './variant/merge.js';
 export * from './expression/parse.js';

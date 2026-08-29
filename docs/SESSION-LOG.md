@@ -11,6 +11,79 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 6 task 2: variant exercise (country/company/customer overrides via inheritance)
+- Did: arb-chair scoped GAP-27 first (docs/GAP-REGISTER.md) — the Stage 1
+  `parentId` content-merge spec had never been built anywhere in four
+  stage closures. Ruling: merge only `fieldGrid.fields[].label`,
+  `table.columns[].key`, `totals.rows[].label` (the only addressable
+  arrays the frozen `DocNode` kinds give); `section`/`document`/`header`/
+  `footer` stay whole-subtree (no array-diffing, no invented index/kind
+  heuristic).
+- Did: `packages/schema/src/variant/merge.ts` (`mergeTemplateContent`) —
+  folds a `resolveParentChain` chain (most-specific-first) into one tree:
+  a `fieldGrid`/`table`/`totals` layer merges by label/key into the ONE
+  node of that kind found in the tree so far (throws on 0 or >1 matches —
+  never guesses); any other-kind layer is a whole-subtree replace. 13
+  tests (merge.test.ts), including `resolveTemplate` + `resolveParentChain`
+  + `mergeTemplateContent` composed end-to-end.
+- Did: wired it into the REAL path — `DocumentTypeRegistry.templateContent()`
+  (packages/runtime/src/registration/document-type-registry.ts) now calls
+  `resolveParentChain` + `mergeTemplateContent` instead of a flat map
+  lookup. This is the exact function `composeRenderArchiveAndEnqueue`
+  (composition.ts) calls for every resolution — GAP-27's failure mode
+  (an orphaned function nobody calls) doesn't recur. Single-layer chains
+  (every existing template, no `parentId`) merge to themselves unchanged —
+  no behavior change for anything already registered. Also added
+  registration-time `parentId` existence + cycle validation (atomic, same
+  file) so a dangling/cyclic `parentId` is rejected at register-time, not
+  discovered as an uncaught exception out of composition's documented
+  "never throws" path.
+- Did: 9 registry-level tests (document-type-registry-variant-inheritance.
+  test.ts) register a base PO template + country/company/customer
+  overrides (each `parentId`-linked, each content a bare `fieldGrid`/
+  `totals` fragment — never `kind: 'document'`) and prove per override:
+  overridden field differs, everything else byte-identical to base.
+- Did: 5 render tests (test/corpus/purchase-order/014-variant-inheritance.
+  test.ts) prove the same 3 overrides through a real `typst compile` of
+  the SAME `purchaseOrderTemplate` every other corpus case uses — the
+  overridden label appears in the override's extracted PDF text and NOT
+  in the base's; specific untouched fields (PO number, buyer/vendor
+  names, other totals labels) confirmed present in both renders. Note:
+  this is targeted substring presence in `pdftotext` output, not a full
+  structural diff isolating exactly one changed region — corpus-qa's
+  gate-check flagged the SESSION-LOG's original "byte-for-byte apart from
+  that one row" phrasing as slightly overstating what's actually checked;
+  corrected here.
+- Evidence: `npm run verify` — 80 test files / 508 tests pass (was
+  77/481; +3 files, +27 tests, all new — nothing else changed).
+- Did: GAP-27 marked CLOSED in docs/GAP-REGISTER.md with the above tests
+  cited; ROADMAP Stage 6 task 2 ticked with the same evidence.
+- Did: corpus-qa gate-checked this task independently — traced the real
+  call chain (`composeRenderArchiveAndEnqueue` → `templateContent()` →
+  `resolveParentChain`/`mergeTemplateContent`, confirmed the only
+  implementation, no orphaned parallel path); hand-traced a 3-node chain
+  confirming child-wins merge order; confirmed the ruling's scope was
+  respected (no array-diffing invented for the unaddressable container
+  kinds); confirmed override fragments are genuinely partial (a test
+  explicitly asserts no override authors a whole `document` tree);
+  confirmed registration-time parentId/cycle validation rejects both bad
+  cases. One run of `npm run verify` during its check showed 507/508
+  (1 fail: `document-detail-reproduce.test.ts`, GAP-26, expects 400 got
+  404) — re-verified independently afterward: that file passes 9/9 in
+  isolation, and three consecutive full-suite runs came back 80/80 files,
+  508/508 tests, fully green. Treated as a full-suite-load flake (this
+  project has prior-session precedent for exactly this pattern —
+  `idempotency.test.ts` flaked once under concurrent full runs, green on
+  every rerun), not a regression from this task — but logged honestly
+  rather than silently dropped. **Watch in CI**: if
+  `document-detail-reproduce.test.ts` fails again under load, it needs a
+  real fix, not another flake write-off.
+- Open: Stage 6 exit gate itself (`/gate-check 6`) not yet re-run this
+  session — both Stage 6 tasks are now done, so that's the immediate
+  next step.
+- Next: `/gate-check 6`, then Stage 6 closes and Stage 7 (authoring
+  assist) scoping can start per its trigger conditions in ROADMAP.md.
+
 ## 2026-08-29 — Stage 6 task 1: locale packs (number/date/address formats)
 - Did: wired `Renderer.render()`'s existing `opts.locale` (packages/schema/
   src/renderer.ts) through `TypstRenderer` -> `emitDocument()` and every

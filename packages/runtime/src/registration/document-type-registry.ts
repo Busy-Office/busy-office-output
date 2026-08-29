@@ -24,6 +24,7 @@
  * file-order tie-break stay stable across runs.
  */
 import type { DocNode, TemplateMeta } from '@busy-office/output-schema';
+import { mergeTemplateContent, resolveParentChain } from '@busy-office/output-schema';
 import { createContractCompiler, type CompiledContract, type ContractValidationResult } from '../contract-validation.js';
 import type { OutputRule } from '../determination/rule-types.js';
 import type { DocumentTypeDefinition, RegistrationProblem, RegistrationResult } from './document-type-definition.js';
@@ -109,6 +110,35 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
       }
       if (template.content !== undefined && (template.content === null || typeof template.content !== 'object')) {
         problems.push({ path: `templates[${i}].content`, message: `template "${id}" content must be a DocNode object when present` });
+      }
+    });
+    // `parentId` inheritance (GAP-27): every template's `parentId`, when
+    // present, must resolve — either to an already-registered template
+    // (a prior `registerDocumentType` call) or to another template inside
+    // THIS SAME definition (the common shape: base + overrides registered
+    // together) — and the resulting chain must be acyclic. Checked here,
+    // atomically with everything else, so a dangling or cyclic `parentId`
+    // is rejected at registration, never discovered as an uncaught
+    // exception later out of `DocumentTypeRegistry.templateContent`
+    // (composition's documented "never throws" contract, composition.ts).
+    const wouldBeMetas = new Map(templateMetas);
+    for (const template of definition.templates) {
+      const id = template.meta?.id;
+      if (typeof id === 'string' && id !== '' && !wouldBeMetas.has(id)) wouldBeMetas.set(id, template.meta);
+    }
+    definition.templates.forEach((template, i) => {
+      const id = template.meta?.id;
+      if (typeof id !== 'string' || id === '') return; // already reported above
+      const parentId = template.meta?.parentId;
+      if (parentId === undefined) return;
+      if (!wouldBeMetas.has(parentId)) {
+        problems.push({ path: `templates[${i}].meta.parentId`, message: `template "${id}" declares parentId "${parentId}", which is not registered` });
+        return;
+      }
+      try {
+        resolveParentChain(id, wouldBeMetas);
+      } catch (err) {
+        problems.push({ path: `templates[${i}].meta.parentId`, message: err instanceof Error ? err.message : String(err) });
       }
     });
     // Message templates share the template id namespace (one `id` names
@@ -223,7 +253,20 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
       return templateMetas.get(templateId);
     },
     templateContent(templateId: string): DocNode | undefined {
-      return templateContents.get(templateId);
+      // `parentId` content-merge (docs/VARIANT-RESOLUTION.md "parentId
+      // inheritance"; GAP-27 — the one thing Stage 1 specified here that
+      // four stage closures never actually wired up). Walk the chain
+      // most-specific-to-root via the already-built `resolveParentChain`,
+      // collect whichever layers have registered content (a meta-only
+      // ancestor contributes nothing, same as before this task), and fold
+      // them with `mergeTemplateContent`. A template with no `parentId`
+      // (today's only shape) walks a chain of length 1 and merges to
+      // itself unchanged — no behavior change for existing callers.
+      if (!templateMetas.has(templateId)) return undefined;
+      const chain = resolveParentChain(templateId, templateMetas);
+      const layers = chain.map((meta) => templateContents.get(meta.id)).filter((content): content is DocNode => content !== undefined);
+      if (layers.length === 0) return undefined;
+      return mergeTemplateContent(layers);
     },
     messageTemplateMetas(): readonly MessageTemplateMeta[] {
       return [...messageTemplates.values()].map((t) => t.meta);
