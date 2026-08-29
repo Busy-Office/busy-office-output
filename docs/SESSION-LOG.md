@@ -11,6 +11,34 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — ADR-002 + ADR-008 accepted; pdf-direct renderer landed
+- Did: ADR-002 accepted on the real 8,000-doc measurement (Typst-only
+  clears the window 1.61x; maintainer chose to KEEP pdf-direct as a
+  scheduled task gated on PDF/A-2b, not reserved-not-adopted). GAP-06
+  ratified "PDF is the print path". ADR-008 accepted — Apache-2.0,
+  holder Busy Office: LICENSE, NOTICE, CONTRIBUTING.md (DCO), SPDX in
+  every package.json, README updated; npm trusted publishing + erp-graph
+  edge left open honestly (outside this repo / need the maintainer's
+  OIDC). Vendor-name sweep: two real hits reworded, grep clean, memory
+  rule broadened to all commercial ERP vendors. Then pdf-direct landed:
+  packages/render-pdf-direct with the three Stage-0 PDF/A gaps closed
+  against real veraPDF (144/144, plus a teeth-proving negative suite),
+  DejaVu + sRGB2014 assets with licences + SHA-256s, routing rule
+  (single-page/Latin/no-carry-forward, renderer throws rather than
+  degrades, registry with no silent fallback), one real template routed
+  to it and exercised e2e, 5 corpus cases, ~16 ms/doc. 262/262.
+- Open: GAP-15 (rendererVersion never persisted — surfaced by having two
+  renderers; Claude-doable), GAP-07/08 consumer contract (needs arb-chair
+  ruling), GAP-10 email templating (needs a decision), GAP-09 host
+  topology + GAP-13 thesis gate (human-only), template-from-sample on
+  redacted samples (blocked on real samples). Stage 4 exit gate: "ADR-002
+  closed" is met; the 8,000-recipient payroll run is measured; "per-
+  recipient locale and channel, one audit row each" — locale routing is
+  Stage 6 scope, worth a gate-check to see what the literal text demands.
+- Next: GAP-15 is the one unambiguous Claude-doable item. Then run
+  /gate-check 4 to learn exactly what the exit gate's "per-recipient
+  locale and channel" clause requires before claiming Stage 4.
+
 ## 2026-08-29 — gap register: GAP-11/12/03 closed (loop ticks 1–2)
 - Did: maintainer-authored gap register (docs/GAP-REGISTER.md) ratified
   Session A in chat (GAP-01 -> ADR-009 standalone product; GAP-02 spine

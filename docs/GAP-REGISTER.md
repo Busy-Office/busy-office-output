@@ -137,6 +137,22 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   veraPDF 1.30.2 + poppler-utils pinned, PATH-checked, `npm ci` +
   `npm run verify` passing there.
 
+### GAP-15 — rendererVersion never written to the registry
+- Type: TASK — **OPEN, Claude-doable, one session** (surfaced 2026-08-29 by
+  the pdf-direct build)
+- `DocumentRegistryRow.rendererVersion` exists (HLD §3 lists
+  "template+renderer versions" as part of the audit row) but
+  `archiveArtifact()` never writes it — the console renders "—" on every
+  row. Tolerable with one renderer; with two (Typst 0.15.1, pdf-direct
+  = pdf-lib 1.17.1) the audit row can no longer say which renderer
+  produced the archived bytes, which is exactly what "the archive is the
+  reproduction" needs to be defensible. `Renderer.version` is already on
+  the port; the value is available at archive time.
+- Closes when: `archiveArtifact` (or the composition step) persists
+  `rendererId@version` on the row; a test asserts a pdf-direct-rendered
+  row and a Typst-rendered row carry different, correct values; the
+  console's `template@ver · renderer@ver` line stops rendering "—".
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
