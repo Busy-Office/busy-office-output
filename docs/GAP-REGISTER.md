@@ -394,6 +394,36 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 - Closes when: the maintainer decides yes/no; if yes, a grammar-doc change
   precedes the parser change (docs/EXPRESSION-GRAMMAR.md's own rule).
 
+### GAP-24 — Console actor identity is proxy-asserted; authn has no home
+- Type: SEAM — **OPEN, low priority** (named by the Stage 5 task-4 arb-chair
+  ruling, 2026-08-29)
+- The review-and-approve screen is the console's first write (lifecycle
+  log only). The lifecycle requires an `Actor` with a `subjectId`
+  (`actor-required` otherwise). No authentication exists and inventing
+  one was out of task 4, so the actor comes from an injectable
+  `resolveActor(req)` whose default reads `X-Actor-Subject` /
+  `X-Actor-Role` — set by the deployment's reverse proxy, never
+  authenticated by the runtime, never fed to AuthorizationPort or any
+  owner/PII scoping. Missing subject → 400, nothing appended; no fallback
+  identity ever. `Sec-Fetch-Site` cross-site → 403 is the minimal CSRF
+  guard and not a substitute for authn.
+- Closes when: authn lands under Settings "access" (UI-DESIGN §Settings),
+  task 5 or later, and `resolveActor`'s default becomes the authenticated
+  principal — or the maintainer rules the proxy contract IS the product's
+  authn boundary and documents it in HLD.
+
+### GAP-25 — `submit` (draft → review) has no operator surface
+- Type: DECISION — **OPEN, human-only** (named by the Stage 5 task-4
+  arb-chair ruling, 2026-08-29)
+- The review screen correctly carries no Submit control: submit is the
+  author's act, and GAP-18 says the authoring surface is not a console
+  screen. Consequence in the standalone product: the only path from
+  `draft` to `review` is code (`createTemplateLifecycle.transition` or a
+  definition file declaring `review` at first registration). Retire is
+  in the same position (GAP-20).
+- Closes when: the maintainer names the surface — a CLI verb, the
+  GAP-18 authoring surface, or "code is the surface" recorded as policy.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
