@@ -24,8 +24,14 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   never a spine-optional engine.
 - Closed by: CLAUDE.md golden rule "Standalone product, spine non-optional."
 
-### GAP-03 — ADR-002 stale: volume renderer decided on dead numbers
-- Type: DECISION — **measurement DONE 2026-08-29; decision still OPEN, human-only**
+### GAP-03 — ADR-002 stale: volume renderer decided on dead numbers — **CLOSED 2026-08-29**
+- Type: DECISION
+- Decision (maintainer, in chat): ADR-002 Accepted — Typst-only clears
+  the window (18.64 min, 1.61x, measured); pdf-direct kept as a scheduled
+  Stage 4 task gated on PDF/A-2b (embedded TTF + XMP + OutputIntent,
+  veraPDF-clean), not dropped. Stage 4 exit gate's "ADR-002 closed"
+  condition met.
+- Measurement record (the evidence it was decided on):
 - The Claude half is closed: 8,000 payslips run to completion through
   the real pipeline (validate+determine+mint+render+archive+enqueue),
   Typst-only, single-process — **18.64 min, 139.8 ms/doc, 1.61x inside
@@ -56,13 +62,12 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   evaluation only" explicitly. Full close still needs ADR-008 Accepted +
   LICENSE committed — a human-only decision (OSI licence choice, trademark).
 
-### GAP-06 — Print scope vs the Deferred wall
-- Type: DECISION — **OPEN, human-only**
-- "Print out" listed as a need; the wall says print = PDF + OS spooler until
-  a site that can't. Either name the site or restate as "PDF is the print
-  path."
-- Closes when: one sentence ratified either way; wall entry updated if a
-  site is named.
+### GAP-06 — Print scope vs the Deferred wall — **CLOSED 2026-08-29**
+- Type: DECISION
+- Ratified (maintainer, in chat): **"PDF is the print path."** No print
+  agent enters scope; the archived PDF/A-2b artifact is what gets printed,
+  via the operator's own OS/print infrastructure. No site named; the
+  Deferred wall entry stands as-is.
 
 ## Seams
 
