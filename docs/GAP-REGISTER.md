@@ -306,6 +306,38 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   fully honest, not a defect.
 - Sequenced after GAP-10 and GAP-16 (same files).
 
+### GAP-19 — Lifecycle bootstrap: a file edit can seed `published` (S1 exposure)
+- Type: DECISION — **RATIFIED 2026-08-29 (S1), logged so it is never implicit**
+- Stage 5 task 1 persists template lifecycle in an append-only log; the
+  registered meta's `lifecycle` is the declared INITIAL state and seeds
+  the log on first registration. A document-type file that declares a
+  NEW version as `published` therefore seeds straight to published — the
+  runtime approval gate (task 3) is bypassable by editing a file and
+  redeploying.
+- Maintainer ratified **S1: accept it — file review is the governance.**
+  Consistent with ADR-003, already accepted for rules (a rule edit
+  reroutes live documents with no runtime approval; git review governs
+  files). The seed row still records who/why (`actor.role:
+  'registration'`, `subjectId: 'definition:<type>'`). S2 (cap seeds at
+  `draft` unless the file carries a bootstrap approval) was rejected: the
+  "approval" is still just a file, and it breaks every test for little
+  real governance.
+- Revisit trigger: if a non-developer ever gains write access to
+  document-type files without git review, S1's premise fails.
+
+### GAP-20 — Publishing a new version does not retire the superseded one
+- Type: TASK — **OPEN, low priority** (named by the Stage 5 task-1 ruling as
+  "log it, do not solve it")
+- Two `published` metas with identical variants tie-break by registration
+  order; publishing v2 of a template leaves v1 `published` too. Correct
+  for task 1 (auto-retire is a policy, not a state-machine property) but a
+  real operational trap: an operator publishing v2 may expect v1 to stop
+  winning.
+- Closes when: either publish auto-retires the superseded same-variant
+  version (policy decided by the maintainer), or the review-and-approve
+  screen (task 4) makes the superseded version's continued live status
+  visible so it can be retired explicitly.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
