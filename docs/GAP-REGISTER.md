@@ -432,6 +432,34 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 - Closes when: the maintainer names the surface — a CLI verb, the
   GAP-18 authoring surface, or "code is the surface" recorded as policy.
 
+### GAP-26 — Document detail's reprint trichotomy is inert placeholder text
+- Type: TASK — **OPEN, Claude-doable now** (named by an arb-chair scope
+  ruling, 2026-08-29, dispatched to check whether this was GAP-22 — it
+  is not: GAP-22 is `reproduce`'s re-delivery channel, a different
+  problem)
+- Stage 3's Document detail task closed with the trichotomy line
+  ("Reproduce (archive bytes, stamped) — not yet available in this
+  console" ×3, console.ts:353-355) deliberately scoped as "inert text —
+  no stub actions," because Stage 2/5's verbs didn't exist yet. They now
+  do (Stage 5 task 2, a494c6f), but nothing reopened this screen to wire
+  them in — a genuine untracked loose end, not named by any ROADMAP line
+  or GAP entry until now.
+- Ruling: only `reproduce` qualifies for a console control. `regenerate`
+  and `reissue` need CALLER-SUPPLIED data (a real ERP re-emits; the
+  registry holds no payload by design, HLD §1) — an operator has nothing
+  to supply, so these two are architecturally API-only, permanently, not
+  a scope choice to revisit with more console work. Not blocked by
+  GATE-S5-CLOSE (that gate blocks Stage 5 *closing* and Stage 6
+  *starting*, not further building on already-shipped, already-gate-
+  checked verbs — precedent: Stage 5 tasks 2 and 4 already did exactly
+  this against a Proposed ADR).
+- Closes when: a `GET /output/documents/:docId/reproduce` download link
+  streams the archived bytes and stamps `reprint_log` per task 2's
+  existing semantics — no new state machine. `regenerate`/`reissue`
+  stay inert text (or a note naming them ERP-caller-only) — adding
+  controls for either is a deliberately-absent-list matter needing its
+  own arb-chair ruling, not a default extension of this task.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
