@@ -133,4 +133,24 @@ describe('formatDisplayValue', () => {
     expect(formatDisplayValue('header.buyer.name', undefined)).toBe('');
     expect(formatDisplayValue('header.buyer.name', null)).toBe('');
   });
+
+  /**
+   * GAP-28: `emitTotals` gates money formatting on `isMoneyAmountPath(path)`
+   * (the path's final segment is `amount`), not on "is this value a Money
+   * object". A totals row whose expression points at the Money OBJECT
+   * itself (a template author's `totals.grandTotal` typo for the intended
+   * `totals.grandTotal.amount`) is neither a money-amount path nor a
+   * string/date/address shape, so it falls all the way to plain
+   * `String()` — which stringifies a plain object as the literal text
+   * "[object Object]" in the rendered document. Every corpus template
+   * today writes the correct `.amount` suffix, so this has never fired in
+   * practice; this test exists so a future template (Stage 7 authoring,
+   * or a Stage 6 variant override) that gets this wrong fails loudly in
+   * CI instead of silently printing "[object Object]" on a real invoice.
+   * Deliberately NOT fixed here — GAP-28 leaves the fix-or-accept
+   * decision open rather than changing behavior nobody asked to change.
+   */
+  it('GAP-28: a totals row pointing at the Money OBJECT (missing ".amount") silently stringifies to "[object Object]"', () => {
+    expect(formatDisplayValue('totals.grandTotal', { currency: 'USD', amount: 108 })).toBe('[object Object]');
+  });
 });

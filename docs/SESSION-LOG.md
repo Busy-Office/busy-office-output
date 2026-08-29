@@ -11,6 +11,26 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — GAP-28 logged: totals-row Money-object stringify fragility
+- Did: loop tick 28 (dispatcher pass, 28%4=0: docs/INBOX.md Open empty,
+  nothing to rule on). Rather than a bare noop, picked up one of the two
+  loose ends flagged at Stage 6's close: `emitTotals`'s money-row gating
+  (`isMoneyAmountPath`) had no regression test. Confirmed empirically
+  (`formatDisplayValue('totals.grandTotal', { currency: 'USD', amount:
+  108 })` → `'[object Object]'`) that a totals row missing the `.amount`
+  suffix silently stringifies a Money object rather than throwing or
+  formatting it. Added a documenting regression test
+  (packages/render-typst/src/format.test.ts) and logged **GAP-28** (low
+  priority, TASK, open — fix-vs-accept is a maintainer decision, not
+  fixed here per scope discipline). `npm run verify` 80/80 files,
+  509/509 tests (was 508; +1 new test, nothing else changed).
+- Open: GAP-28 itself (fix-vs-accept undecided). The other loose end
+  (document-detail-reproduce.test.ts's one-time full-suite flake) is
+  still just a watch-in-CI note, no GAP entry — no repeat observed yet
+  to act on.
+- Next: nothing else Claude-doable; still waiting on GATE-S3-THESIS-CHECK
+  (human-only) or a Stage 7 track trigger.
+
 ## 2026-08-29 — Stage 6 CLOSED
 - Did: ran `/gate-check 6` via corpus-qa — re-derived, not trusted from
   this session's own prior claims. `npm run verify` 80/80 files, 508/508

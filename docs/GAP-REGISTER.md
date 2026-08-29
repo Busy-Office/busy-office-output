@@ -538,6 +538,37 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   extracted PDF text, everything else identical to the base render).
   `npm run verify`: 80 files / 508 tests (was 77/481).
 
+### GAP-28 — A totals row missing `.amount` silently prints "[object Object]"
+- Type: TASK — **OPEN, low priority** (flagged by corpus-qa's gate-check
+  of Stage 6 task 1, 2026-08-29; regression test added same day so the
+  behavior is documented and guarded, not silently latent)
+- `emitTotals` (packages/render-typst/src/emit-typst.ts) gates money
+  formatting on `isMoneyAmountPath(path)` — the expression's final
+  segment is literally `amount`. A totals row whose expression points at
+  the Money OBJECT itself (a template author writing `totals.grandTotal`
+  instead of the intended `totals.grandTotal.amount`) is neither a
+  money-amount path nor a string/date/address shape, so `formatDisplayValue`
+  falls all the way to plain `String()` — which stringifies a plain
+  object as the literal text "[object Object]" in the rendered document.
+  Confirmed empirically: `formatDisplayValue('totals.grandTotal', {
+  currency: 'USD', amount: 108 })` returns `'[object Object]'`, not a
+  thrown error or a fallback formatted number.
+- Every corpus template today writes the correct `.amount` suffix, so
+  this has never fired in practice — low priority, not urgent. Risk
+  grows with Stage 7 (AI-authored templates) or further Stage 6-style
+  variant overrides, where a wrong expression is easier to introduce
+  unnoticed.
+- Not fixed here, deliberately — this is a behavior-change decision
+  (should a non-`.amount` numeric-shaped path auto-detect a Money object
+  and extract `.amount`? throw instead of silently stringifying? require
+  the template author to write the correct path and leave it as a
+  template-authoring footgun?), not a default extension of the flagging
+  session's scope.
+- Closes when: the maintainer decides fix-vs-accept, or a corpus case
+  demonstrates it firing in a real template and the decision becomes
+  forced. Evidence either way:
+  `packages/render-typst/src/format.test.ts`'s "GAP-28" test.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
