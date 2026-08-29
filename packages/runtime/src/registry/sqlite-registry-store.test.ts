@@ -295,3 +295,20 @@ describe('SqliteRegistryStore persistence across a process restart', () => {
     afterRestart.close();
   });
 });
+
+describe('SqliteRegistryStore listByEventKey (OutputPort v1 `status`, GAP-07)', () => {
+  it('returns every row minted for one four-tuple — one per ruleId, oldest first — and [] for an unknown key', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const key: BusinessEventKey = { businessObject: 'VBRK', businessObjectId: 'INV-LBEK-1', event: 'invoice.posted', templateVersion: '1.0.0' };
+    const a = store.getOrCreateByResolutionKey({ ...key, ruleId: 'invoice-default-email' }, 'invoice').row;
+    const b = store.getOrCreateByResolutionKey({ ...key, ruleId: 'invoice-archival-copy' }, 'invoice').row;
+    // A different templateVersion is a different event — must not leak in.
+    store.getOrCreateByResolutionKey({ ...key, templateVersion: '2.0.0', ruleId: 'invoice-default-email' }, 'invoice');
+
+    const rows = store.listByEventKey(key);
+    expect(rows.map((r) => r.docId).sort()).toEqual([a.docId, b.docId].sort());
+    expect(rows.map((r) => r.ruleId).sort()).toEqual(['invoice-archival-copy', 'invoice-default-email']);
+    expect(store.listByEventKey({ ...key, businessObjectId: 'NOPE' })).toEqual([]);
+    store.close();
+  });
+});

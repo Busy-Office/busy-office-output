@@ -3,7 +3,7 @@
  * docs/GAP-REGISTER.md). Both ingress paths call this and nothing else:
  *   - `server.ts`'s `handleEvent` (the `serve()` HTTP path — the PRIMARY
  *     demo topology), and
- *   - `embed/create-output.ts`'s `submitEvent` (ADR-007 embedded module).
+ *   - `embed/create-output.ts`'s `emit` (OutputPort v1, ADR-007 embedded module).
  *
  * Why one function: the two paths used to be two hand-copied versions of
  * the same critical section, and they drifted — the embedded module moved

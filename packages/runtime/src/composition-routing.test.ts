@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Renderer } from '@busy-office/output-schema';
-import { loadTemplateCandidates } from './determination/load-rules.js';
+import { builtinDocumentTypes } from '../document-types/index.js';
 import { selectRenderer, type CompositionDeps } from './composition.js';
 
 function fakeRenderer(id: string): Renderer {
@@ -45,7 +45,7 @@ describe('selectRenderer', () => {
 
 describe('templates on disk', () => {
   it('exactly one real template routes to pdf-direct: payslip-companyCode-1000-v1; every other template stays typst', () => {
-    const templates = loadTemplateCandidates();
+    const templates = builtinDocumentTypes.flatMap((d) => d.templates.map((t) => t.meta));
     const byRenderer = new Map<string, string[]>();
     for (const t of templates) byRenderer.set(t.renderer, [...(byRenderer.get(t.renderer) ?? []), t.id]);
     expect(byRenderer.get('pdf-direct')).toEqual(['payslip-companyCode-1000-v1']);

@@ -1,6 +1,6 @@
 /**
  * `createOutput()` (ROADMAP Stage 3 "Embeddable module (ADR-007)"):
- *  - the happy path (submitEvent -> real render/archive/enqueue, replay
+ *  - the happy path (emit -> real render/archive/enqueue, replay
  *    returns the same docId without recomposing), and
  *  - THE rollback test that is this task's literal DoD: "rollback test
  *    shows no orphaned artifact or registry row" — simulating a crash
@@ -18,7 +18,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createRuntimeDeps, type RuntimeDeps } from '../index.js';
-import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from '../determination/index.js';
+import { determine, type DeterminationContext } from '../determination/index.js';
 import { composeRenderArchiveAndEnqueue } from '../composition.js';
 import { createOutput, type OutputPort } from './create-output.js';
 import { sampleBusinessEventKey, validPurchaseOrder } from '../fixtures.js';
@@ -61,6 +61,9 @@ function buildOutput(deps: RuntimeDeps): OutputPort {
     archiveStore: deps.archiveStore,
     deliveryQueue: deps.deliveryQueue,
     renderer: deps.composition.renderer,
+    // The built-ins are registered in this registry (createRuntimeDeps
+    // registers them through the port's own `registerDocumentType`).
+    documentTypes: deps.documentTypes,
   });
 }
 
@@ -72,7 +75,7 @@ describe('createOutput: happy path', () => {
 
     const businessEvent = sampleBusinessEventKey({ businessObjectId: 'CO-HAPPY-0001' });
     const submit = () =>
-      output.submitEvent({ documentType: 'purchase-order', payload: validPurchaseOrder(), businessEvent });
+      output.emit({ documentType: 'purchase-order', payload: validPurchaseOrder(), businessEvent });
 
     const first = await submit();
     expect(first.status).toBe('accepted');
@@ -119,7 +122,7 @@ describe('createOutput: rollback test — crash between mint and composition-com
       businessObject: businessEvent.businessObject,
       event: businessEvent.event,
     };
-    const determination = determine(ctx, loadOutputRules(), loadTemplateCandidates());
+    const determination = determine(ctx, deps1.documentTypes.rules(), deps1.documentTypes.templateMetas());
     expect(determination.outcome).toBe('matched');
     if (determination.outcome !== 'matched') throw new Error('unreachable');
     const [resolution] = determination.resolutions;
@@ -190,7 +193,7 @@ describe('createOutput: rollback test — crash between mint and composition-com
       businessObject: businessEvent.businessObject,
       event: businessEvent.event,
     };
-    const determination = determine(ctx, loadOutputRules(), loadTemplateCandidates());
+    const determination = determine(ctx, deps1.documentTypes.rules(), deps1.documentTypes.templateMetas());
     if (determination.outcome !== 'matched') throw new Error('unreachable');
     const [resolution] = determination.resolutions;
 

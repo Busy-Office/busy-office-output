@@ -50,6 +50,39 @@ export function unknownDocumentTypeProblem(documentType: unknown): ProblemDetail
   };
 }
 
+/** `POST /render` (OutputPort v1 `preview`): the named templateId is not
+ * registered for this documentType. Preview never runs determination, so
+ * the caller names the template explicitly and gets a plain 404 back. */
+export function unknownTemplateProblem(documentType: string, templateId: string): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/unknown-template`,
+    title: 'Unknown template',
+    status: 404,
+    detail: `templateId ${JSON.stringify(templateId)} is not registered for documentType ${JSON.stringify(documentType)}.`,
+  };
+}
+
+/** `POST /render`: the renderer rejected the job. `error` is the renderer's
+ * own message (template/engine facts) — never payload data. */
+export function renderFailedProblem(templateId: string, error: string): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/render-failed`,
+    title: 'Render failed',
+    status: 500,
+    detail: `Rendering template ${JSON.stringify(templateId)} failed: ${error}`,
+  };
+}
+
+/** `POST /render`: the body names no usable `templateId`. */
+export function missingTemplateIdProblem(): ProblemDetails {
+  return {
+    type: `${PROBLEM_BASE}/missing-template-id`,
+    title: 'Missing templateId',
+    status: 400,
+    detail: 'Request body must carry a non-empty "templateId" string (preview renders exactly the template you name; it never runs determination).',
+  };
+}
+
 export function missingBusinessEventProblem(detail: string): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/missing-business-event`,

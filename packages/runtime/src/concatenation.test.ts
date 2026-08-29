@@ -4,7 +4,7 @@
  *
  * Renders a real purchase-order (reusing the same fixture data + template
  * every other test in this package uses — fixtures.ts, render/
- * template-content.ts's `po-global-v1`), merges it with a generated cover
+ * the registered `po-global-v1` content), merges it with a generated cover
  * sheet and the static test/fixtures/terms-and-conditions.pdf fixture into
  * ONE PDF via `composeConcatenatedRenderArchiveAndEnqueue`, archives it as
  * ONE document through the real `FsArchiveStore` + `SqliteRegistryStore`
@@ -87,7 +87,7 @@ describe('PDF attachment concatenation (ROADMAP Stage 4)', () => {
       // function under test performs.
       const standaloneMain = await new TypstRenderer().render({
         kind: 'ir',
-        ir: { irVersion: '1', root: (await import('./render/template-content.js')).getTemplateContent('po-global-v1')!, data },
+        ir: { irVersion: '1', root: deps.documentTypes.templateContent('po-global-v1')!, data },
       });
       const mainPageCount = countPdfPages(standaloneMain.bytes);
       const coverBytes = await renderCoverSheet(new TypstRenderer(), docId);

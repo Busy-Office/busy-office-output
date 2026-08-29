@@ -15,7 +15,7 @@
  * Originally covered both halves of the Stage 3 arb-chair ruling: purchase-
  * order rendered, invoice was honestly content-less. ROADMAP Stage 4
  * ("Invoice: tax/multi-currency contract + template") wired real content
- * for `invoice-global-v1` (packages/runtime/src/render/template-content.ts,
+ * for `invoice-global-v1` (now packages/runtime/document-types/invoice.ts,
  * tree reused verbatim from test/corpus/invoice/template.ts) — invoice now
  * renders, archives, and delivers exactly like purchase-order below.
  * payslip (`payslip-global-v1`) remains the one documentType still on the

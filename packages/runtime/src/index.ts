@@ -1,12 +1,22 @@
 /**
- * Runtime entry point (Stage 3: determination + delivery, HLD §2).
- * Currently exports the Event API ingress and the document registry;
- * determination/fan-out/archive/delivery land here as their own Stage 3
- * tasks land.
+ * Runtime entry point AND the one composition root (Stage 3: determination
+ * + delivery, HLD §2; GAP-07/GAP-08). This is the only engine file that
+ * knows a document type exists: it imports the built-in definitions from
+ * `packages/runtime/document-types/` (outside `src/`) and registers them
+ * through `OutputPort.registerDocumentType` — the built-ins round-trip
+ * verb five themselves. Every other `src/**` file is document-type-blind
+ * (`registration/engine-boundary.test.ts` enforces it).
  */
-export { createIngressServer } from './server.js';
-export { validateContract, isKnownDocumentType, KNOWN_DOCUMENT_TYPES } from './contract-validation.js';
-export type { DocumentType, ContractValidationResult } from './contract-validation.js';
+export { createContractCompiler } from './contract-validation.js';
+export type { ContractValidationResult, ContractCompiler, ContractCompileResult, CompiledContract } from './contract-validation.js';
+export { createDocumentTypeRegistry } from './registration/document-type-registry.js';
+export type { DocumentTypeRegistry } from './registration/document-type-registry.js';
+export type {
+  DocumentTypeDefinition,
+  RegisteredTemplate,
+  RegistrationProblem,
+  RegistrationResult,
+} from './registration/document-type-definition.js';
 export type { ProblemDetails, SchemaValidationError } from './problem.js';
 export { createRegistryIdempotencyStore } from './idempotency-store.js';
 export type { IdempotencyStore, IdempotencyResult } from './idempotency-store.js';
@@ -70,7 +80,7 @@ export type {
   ObjectStoreChannelSenderOptions,
   ChannelSenderMap,
 } from './delivery/index.js';
-export { determine, loadOutputRules, loadTemplateCandidates } from './determination/index.js';
+export { determine, loadRulesFromDir, loadTemplateMetasFromDir } from './determination/index.js';
 export type { DeterminationResult, OutputRule, OutputRuleConditions, OutputRuleResolution, DeterminationContext, CallerDeterminationContext, DeterminationTrace, DeterminationOutcome, RecipientsSource, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './determination/index.js';
 export {
   invalidContractProblem,
@@ -78,10 +88,14 @@ export {
   malformedRequestProblem,
   methodNotAllowedProblem,
   missingBusinessEventProblem,
+  missingTemplateIdProblem,
   noRuleMatchProblem,
   noTemplateMatchProblem,
   notFoundProblem,
+  renderFailedProblem,
   unknownDocumentTypeProblem,
+  unknownTemplateProblem,
+  unresolvedRecipientsProblem,
 } from './problem.js';
 export {
   composeRenderArchiveAndEnqueue,
@@ -98,19 +112,27 @@ export type { AuthorizationPort, Actor, ReprintAction } from './authorization/au
 export type {
   CreateOutputDeps,
   OutputPort,
-  SubmitEventInput,
-  SubmitEventResult,
-  SubmitResolutionResult,
+  EmitInput,
+  EmitResult,
+  EmitResolutionResult,
+  PreviewInput,
+  PreviewResult,
+  DocumentStatus,
+  ReproduceInput,
+  ReproduceResult,
 } from './embed/create-output.js';
 export { submitResolution } from './submit-resolution.js';
 export type { SubmitResolutionOutcome } from './submit-resolution.js';
 export { drainOnce, startWorker } from './worker.js';
 export type { Worker } from './worker.js';
-export { getTemplateContent } from './render/template-content.js';
+export type { IngressServerOptions } from './server.js';
 
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { createIngressServer } from './server.js';
+import { createIngressServer as createIngressServerRaw, type IngressServerOptions } from './server.js';
+import { createOutput, type OutputPort } from './embed/create-output.js';
+import { createDocumentTypeRegistry, type DocumentTypeRegistry } from './registration/document-type-registry.js';
+import { builtinDocumentTypes } from '../document-types/index.js';
 import { createRegistryIdempotencyStore, type IdempotencyStore } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
@@ -121,7 +143,7 @@ import { DEFAULT_BACKOFF_POLICY, type BackoffPolicy, type DeliveryQueue } from '
 import { FsChannelSender } from './delivery/fs-channel-sender.js';
 import { TypstRenderer } from '@busy-office/render-typst';
 import { PdfDirectRenderer } from '@busy-office/render-pdf-direct';
-import { resumeStrandedCompositions, type CompositionDeps, type ResumeOutcome } from './composition.js';
+import type { CompositionDeps, ResumeOutcome } from './composition.js';
 import { startWorker, type Worker } from './worker.js';
 
 /**
@@ -162,6 +184,12 @@ export interface RuntimeDeps {
   deliveryQueue: DeliveryQueue;
   idempotencyStore: IdempotencyStore;
   composition: CompositionDeps;
+  /** The document-type registry `composition` and `output` share. The
+   * three built-ins are already registered in it (through `output`). */
+  documentTypes: DocumentTypeRegistry;
+  /** OutputPort v1 over these backends — the port `serve()` mounts, with
+   * the built-in document types registered through its own fifth verb. */
+  output: OutputPort;
   channelSender: FsChannelSender;
   /** The `BackoffPolicy` `deliveryQueue` was constructed with — threaded
    * through to the Operations console screen (console.ts) so its
@@ -200,8 +228,50 @@ export function createRuntimeDeps(
   const pdfDirect = new PdfDirectRenderer();
   const renderers = { [renderer.id]: renderer, [pdfDirect.id]: pdfDirect };
   const channelSender = new FsChannelSender(outboxDir);
-  const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, renderer, renderers };
-  return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, channelSender, backoffPolicy };
+  const documentTypes = createDocumentTypeRegistry();
+  const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, documentTypes, renderer, renderers };
+  const output = createOutput({ registryStore, archiveStore, deliveryQueue, renderer, renderers, documentTypes });
+  registerBuiltinDocumentTypes(output);
+  return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, documentTypes, output, channelSender, backoffPolicy };
+}
+
+/**
+ * Register the three built-in document types (`packages/runtime/
+ * document-types/`) through the port's own fifth verb — the ONLY place
+ * the engine meets a concrete document type (GAP-08). Order is the
+ * definitions' own (see document-types/index.ts). A non-`registered`
+ * result here is a wiring bug in this repo, not a runtime condition, so
+ * it throws at startup rather than serving a half-registered runtime.
+ */
+export function registerBuiltinDocumentTypes(port: OutputPort): void {
+  for (const definition of builtinDocumentTypes) {
+    const result = port.registerDocumentType(definition);
+    if (result.status !== 'registered') {
+      throw new Error(
+        `built-in document type "${definition.documentType}" failed to register: ${JSON.stringify(result)}`,
+      );
+    }
+  }
+}
+
+/**
+ * `createIngressServer` with the built-in document types registered —
+ * the composition-root flavor most tests (and `serve()`) want. Passing an
+ * explicit `output` or a `composition` (whose registry already holds what
+ * `createRuntimeDeps` registered) hands straight through to server.ts;
+ * otherwise a bare, determination-only port is built over `registryStore`
+ * (default `:memory:`) with the built-ins registered through
+ * `registerDocumentType`, exactly as `serve()` does for the real thing.
+ */
+export function createIngressServer(options: IngressServerOptions = {}) {
+  if (options.output !== undefined || options.composition !== undefined || options.documentTypes !== undefined) {
+    return createIngressServerRaw(options);
+  }
+  const registryStore = options.registryStore ?? createSqliteRegistryStore(':memory:');
+  const documentTypes = createDocumentTypeRegistry();
+  const output = createOutput({ registryStore, documentTypes });
+  registerBuiltinDocumentTypes(output);
+  return createIngressServerRaw({ ...options, registryStore, documentTypes, output });
 }
 
 /**
@@ -233,13 +303,19 @@ export function createRuntimeDeps(
  */
 export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
   const deps = createRuntimeDeps(dbPath);
-  const server = createIngressServer({
+  // `deps.output` already carries the three built-ins (registered through
+  // its own `registerDocumentType` in createRuntimeDeps) — the consumer
+  // round-trip: POST /event → emit, POST /render → preview,
+  // GET /documents → status, all over this one port.
+  const server = createIngressServerRaw({
+    output: deps.output,
     registryStore: deps.registryStore,
     composition: deps.composition,
     deliveryQueue: deps.deliveryQueue,
     backoffPolicy: deps.backoffPolicy,
   });
-  const resumed: Promise<ResumeOutcome[]> = resumeStrandedCompositions(deps.composition)
+  const resumed: Promise<ResumeOutcome[]> = deps.output
+    .resumeStrandedCompositions()
     .then((outcomes) => {
       if (outcomes.length > 0) {
         // eslint-disable-next-line no-console

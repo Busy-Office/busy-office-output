@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://busy-office.dev/test/document-types/sample-memo/contract.schema.json",
+  "title": "sample-memo",
+  "description": "A deliberately SYNTHETIC document type that lives outside the engine tree (test/document-types/). It exists only to prove OutputPort.registerDocumentType accepts a definition the engine has never heard of. It is not a roadmap document type and must not be read as one.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "documentType", "header", "lines", "totals"],
+  "properties": {
+    "schemaVersion": { "type": "string", "const": "1.0.0" },
+    "documentType": { "type": "string", "const": "sample-memo" },
+    "header": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["memoNumber", "memoDate", "subject", "from", "to"],
+      "properties": {
+        "memoNumber": { "type": "string", "minLength": 1 },
+        "memoDate": { "type": "string", "format": "date" },
+        "subject": { "type": "string", "minLength": 1 },
+        "from": { "type": "string", "minLength": 1 },
+        "to": { "type": "string", "minLength": 1 }
+      }
+    },
+    "lines": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["lineNumber", "text"],
+        "properties": {
+          "lineNumber": { "type": "integer", "minimum": 1 },
+          "text": { "type": "string" }
+        }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lineCount"],
+      "properties": {
+        "lineCount": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

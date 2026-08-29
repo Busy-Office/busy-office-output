@@ -2,11 +2,12 @@
  * Composition + render + archive + enqueue (ROADMAP Stage 3, "Single-process
  * serve" task) — the step HLD §2's pipeline diagram calls Composition,
  * Rendering, and Archive, wired per-resolution after determination succeeds
- * (server.ts's `handleEvent`). Scope per the arb-chair ruling this task
- * follows exactly: exactly one resolved template (`po-global-v1`) has real
- * content (`render/template-content.ts`); every other resolved template is
- * determination-only for now, and this module says so honestly instead of
- * crashing or fabricating output.
+ * (`OutputPort.emit`, embed/create-output.ts). Template CONTENT comes from
+ * the `DocumentTypeRegistry` on `CompositionDeps.documentTypes` (GAP-08:
+ * the engine holds no template tree of its own — `registerDocumentType`
+ * is how content gets here); a resolved template with no registered
+ * content composes to an honest `'no-template-content'` outcome, never a
+ * crash and never fabricated output.
  *
  * Delivery failure never re-renders (CLAUDE.md/docs/POLICY.md): this module
  * only ever calls `deliveryQueue.enqueue`, which inserts a `pending` job —
@@ -22,13 +23,17 @@ import { archiveArtifact } from './archive/index.js';
 import { retentionUntilFor } from './archive/retention-policy.js';
 import type { DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Resolution } from './determination/index.js';
-import { getTemplateContent } from './render/template-content.js';
+import type { DocumentTypeRegistry } from './registration/document-type-registry.js';
 import { renderCoverSheet } from './render/cover-sheet.js';
 
 export interface CompositionDeps {
   registryStore: RegistryStore;
   archiveStore: ArchiveStore;
   deliveryQueue: DeliveryQueue;
+  /** Where template content comes from (GAP-08): the registry every
+   * `registerDocumentType` call fills. Composition looks up
+   * `resolution.templateId` here and nowhere else. */
+  documentTypes: DocumentTypeRegistry;
   /** The default renderer — used when a resolution carries no `renderer`
    * id (outbox rows minted before that field existed, older test
    * fixtures) and as the entry for its own `id` in the registry. */
@@ -109,7 +114,7 @@ export async function composeRenderArchiveAndEnqueue(
   resolution: Resolution,
   data: DataContractEnvelope,
 ): Promise<CompositionOutcome> {
-  const docNode = getTemplateContent(resolution.templateId);
+  const docNode = deps.documentTypes.templateContent(resolution.templateId);
   if (docNode === undefined) {
     return { outcome: 'no-template-content', templateId: resolution.templateId };
   }
@@ -177,7 +182,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
   data: DataContractEnvelope,
   termsAndConditionsBytes: Uint8Array,
 ): Promise<CompositionOutcome> {
-  const docNode = getTemplateContent(resolution.templateId);
+  const docNode = deps.documentTypes.templateContent(resolution.templateId);
   if (docNode === undefined) {
     return { outcome: 'no-template-content', templateId: resolution.templateId };
   }

@@ -5,8 +5,8 @@
  * docs/RESULTS.md).
  *
  * N distinct payslip events go through the REAL pipeline
- * (`createOutput().submitEvent` over `createRuntimeDeps` on disk: real
- * rules under packages/runtime/rules/, real TypstRenderer, SQLite
+ * (`createOutput().emit` over `createRuntimeDeps` on disk: real
+ * rules under packages/runtime/rules/ via document-types/, real TypstRenderer, SQLite
  * registry + delivery queue), each carrying its OWN employee's locale,
  * country, and mailbox as caller-supplied determination context
  * (`generatePayslipRouting` — seeded, never hand-edited). The assertions
@@ -56,6 +56,7 @@ describe('per-recipient locale and channel — row-based gate (ROADMAP Stage 4 e
       archiveStore: deps.archiveStore,
       deliveryQueue: deps.deliveryQueue,
       renderer: deps.composition.renderer,
+      documentTypes: deps.documentTypes,
     });
 
     let expectedFanOutCopies = 0;
@@ -66,7 +67,7 @@ describe('per-recipient locale and channel — row-based gate (ROADMAP Stage 4 e
         const routing = generatePayslipRouting(seed);
         if (routing.country === 'DE') expectedFanOutCopies += 1;
         expectedEmailRecipients.add(routing.recipients[0]);
-        const result = await output.submitEvent({
+        const result = await output.emit({
           documentType: 'payslip',
           payload: generatePayslip({ seed, earningCount: 1 + (i % 3), deductionCount: 1 + (i % 2) }),
           businessEvent: {

@@ -1,32 +1,23 @@
 /**
- * Files-first rule + template-candidate loading (ADR-003 Accepted Option 1).
- * Real rule files live in the repo at `packages/runtime/rules/output-rules/
- * *.json` and `packages/runtime/rules/templates/*.json` — diffable,
- * reviewable, git-versioned, no DB. Loaded once per process (module-level
- * cache) since these are deploy-time config, not runtime-mutable data; a
- * table-backed adapter is deferred per ADR-003, not built here.
+ * Files-first rule + template-meta loading (ADR-003 Accepted Option 1):
+ * rule files and template metas are diffable, reviewable, git-versioned
+ * JSON, no DB. These two functions read a directory the CALLER names —
+ * there is no default path and no module-level cache any more (GAP-08:
+ * the engine knows no document type; registration into a
+ * `DocumentTypeRegistry` is the cache). `packages/runtime/document-types/
+ * *.ts` call them against `packages/runtime/rules/` and hand the result to
+ * `OutputPort.registerDocumentType`; a host can point them at its own
+ * directory or skip files entirely and build `OutputRule`s in code.
  *
  * Sorted by filename for a deterministic, reviewable evaluation order —
  * trace output (and first-match-wins tie-breaking) must not depend on
  * filesystem readdir order, which is not guaranteed stable across
- * platforms.
+ * platforms. A missing directory yields `[]`, not a throw.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { TemplateMeta } from '@busy-office/output-schema';
 import type { OutputRule } from './rule-types.js';
-
-/**
- * Resolve packages/runtime/rules relative to this module's own location
- * (src/determination/ -> package root -> rules/), rather than
- * process.cwd(), so loading works the same under `npm test` from the repo
- * root and a standalone `serve()` run from any working directory.
- */
-function rulesDir(): string {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  return path.join(here, '..', '..', 'rules');
-}
 
 function readJsonFiles<T>(dir: string): T[] {
   let fileNames: string[];
@@ -39,25 +30,12 @@ function readJsonFiles<T>(dir: string): T[] {
   return fileNames.map((fileName) => JSON.parse(readFileSync(path.join(dir, fileName), 'utf8')) as T);
 }
 
-let cachedRules: OutputRule[] | undefined;
-let cachedTemplates: TemplateMeta[] | undefined;
-
-export function loadOutputRules(): OutputRule[] {
-  if (cachedRules === undefined) {
-    cachedRules = readJsonFiles<OutputRule>(path.join(rulesDir(), 'output-rules'));
-  }
-  return cachedRules;
+/** Every `*.json` file directly under `dir`, parsed as an `OutputRule`, sorted by filename. */
+export function loadRulesFromDir(dir: string): OutputRule[] {
+  return readJsonFiles<OutputRule>(dir);
 }
 
-export function loadTemplateCandidates(): TemplateMeta[] {
-  if (cachedTemplates === undefined) {
-    cachedTemplates = readJsonFiles<TemplateMeta>(path.join(rulesDir(), 'templates'));
-  }
-  return cachedTemplates;
-}
-
-/** Test-only escape hatch: force a reload on the next load* call. */
-export function resetRuleCacheForTests(): void {
-  cachedRules = undefined;
-  cachedTemplates = undefined;
+/** Every `*.json` file directly under `dir`, parsed as a `TemplateMeta`, sorted by filename. */
+export function loadTemplateMetasFromDir(dir: string): TemplateMeta[] {
+  return readJsonFiles<TemplateMeta>(dir);
 }

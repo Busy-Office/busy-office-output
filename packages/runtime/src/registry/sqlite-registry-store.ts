@@ -336,6 +336,17 @@ export class SqliteRegistryStore implements RegistryStore {
     return rows.map((row) => this.toRow(row));
   }
 
+  listByEventKey(key: BusinessEventKey): DocumentRegistryRow[] {
+    const rows = this.db
+      .prepare(
+        `SELECT * FROM document_registry
+         WHERE business_object = ? AND business_object_id = ? AND event = ? AND template_version = ?
+         ORDER BY created_at ASC, rule_id ASC`,
+      )
+      .all(key.businessObject, key.businessObjectId, key.event, key.templateVersion) as unknown as DocumentRow[];
+    return rows.map((row) => this.toRow(row));
+  }
+
   appendTraceLog(id: string, trace: DeterminationTrace): void {
     // INSERT OR IGNORE: a replay of the same event re-runs determine()
     // (server.ts: determination happens before the idempotency lookup),

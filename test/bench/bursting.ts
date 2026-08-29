@@ -1,6 +1,6 @@
 /**
  * Bursting bench (ROADMAP Stage 4 / GAP-03): N distinct payslip events
- * through the REAL pipeline — `createOutput().submitEvent()` against
+ * through the REAL pipeline — `createOutput().emit()` against
  * `createRuntimeDeps()` on disk (SQLite registry, FsArchiveStore, real
  * `TypstRenderer`, real SqliteDeliveryQueue enqueue). Per document this
  * exercises: contract validation, determination (rule + template
@@ -117,6 +117,7 @@ async function main(): Promise<void> {
     archiveStore: timedArchive(deps.archiveStore, archiveMs),
     deliveryQueue: deps.deliveryQueue,
     renderer: timedRenderer(deps.composition.renderer, renderMs),
+    documentTypes: deps.documentTypes,
   });
 
   // Payslip mix: cycle through the realistic 1..4 earning / 1..4 deduction
@@ -131,7 +132,7 @@ async function main(): Promise<void> {
     const payload = generatePayslip({ seed, earningCount: 1 + (i % 4), deductionCount: 1 + ((i >> 2) % 4) });
     const routing = generatePayslipRouting(seed);
     const t = performance.now();
-    const result = await output.submitEvent({
+    const result = await output.emit({
       documentType: 'payslip',
       payload,
       businessEvent: {
@@ -206,7 +207,7 @@ async function main(): Promise<void> {
     `N=${args.n} concurrency=${args.concurrency} warmup=${args.warmup} resolutions=${resolutions} drain=${args.drain ? 'included-after-loop' : 'excluded'}`,
     `total wall-clock: ${(wallMs / 1000).toFixed(1)}s (${(wallMs / 60_000).toFixed(2)} min)`,
     `wall ms/doc (wall/N): ${wallPerDoc.toFixed(1)}ms`,
-    `per-doc submitEvent latency: mean ${d.mean.toFixed(1)}ms  p50 ${d.p50.toFixed(1)}ms  p95 ${d.p95.toFixed(1)}ms  max ${d.max.toFixed(1)}ms`,
+    `per-doc emit latency: mean ${d.mean.toFixed(1)}ms  p50 ${d.p50.toFixed(1)}ms  p95 ${d.p95.toFixed(1)}ms  max ${d.max.toFixed(1)}ms`,
     `  render phase (typst compile+query): mean ${r.mean.toFixed(1)}ms  p50 ${r.p50.toFixed(1)}ms  p95 ${r.p95.toFixed(1)}ms  (n=${renderMs.length})`,
     `  archive phase (fs write):           mean ${a.mean.toFixed(1)}ms  p50 ${a.p50.toFixed(1)}ms  p95 ${a.p95.toFixed(1)}ms  (n=${archiveMs.length})`,
     // Per DOC, not per render: a fan-out event renders once per resolution

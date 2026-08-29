@@ -326,6 +326,16 @@ export interface RegistryStore {
   listDocuments(query?: ListDocumentsQuery): DocumentRegistryRow[];
 
   /**
+   * Every row minted for one `BusinessEventKey` four-tuple — one per
+   * firing `ruleId` (fan-out ⇒ N rows), oldest first, ties by `ruleId`.
+   * `OutputPort.status`'s read model (GAP-07): the answer to "what did
+   * this business event produce?" without needing any docId. Same
+   * columns the five-tuple unique index already covers (migrations/
+   * 0003_add_rule_id_to_registry.sql) — no migration.
+   */
+  listByEventKey(key: BusinessEventKey): DocumentRegistryRow[];
+
+  /**
    * Append one persisted `DeterminationTrace` row (migrations/
    * 0007_add_trace_log.sql — Rule trace console screen's read model). `id`
    * is a docId for a matched determination, or a generated id otherwise —

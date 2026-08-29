@@ -6,7 +6,7 @@
  * inspection is cheap to fool — a payload could reach `console.*` through
  * an indirect path, a future change, or a dependency). Instead it drives a
  * REAL payslip event through the REAL pipeline (contract validation ->
- * determination -> `createOutput().submitEvent` -> composition (render +
+ * determination -> `createOutput().emit` -> composition (render +
  * archive) -> delivery drain) with `console.log`/`console.error`/
  * `console.warn` intercepted via `vi.spyOn`, capturing every argument the
  * way Node's console actually renders it (`util.format`, so an object
@@ -24,7 +24,7 @@
  *  1. happy path — submit, render, archive, and successfully deliver a
  *     payslip. Proves the common path never leaks PII (it currently emits
  *     no console output at all — see packages/runtime/src/render/
- *     template-content.ts's neighbors and CLAUDE.md's discipline).
+ *     CLAUDE.md's discipline).
  *  2. poison path — a delivery channel that always fails drives the job
  *     to `poison` and fires the real `onPoisonAlert` default
  *     (`sqlite-delivery-queue.ts`'s `console.error('[delivery-queue]
@@ -39,7 +39,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { format } from 'node:util';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createRuntimeDeps, type RuntimeDeps } from '../index.js';
+import { createRuntimeDeps, registerBuiltinDocumentTypes, type RuntimeDeps } from '../index.js';
 import { createSqliteDeliveryQueue } from '../delivery/sqlite-delivery-queue.js';
 import type { ChannelSendInput, ChannelSender } from '../delivery/channel-sender.js';
 import { drainOnce } from '../worker.js';
@@ -64,12 +64,13 @@ afterEach(() => {
   }
 });
 
-function buildOutput(deps: Pick<RuntimeDeps, 'registryStore' | 'archiveStore' | 'deliveryQueue' | 'composition'>): OutputPort {
+function buildOutput(deps: Pick<RuntimeDeps, 'registryStore' | 'archiveStore' | 'deliveryQueue' | 'composition' | 'documentTypes'>): OutputPort {
   return createOutput({
     registryStore: deps.registryStore,
     archiveStore: deps.archiveStore,
     deliveryQueue: deps.deliveryQueue,
     renderer: deps.composition.renderer,
+    documentTypes: deps.documentTypes,
   });
 }
 
@@ -135,7 +136,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
 
     const capture = captureConsole();
     try {
-      const result = await output.submitEvent({
+      const result = await output.emit({
         documentType: 'payslip',
         payload: data,
         businessEvent: {
@@ -183,6 +184,8 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
     });
     const renderer = new TypstRenderer();
     const output = createOutput({ registryStore, archiveStore, deliveryQueue, renderer });
+    // A port knows no document type until one is registered (GAP-08).
+    registerBuiltinDocumentTypes(output);
 
     const failingSender: ChannelSender = {
       async send(_input: ChannelSendInput): Promise<void> {
@@ -197,7 +200,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
 
     const capture = captureConsole();
     try {
-      const result = await output.submitEvent({
+      const result = await output.emit({
         documentType: 'payslip',
         payload: data,
         businessEvent: {

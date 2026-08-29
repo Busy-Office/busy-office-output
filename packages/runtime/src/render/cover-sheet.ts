@@ -10,7 +10,7 @@
  * this task's scope.
  *
  * Reuses the same `DocNode` + `TypstRenderer` path every other template in
- * this codebase renders through (render/template-content.ts) — no second
+ * this codebase renders through (registered document-type templates) — no second
  * rendering mechanism, no bespoke Typst markup. The one field the cover
  * sheet needs (`docId`) is passed as ordinary bound data, exactly like any
  * other template's fields (packages/schema/src/document/nodes.ts's frozen
