@@ -78,10 +78,15 @@ function buildOutput(deps: Pick<RuntimeDeps, 'registryStore' | 'archiveStore' | 
  * employee's mailbox (caller-supplied determination context, Stage 4
  * clause 2 — the bench's `emp-<id>@example.com` pattern; never on the
  * payload, but it flows through determination -> delivery_queue ->
- * channel sender, so it must be scrubbed like payload PII). Every captured
- * log line is checked for the literal presence of each of these. */
-function piiNeedles(data: PayslipData, routing: PayslipRouting): string[] {
+ * channel sender, so it must be scrubbed like payload PII), PLUS
+ * `rendered` (GAP-10): the email subject/body evaluated at enqueue from
+ * the payslip's message template, read back off the REAL delivery job —
+ * PII-bearing text that lives on the job exactly like recipients and must
+ * be scrubbed exactly like them. Every captured log line is checked for
+ * the literal presence of each of these. */
+function piiNeedles(data: PayslipData, routing: PayslipRouting, rendered: string[]): string[] {
   return [
+    ...rendered,
     ...routing.recipients,
     data.header.employeeName,
     data.header.employeeId,
@@ -116,8 +121,20 @@ function captureConsole(): { lines: string[]; restore: () => void } {
   };
 }
 
-function assertNoPiiLeak(lines: string[], data: PayslipData, routing: PayslipRouting): void {
-  const needles = piiNeedles(data, routing);
+/** The rendered subject + body off the email job (GAP-10) — the needles
+ * that prove the message text never reaches a log line. Must be read
+ * BEFORE the queue is closed. Asserts the job really carries one, so the
+ * needle list can never silently shrink to the pre-GAP-10 set. */
+function renderedMessageNeedles(deliveryQueue: RuntimeDeps['deliveryQueue'], jobId: number): string[] {
+  const job = deliveryQueue.getJob(jobId);
+  expect(job?.message).toBeDefined();
+  expect(job!.message!.subject.length).toBeGreaterThan(0);
+  expect(job!.message!.body.length).toBeGreaterThan(0);
+  return [job!.message!.subject, job!.message!.body];
+}
+
+function assertNoPiiLeak(lines: string[], data: PayslipData, routing: PayslipRouting, rendered: string[]): void {
+  const needles = piiNeedles(data, routing, rendered);
   for (const line of lines) {
     for (const needle of needles) {
       expect(line, `log line unexpectedly contains a PII value ("${needle}"): ${line}`).not.toContain(needle);
@@ -135,6 +152,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
     const routing = generatePayslipRouting(42);
 
     const capture = captureConsole();
+    let rendered: string[] = [];
     try {
       const result = await output.emit({
         documentType: 'payslip',
@@ -151,6 +169,8 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       if (result.status !== 'accepted') throw new Error('unreachable');
       expect(result.resolutions).toHaveLength(1);
       expect(result.resolutions[0].composition).toMatchObject({ outcome: 'rendered' });
+      if (result.resolutions[0].composition?.outcome !== 'rendered') throw new Error('unreachable');
+      rendered = renderedMessageNeedles(deps.deliveryQueue, result.resolutions[0].composition.deliveryJobId);
 
       // Drive the real delivery worker step (FsChannelSender — succeeds,
       // writes the archived bytes to disk, never to a log line).
@@ -163,7 +183,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       deps.registryStore.close();
     }
 
-    assertNoPiiLeak(capture.lines, data, routing);
+    assertNoPiiLeak(capture.lines, data, routing, rendered);
   }, 30_000);
 
   it('poison path — a permanently-failing delivery channel drives the job to poison and fires the real console.error alert; the alert line is captured (proving the mechanism works) but carries no PII value', async () => {
@@ -199,6 +219,7 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
     const routing = generatePayslipRouting(99);
 
     const capture = captureConsole();
+    let rendered: string[] = [];
     try {
       const result = await output.emit({
         documentType: 'payslip',
@@ -214,6 +235,8 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       expect(result.status).toBe('accepted');
       if (result.status !== 'accepted') throw new Error('unreachable');
       const docId = result.resolutions[0].docId;
+      if (result.resolutions[0].composition?.outcome !== 'rendered') throw new Error('unreachable');
+      rendered = renderedMessageNeedles(deliveryQueue, result.resolutions[0].composition.deliveryJobId);
 
       const deliveryResults = await drainOnce(deliveryQueue, failingSender);
       expect(deliveryResults).toHaveLength(1);
@@ -231,6 +254,6 @@ describe('payslip log-scrub: no payload fields in logs (ROADMAP Stage 4)', () =>
       registryStore.close();
     }
 
-    assertNoPiiLeak(capture.lines, data, routing);
+    assertNoPiiLeak(capture.lines, data, routing, rendered);
   }, 30_000);
 });

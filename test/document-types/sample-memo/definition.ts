@@ -80,6 +80,17 @@ export const sampleMemo: DocumentTypeDefinition = {
       resolution: { channel: 'email' },
     },
   ],
+  // GAP-10: a host whose rule routes to email supplies the governed
+  // subject/body the same way it supplies the document template — through
+  // its own definition, never engine config.
+  messageTemplates: [
+    {
+      meta: { id: 'sample-memo-email-global-v1', variant: { documentType: 'sample-memo' }, version: '1.0.0', lifecycle: 'published', provenance: 'human' },
+      channel: 'email',
+      subject: ['Memo ', { expr: 'header.memoNumber' }, ': ', { expr: 'header.subject' }],
+      body: ['Memo ', { expr: 'header.memoNumber' }, ' is attached.\n'],
+    },
+  ],
 };
 
 export function validSampleMemo() {

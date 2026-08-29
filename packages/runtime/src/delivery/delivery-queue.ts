@@ -53,14 +53,28 @@ export interface DeliveryJob {
    * payloads in logs applies here too: this column is queried and
    * potentially surfaced in the console, not a dumping ground). */
   lastError: string | null;
+  /** GAP-10: the rendered channel message (email subject/body), evaluated
+   * ONCE at enqueue from the resolved message template. `null` for a
+   * channel that carries none (object-store) and for rows enqueued before
+   * migrations/0011. PII, like `recipients`: on the job, never logged. */
+  message: DeliveryMessage | null;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Rendered subject + body. Plain text only — no HTML/MIME templating. */
+export interface DeliveryMessage {
+  subject: string;
+  body: string;
 }
 
 export interface EnqueueDeliveryInput {
   docId: string;
   channel: string;
   recipients: string[];
+  /** See `DeliveryJob.message`. Composition supplies it for channels in
+   * `CHANNELS_REQUIRING_MESSAGE`; omitted otherwise. */
+  message?: DeliveryMessage;
 }
 
 /** Outcome of one call to `attemptDelivery`. */

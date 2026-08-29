@@ -37,6 +37,7 @@ import {
   type BackoffPolicy,
   type DeliveryAttemptResult,
   type DeliveryJob,
+  type DeliveryMessage,
   type DeliveryJobStatus,
   type DeliveryQueue,
   type EnqueueDeliveryInput,
@@ -51,6 +52,7 @@ interface DeliveryQueueRow {
   next_attempt_at: string;
   status: string;
   last_error: string | null;
+  message: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -65,6 +67,7 @@ function toJob(row: DeliveryQueueRow): DeliveryJob {
     nextAttemptAt: row.next_attempt_at,
     status: row.status as DeliveryJobStatus,
     lastError: row.last_error,
+    message: row.message === null ? null : (JSON.parse(row.message) as DeliveryMessage),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -123,6 +126,9 @@ export class SqliteDeliveryQueue implements DeliveryQueue {
     if (!Array.isArray(input.recipients) || input.recipients.length === 0) {
       throw new TypeError('enqueue requires at least one recipient.');
     }
+    if (input.message !== undefined && (typeof input.message.subject !== 'string' || typeof input.message.body !== 'string')) {
+      throw new TypeError('enqueue message must carry a string subject and body.');
+    }
     // Fail loudly on an unknown docId rather than silently queuing a job
     // that can never be delivered — mirrors RegistryStore's own
     // "throws if docId does not exist" convention.
@@ -134,10 +140,18 @@ export class SqliteDeliveryQueue implements DeliveryQueue {
     this.db
       .prepare(
         `INSERT INTO delivery_queue
-           (doc_id, channel, recipients, attempt_count, next_attempt_at, status, created_at, updated_at)
-         VALUES (?, ?, ?, 0, ?, 'pending', ?, ?)`,
+           (doc_id, channel, recipients, attempt_count, next_attempt_at, status, message, created_at, updated_at)
+         VALUES (?, ?, ?, 0, ?, 'pending', ?, ?, ?)`,
       )
-      .run(input.docId, input.channel, JSON.stringify(input.recipients), now, now, now);
+      .run(
+        input.docId,
+        input.channel,
+        JSON.stringify(input.recipients),
+        now,
+        input.message === undefined ? null : JSON.stringify({ subject: input.message.subject, body: input.message.body }),
+        now,
+        now,
+      );
 
     const row = this.db.prepare('SELECT * FROM delivery_queue WHERE id = last_insert_rowid()').get() as
       | DeliveryQueueRow
@@ -236,6 +250,7 @@ export class SqliteDeliveryQueue implements DeliveryQueue {
         recipients: job.recipients,
         channel: job.channel,
         docId: job.docId,
+        ...(job.message !== null ? { message: job.message } : {}),
       });
     } catch (err) {
       return this.recordFailure(job, err);

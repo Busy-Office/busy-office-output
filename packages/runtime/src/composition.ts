@@ -25,6 +25,30 @@ import type { DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Resolution } from './determination/index.js';
 import type { DocumentTypeRegistry } from './registration/document-type-registry.js';
 import { renderCoverSheet } from './render/cover-sheet.js';
+import { renderMessage, type RenderedMessage } from './message/message-template.js';
+
+/**
+ * GAP-10: evaluate the resolution's message template (resolved at
+ * determination by ID) against the payload — ONCE, here, before render,
+ * so the rendered subject/body ride on the delivery job and the sender
+ * never re-reads the payload. `undefined` for a resolution whose channel
+ * carries no message. A resolved ID with no registered template, or an
+ * expression that yields a non-scalar, throws inside the callers'
+ * try/catch (→ `'render-failed'`, before anything is archived) — by
+ * template/expression name, never by value.
+ */
+function renderResolutionMessage(
+  deps: Pick<CompositionDeps, 'documentTypes'>,
+  resolution: Pick<Resolution, 'messageTemplateId'>,
+  data: DataContractEnvelope,
+): RenderedMessage | undefined {
+  if (resolution.messageTemplateId === undefined) return undefined;
+  const template = deps.documentTypes.messageTemplate(resolution.messageTemplateId);
+  if (template === undefined) {
+    throw new Error(`message template '${resolution.messageTemplateId}' resolved at determination but is not registered`);
+  }
+  return renderMessage(template, data);
+}
 
 export interface CompositionDeps {
   registryStore: RegistryStore;
@@ -120,6 +144,7 @@ export async function composeRenderArchiveAndEnqueue(
   }
 
   try {
+    const message = renderResolutionMessage(deps, resolution, data);
     const renderer = selectRenderer(deps, resolution);
     const artifact = await renderer.render({
       kind: 'ir',
@@ -141,6 +166,7 @@ export async function composeRenderArchiveAndEnqueue(
       docId,
       channel: resolution.channel,
       recipients: resolution.recipients,
+      ...(message !== undefined ? { message } : {}),
     });
 
     return { outcome: 'rendered', archiveRef, retentionUntil, deliveryJobId: job.id };
@@ -188,6 +214,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
   }
 
   try {
+    const message = renderResolutionMessage(deps, resolution, data);
     const renderer = selectRenderer(deps, resolution);
     const [coverBytes, mainArtifact] = await Promise.all([
       renderCoverSheet(renderer, docId),
@@ -213,6 +240,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
       docId,
       channel: resolution.channel,
       recipients: resolution.recipients,
+      ...(message !== undefined ? { message } : {}),
     });
 
     return { outcome: 'rendered', archiveRef, retentionUntil, deliveryJobId: job.id };

@@ -41,6 +41,7 @@ import {
 } from '@busy-office/output-schema';
 import type { DeterminationContext, OutputRule } from './rule-types.js';
 import type { DeterminationTrace, RecipientsSource, ResolutionTrace, RuleTraceEntry, TemplateTraceEntry } from './trace.js';
+import { CHANNELS_REQUIRING_MESSAGE, type MessageTemplateMeta } from '../message/message-template.js';
 
 const RULE_CONDITION_FIELDS = ['event', 'businessObject', 'companyCode', 'country', 'partnerId'] as const;
 
@@ -124,10 +125,10 @@ function evaluateRules(
   return { entries, firing };
 }
 
-function evaluateTemplateCandidates(
-  candidates: readonly TemplateMeta[],
+function evaluateTemplateCandidates<T extends { id: string; variant: VariantKey }>(
+  candidates: readonly T[],
   query: VariantKey,
-): { entries: TemplateTraceEntry[]; winner?: TemplateMeta } {
+): { entries: TemplateTraceEntry[]; winner?: T } {
   const entries: TemplateTraceEntry[] = candidates.map((candidate) => {
     const matched = matchesVariant(candidate.variant, query);
     const specificity = specificityScore(candidate.variant);
@@ -176,6 +177,10 @@ export interface Resolution {
    * (they fall back to the default renderer); every fresh resolution
    * carries it. */
   renderer?: string;
+  /** GAP-10: the message template (email subject/body) that resolved for
+   * this rule's channel, by ID — composition evaluates it at enqueue.
+   * Present iff the channel carries a message (`CHANNELS_REQUIRING_MESSAGE`). */
+  messageTemplateId?: string;
 }
 
 export type DeterminationResult =
@@ -189,12 +194,28 @@ export type DeterminationResult =
   | { outcome: 'no-template-match'; trace: DeterminationTrace }
   /** Rule(s) fired, templates resolved, but a firing rule has no recipient
    * from either the rule or the caller — see trace.ts's outcome doc. */
-  | { outcome: 'unresolved-recipients'; trace: DeterminationTrace };
+  | { outcome: 'unresolved-recipients'; trace: DeterminationTrace }
+  /** GAP-10: a firing rule's channel carries a message but no message
+   * template matches its variant query — see trace.ts's outcome doc. */
+  | { outcome: 'unresolved-message-template'; trace: DeterminationTrace };
 
+/**
+ * `messageTemplateCandidates` (GAP-10): the registered message templates
+ * (`DocumentTypeRegistry.messageTemplateMetas()`), resolved per firing
+ * rule by the SAME `resolveTemplate` call and variant query the document
+ * template uses — only for channels in `CHANNELS_REQUIRING_MESSAGE`.
+ * `undefined` means message resolution was NOT requested (a caller
+ * exercising rule/template logic alone — the determination unit tests);
+ * an EMPTY array means "requested, nothing registered", which makes every
+ * email resolution `unresolved-message-template`. The port
+ * (embed/create-output.ts) always passes the registry's list, so the
+ * runtime is strict end-to-end; only direct callers can opt out.
+ */
 export function determine(
   ctx: DeterminationContext,
   rules: readonly OutputRule[],
   templateCandidates: readonly TemplateMeta[],
+  messageTemplateCandidates?: readonly MessageTemplateMeta[],
 ): DeterminationResult {
   const { entries: ruleEntries, firing: firingRules } = evaluateRules(rules, ctx);
 
@@ -219,6 +240,7 @@ export function determine(
   const resolutions: Resolution[] = [];
   let anyTemplateMissing = false;
   let anyRecipientsMissing = false;
+  let anyMessageTemplateMissing = false;
 
   for (const rule of firingRules) {
     const variantQuery: VariantKey = {
@@ -242,12 +264,23 @@ export function determine(
       variantQuery,
     );
 
+    // GAP-10: a channel that carries a message (email) resolves its
+    // subject/body template by the SAME variant query and the SAME
+    // resolver — one rule, one trace shape, no second mechanism. The
+    // trace records candidates and the winning ID only; the rendered text
+    // (PII) is produced later, at enqueue, and never enters the trace.
+    const message =
+      messageTemplateCandidates !== undefined && CHANNELS_REQUIRING_MESSAGE.has(rule.resolution.channel)
+        ? evaluateTemplateCandidates(messageTemplateCandidates, variantQuery)
+        : undefined;
+
     resolutionTraces.push({
       ruleId: rule.id,
       variantQuery,
       templates: templateEntries,
       winningTemplateId: winningTemplate?.id,
       recipientsSource,
+      ...(message !== undefined ? { messageTemplates: message.entries, winningMessageTemplateId: message.winner?.id } : {}),
     });
 
     if (winningTemplate === undefined) {
@@ -261,6 +294,12 @@ export function determine(
       anyRecipientsMissing = true;
       continue;
     }
+    if (message !== undefined && message.winner === undefined) {
+      // An email with no governed subject/body is not "an email with a
+      // default subject" — it is an unresolved determination, loudly.
+      anyMessageTemplateMissing = true;
+      continue;
+    }
 
     resolutions.push({
       ruleId: rule.id,
@@ -270,6 +309,7 @@ export function determine(
       recipients,
       locale: variantQuery.locale,
       renderer: winningTemplate.renderer,
+      ...(message?.winner !== undefined ? { messageTemplateId: message.winner.id } : {}),
     });
   }
 
@@ -304,6 +344,22 @@ export function determine(
       firingRuleIds,
     };
     return { outcome: 'unresolved-recipients', trace };
+  }
+
+  if (anyMessageTemplateMissing) {
+    // Same atomicity again: `trace.resolutions[].messageTemplates` shows
+    // every message candidate considered for the offending rule and why
+    // each did not match (typically: locale).
+    const trace: DeterminationTrace = {
+      documentType: ctx.documentType,
+      businessObject: ctx.businessObject,
+      event: ctx.event,
+      rules: ruleEntries,
+      resolutions: resolutionTraces,
+      outcome: 'unresolved-message-template',
+      firingRuleIds,
+    };
+    return { outcome: 'unresolved-message-template', trace };
   }
 
   const trace: DeterminationTrace = {

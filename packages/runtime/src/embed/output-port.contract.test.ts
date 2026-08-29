@@ -111,13 +111,16 @@ describe('OutputPort v1 — emit → status', () => {
         documentType: 'payslip',
         payload: validPayslip(),
         businessEvent,
-        determination: { locale: 'en-GB', recipients: ['emp@example.com'] },
+        // de-DE: one of the two locales the built-in payslip carries an
+        // email message template for (GAP-10) — a locale without one is
+        // a loud `unresolved-message-template`, not an accepted emit.
+        determination: { locale: 'de-DE', recipients: ['emp@example.com'] },
       });
       expect(emitted.status).toBe('accepted');
       const [row] = deps.registryStore.listByEventKey(businessEvent);
       expect(row.ownerId).toBe('EMP-00042'); // the registry keeps it for authorization…
       const [status] = await deps.output.status(businessEvent);
-      expect(status.locale).toBe('en-GB');
+      expect(status.locale).toBe('de-DE');
       expect(JSON.stringify(status)).not.toContain('EMP-00042'); // …the status projection never exports it.
     } finally {
       deps.deliveryQueue.close();

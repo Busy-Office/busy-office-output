@@ -48,6 +48,7 @@ import {
   unknownDocumentTypeProblem,
   unknownTemplateProblem,
   unresolvedRecipientsProblem,
+  unresolvedMessageTemplateProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
 import { handleConsoleRequest, isConsolePath } from './console.js';
@@ -237,6 +238,8 @@ function emitFailureProblem(result: EmitResult) {
       return noTemplateMatchProblem(result.trace);
     case 'unresolved-recipients':
       return unresolvedRecipientsProblem(result.trace);
+    case 'unresolved-message-template':
+      return unresolvedMessageTemplateProblem(result.trace);
     case 'accepted':
       return undefined;
   }

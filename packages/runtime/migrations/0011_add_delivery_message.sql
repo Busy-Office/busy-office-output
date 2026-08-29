@@ -1,0 +1,23 @@
+-- Rendered channel message on the delivery job (GAP-10, maintainer decision
+-- 2026-08-29: email subject/body are lifecycle-governed TEMPLATES resolved
+-- per document type + locale). The message template is resolved at
+-- DETERMINATION (`Resolution.messageTemplateId`) and evaluated ONCE at
+-- enqueue, in composition, against the payload — the delivery worker must
+-- never re-read the payload (CLAUDE.md: delivery never re-renders; the
+-- archived artifact + this queued row ARE the reproduction of what was
+-- sent). So the rendered text lives here, on the job, for the lifetime of
+-- the job — exactly where `recipients` (0004) already lives.
+--
+-- One JSON column `{"subject": "...", "body": "..."}` rather than two:
+-- the pair is atomic (a subject without a body is not a message) and is
+-- read only by the channel sender, never queried by field.
+--
+-- Nullable: `object-store` jobs carry no message (a dropped file has no
+-- subject line), and rows enqueued before this migration have none.
+-- `EmailChannelSender` refuses (retry -> poison, loudly) a job with NULL
+-- here rather than inventing a hardcoded subject.
+--
+-- PII: the rendered text names the employee/period. Same posture as
+-- `recipients`: on the job, never in a log line, never in trace_log, not
+-- shown by the Operations console screen.
+ALTER TABLE delivery_queue ADD COLUMN message TEXT;

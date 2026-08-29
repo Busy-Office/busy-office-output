@@ -34,9 +34,19 @@ export function specificityScore(candidate: VariantKey): number {
 /**
  * Resolves the single most-specific matching template. First match wins on
  * an exact-score tie, i.e. resolution is stable on `candidates`' input order.
+ *
+ * Generic over anything that carries a `variant: VariantKey` (default —
+ * and the only caller until GAP-10 — `TemplateMeta`): a message template
+ * (email subject/body, resolved per document type + locale under the SAME
+ * most-specific-match rule, docs/VARIANT-RESOLUTION.md) is keyed by the
+ * same `VariantKey` but is not a renderer-bearing `TemplateMeta`. One
+ * resolver, one rule, no second implementation.
  */
-export function resolveTemplate(candidates: readonly TemplateMeta[], query: VariantKey): TemplateMeta | undefined {
-  let best: TemplateMeta | undefined;
+export function resolveTemplate<T extends { variant: VariantKey } = TemplateMeta>(
+  candidates: readonly T[],
+  query: VariantKey,
+): T | undefined {
+  let best: T | undefined;
   let bestScore = -1;
   for (const candidate of candidates) {
     if (!matchesVariant(candidate.variant, query)) continue;

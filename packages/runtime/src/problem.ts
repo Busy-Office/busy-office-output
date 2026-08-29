@@ -145,6 +145,29 @@ export function unresolvedRecipientsProblem(trace: DeterminationTrace): ProblemD
   };
 }
 
+/**
+ * GAP-10: rule(s) fired, templates and recipients resolved, but a firing
+ * rule's channel carries a message (email) and no registered message
+ * template (subject/body — a lifecycle-governed template, not channel
+ * config) matches its variant query. Fourth distinct determination
+ * failure, same 422 + TRACE discipline; the trace's
+ * `resolutions[].messageTemplates` lists every candidate and why each
+ * missed (typically locale). Never a bare-attachment send with a default
+ * subject.
+ */
+export function unresolvedMessageTemplateProblem(trace: DeterminationTrace): ProblemDetails {
+  const offending = trace.resolutions
+    .filter((r) => r.messageTemplates !== undefined && r.winningMessageTemplateId === undefined)
+    .map((r) => `${r.ruleId} (locale ${r.variantQuery.locale === undefined ? '(none)' : JSON.stringify(r.variantQuery.locale)})`);
+  return {
+    type: `${PROBLEM_BASE}/unresolved-message-template`,
+    title: 'No message template resolved for a firing rule',
+    status: 422,
+    detail: `Rule(s) ${offending.join(', ')} fired on a channel that carries a message, but no registered message template matches the resolved variant. Register a message template for that document type/locale. See "trace".`,
+    trace,
+  };
+}
+
 export function malformedCloudEventsProblem(detail: string): ProblemDetails {
   return {
     type: `${PROBLEM_BASE}/malformed-cloudevents-envelope`,

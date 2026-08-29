@@ -23,6 +23,7 @@
  */
 import type { DocNode, TemplateMeta } from '@busy-office/output-schema';
 import type { OutputRule } from '../determination/rule-types.js';
+import type { MessageTemplate } from '../message/message-template.js';
 
 /** One template: its variant identity/lifecycle/renderer (`TemplateMeta`)
  * plus the frozen-nine-node `DocNode` tree the renderer consumes. Content
@@ -59,6 +60,17 @@ export interface DocumentTypeDefinition {
   contract: object;
   templates: RegisteredTemplate[];
   rules: OutputRule[];
+  /**
+   * Channel message templates (GAP-10): the email subject/body for this
+   * document type, per variant (locale, companyCode, ...), resolved by the
+   * same most-specific-match rule as `templates`. Optional because a type
+   * that only ever routes to `object-store` needs none; a type whose rule
+   * resolves to `email` with no matching message template fails
+   * determination loudly (`unresolved-message-template`). Same owner, same
+   * lifecycle, same provenance as the document templates — see
+   * `src/message/message-template.ts`.
+   */
+  messageTemplates?: MessageTemplate[];
 }
 
 /** One reason a definition was rejected. `path` is a human-readable
@@ -70,7 +82,7 @@ export interface RegistrationProblem {
 }
 
 export type RegistrationResult =
-  | { status: 'registered'; documentType: string; templateIds: string[] }
+  | { status: 'registered'; documentType: string; templateIds: string[]; messageTemplateIds: string[] }
   /** A definition with this `documentType` is already registered. Nothing
    * changed — there is no re-register or hot-reload in v1. */
   | { status: 'duplicate'; documentType: string }

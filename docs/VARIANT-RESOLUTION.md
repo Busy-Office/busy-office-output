@@ -91,3 +91,16 @@ Query with no matching `documentType` at all: `resolveTemplate` returns
 `undefined` — callers surface this as the "no rule match" failure mode
 (HLD §9: error carrying the full evaluated TRACE, never silent). This spec
 only defines resolution, not the TRACE format.
+
+## Message templates (GAP-10)
+
+A channel message template — the email subject/body a delivery carries
+(`packages/runtime/src/message/message-template.ts`) — is keyed by the same
+`VariantKey` and resolved by the same `resolveTemplate` call, against the
+same per-firing-rule variant query the document template uses. It is a
+second resolution, not a second rule: `resolveTemplate` is generic over
+anything carrying `variant: VariantKey`, and the runtime's `determine()`
+resolves the message candidates right after the document candidates for
+every channel that carries a message (`email`). No match is the
+`unresolved-message-template` determination outcome, with every message
+candidate in the TRACE — there is no default-subject fallback.

@@ -74,4 +74,16 @@ export const invoice: DocumentTypeDefinition = {
   contract: readContract('invoice.schema.json'),
   templates: templatesFor('invoice', { 'invoice-global-v1': invoiceTemplate }),
   rules: rulesFor('invoice'),
+  // GAP-10: the email rule needs a governed subject/body. One wildcard-
+  // locale template (no locale-specific wording exists for invoices yet);
+  // generic, no legal copy — see document-types/payslip.ts for the
+  // locale-varying case.
+  messageTemplates: [
+    {
+      meta: { id: 'invoice-email-global-v1', variant: { documentType: 'invoice' }, version: '1.0.0', lifecycle: 'published', provenance: 'human' },
+      channel: 'email',
+      subject: ['Invoice ', { expr: 'header.invoiceNumber' }],
+      body: ['Invoice ', { expr: 'header.invoiceNumber' }, ' is attached.\n\nThis message was generated automatically.\n'],
+    },
+  ],
 };

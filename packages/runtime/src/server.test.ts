@@ -156,7 +156,7 @@ describe('POST /event ingress + contract validation', () => {
     const address = 'emp-0000042@example.com';
     const { json } = await post({
       ...withBusinessEvent(validPayslip(), sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-TRACE-PII', event: 'payslip.issued' })),
-      determination: { recipients: [address] },
+      determination: { recipients: [address], locale: 'en-US' },
     });
     expect(JSON.stringify(json.trace)).not.toContain(address);
     expect(json.trace.resolutions[0].recipientsSource).toBe('context');

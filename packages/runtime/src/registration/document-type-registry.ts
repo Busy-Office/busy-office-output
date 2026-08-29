@@ -27,6 +27,7 @@ import type { DocNode, TemplateMeta } from '@busy-office/output-schema';
 import { createContractCompiler, type CompiledContract, type ContractValidationResult } from '../contract-validation.js';
 import type { OutputRule } from '../determination/rule-types.js';
 import type { DocumentTypeDefinition, RegistrationProblem, RegistrationResult } from './document-type-definition.js';
+import { checkMessageTemplate, type MessageTemplate, type MessageTemplateMeta } from '../message/message-template.js';
 
 export interface DocumentTypeRegistry {
   register(definition: DocumentTypeDefinition): RegistrationResult;
@@ -46,6 +47,13 @@ export interface DocumentTypeRegistry {
   /** The `DocNode` tree for `templateId`, or `undefined` if no registered
    * template has that id (composition reports `no-template-content`). */
   templateContent(templateId: string): DocNode | undefined;
+  /** Every registered message template meta (GAP-10), in registration
+   * order — the candidates `determine()` resolves a channel message
+   * against, by the same `VariantKey` rule as `templateMetas()`. */
+  messageTemplateMetas(): readonly MessageTemplateMeta[];
+  /** The full message template (segments included) for `id`, or
+   * `undefined` — composition evaluates it at enqueue. */
+  messageTemplate(id: string): MessageTemplate | undefined;
   /** Registered document types, in registration order. */
   documentTypes(): readonly string[];
 }
@@ -60,6 +68,7 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
   const types = new Map<string, RegisteredType>();
   const templateMetas = new Map<string, TemplateMeta>();
   const templateContents = new Map<string, DocNode>();
+  const messageTemplates = new Map<string, MessageTemplate>();
   const rules: OutputRule[] = [];
 
   function checkStructure(definition: DocumentTypeDefinition): RegistrationProblem[] {
@@ -90,6 +99,28 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
       if (template.content !== undefined && (template.content === null || typeof template.content !== 'object')) {
         problems.push({ path: `templates[${i}].content`, message: `template "${id}" content must be a DocNode object when present` });
       }
+    });
+    // Message templates share the template id namespace (one `id` names
+    // one governed thing, whichever kind) and every structural rule the
+    // document templates obey; plus their own segment/expression check.
+    (definition.messageTemplates ?? []).forEach((template, i) => {
+      const path = `messageTemplates[${i}]`;
+      const id = template.meta?.id;
+      if (typeof id !== 'string' || id === '') {
+        problems.push({ path: `${path}.meta.id`, message: 'message template id must be a non-empty string' });
+        return;
+      }
+      if (templateMetas.has(id) || messageTemplates.has(id) || seenInThisDefinition.has(id)) {
+        problems.push({ path: `${path}.meta.id`, message: `template id "${id}" is already registered` });
+      }
+      seenInThisDefinition.add(id);
+      if (template.meta.variant?.documentType !== definition.documentType) {
+        problems.push({
+          path: `${path}.meta.variant.documentType`,
+          message: `message template "${id}" is for documentType "${String(template.meta.variant?.documentType)}", definition is "${definition.documentType}"`,
+        });
+      }
+      problems.push(...checkMessageTemplate(template, path));
     });
     definition.rules.forEach((rule, i) => {
       if (rule.conditions?.documentType !== definition.documentType) {
@@ -125,9 +156,14 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
         if (template.content !== undefined) templateContents.set(template.meta.id, template.content);
         templateIds.push(template.meta.id);
       }
+      const messageTemplateIds: string[] = [];
+      for (const template of definition.messageTemplates ?? []) {
+        messageTemplates.set(template.meta.id, template);
+        messageTemplateIds.push(template.meta.id);
+      }
       rules.push(...definition.rules);
       types.set(documentType, { contract: compiled.contract, templateIds });
-      return { status: 'registered', documentType, templateIds };
+      return { status: 'registered', documentType, templateIds, messageTemplateIds };
     },
 
     has(documentType: unknown): documentType is string {
@@ -153,6 +189,12 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
     },
     templateContent(templateId: string): DocNode | undefined {
       return templateContents.get(templateId);
+    },
+    messageTemplateMetas(): readonly MessageTemplateMeta[] {
+      return [...messageTemplates.values()].map((t) => t.meta);
+    },
+    messageTemplate(id: string): MessageTemplate | undefined {
+      return messageTemplates.get(id);
     },
     documentTypes(): readonly string[] {
       return [...types.keys()];

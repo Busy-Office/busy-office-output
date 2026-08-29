@@ -154,6 +154,9 @@ export interface EmitResolutionResult {
   locale?: string;
   /** Which renderer the winning template declared (ADR-002 routing). */
   renderer?: string;
+  /** GAP-10: the message template (email subject/body) this resolution's
+   * channel resolved, by ID — never the rendered text. */
+  messageTemplateId?: string;
   composition?: CompositionOutcome | { outcome: 'replayed' };
 }
 
@@ -163,6 +166,7 @@ export type EmitResult =
   | { status: 'no-rule-match'; trace: DeterminationTrace }
   | { status: 'no-template-match'; trace: DeterminationTrace }
   | { status: 'unresolved-recipients'; trace: DeterminationTrace }
+  | { status: 'unresolved-message-template'; trace: DeterminationTrace }
   | { status: 'accepted'; documentType: string; resolutions: EmitResolutionResult[]; trace: DeterminationTrace };
 
 // ------------------------------------------------------------- preview
@@ -365,6 +369,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       recipients: resolution.recipients,
       locale: resolution.locale,
       ...(resolution.renderer !== undefined ? { renderer: resolution.renderer } : {}),
+      ...(resolution.messageTemplateId !== undefined ? { messageTemplateId: resolution.messageTemplateId } : {}),
       ...(outcome.composition !== undefined ? { composition: outcome.composition } : {}),
     };
   }
@@ -389,7 +394,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         event: input.businessEvent.event,
         ...sanitizeCallerDeterminationContext(input.determination),
       };
-      const determination = determine(ctx, documentTypes.rules(), documentTypes.templateMetas());
+      const determination = determine(ctx, documentTypes.rules(), documentTypes.templateMetas(), documentTypes.messageTemplateMetas());
       // Persist the TRACE on every outcome (HLD §9: the trace is
       // mandatory; the Rule trace console screen reads trace_log).
       // Non-match: a fresh id (no docId exists); matched: the PRIMARY
@@ -405,6 +410,13 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       if (determination.outcome === 'unresolved-recipients') {
         deps.registryStore.appendTraceLog(randomUUID(), determination.trace);
         return { status: 'unresolved-recipients', trace: determination.trace };
+      }
+      if (determination.outcome === 'unresolved-message-template') {
+        // GAP-10: nothing minted, nothing enqueued — an email with no
+        // governed subject/body is a determination failure, not a
+        // bare-attachment send.
+        deps.registryStore.appendTraceLog(randomUUID(), determination.trace);
+        return { status: 'unresolved-message-template', trace: determination.trace };
       }
 
       const resolutions = await Promise.all(

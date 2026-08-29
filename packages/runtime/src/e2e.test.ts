@@ -215,7 +215,10 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
           validPayslip(),
           sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-1000', event: 'payslip.issued' }),
         ),
-        determination: { companyCode: '1000', recipients: ['emp-0000789@example.com'] },
+        // `locale` (GAP-10): the payslip email message template is
+        // locale-keyed with no wildcard fallback — en-US resolves
+        // `payslip-email-en-US-v1`; the document template is unaffected.
+        determination: { companyCode: '1000', locale: 'en-US', recipients: ['emp-0000789@example.com'] },
       };
       const { status, json } = await post(payload);
       expect(status).toBe(202);
@@ -254,7 +257,7 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
         validPayslip(),
         sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-global', event: 'payslip.issued' }),
       ),
-      determination: { recipients: ['emp-0000789@example.com'] },
+      determination: { locale: 'en-US', recipients: ['emp-0000789@example.com'] },
     };
     const { status, json } = await post(payload);
     expect(status).toBe(202);

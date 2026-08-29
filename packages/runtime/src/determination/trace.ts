@@ -33,7 +33,17 @@ export interface TemplateTraceEntry {
  * `no-template-match`: one unresolvable resolution fails the whole event,
  * never an empty-array send for that copy alone.
  */
-export type DeterminationOutcome = 'matched' | 'no-rule-match' | 'no-template-match' | 'unresolved-recipients';
+export type DeterminationOutcome =
+  | 'matched'
+  | 'no-rule-match'
+  | 'no-template-match'
+  | 'unresolved-recipients'
+  /** GAP-10: rule(s) fired, templates and recipients resolved, but a
+   * firing rule's channel carries a message (`email`) and no registered
+   * message template matches its variant query. Atomic like the others;
+   * `ResolutionTrace.messageTemplates` explains every candidate. Never a
+   * bare-attachment fallback. */
+  | 'unresolved-message-template';
 
 /**
  * Where a resolution's recipients came from — recorded INSTEAD of the
@@ -69,6 +79,13 @@ export interface ResolutionTrace {
   winningTemplateId?: string;
   /** See `RecipientsSource`. Never the addresses themselves. */
   recipientsSource: RecipientsSource;
+  /** GAP-10: every message-template candidate evaluated for this firing
+   * rule's variant query. Present only when the rule's channel carries a
+   * message (`CHANNELS_REQUIRING_MESSAGE`); absent for `object-store`. */
+  messageTemplates?: TemplateTraceEntry[];
+  /** The message template that won — an ID only; the rendered subject/
+   * body are PII and never enter the trace. */
+  winningMessageTemplateId?: string;
 }
 
 export interface DeterminationTrace {

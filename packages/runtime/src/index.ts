@@ -17,6 +17,8 @@ export type {
   RegistrationProblem,
   RegistrationResult,
 } from './registration/document-type-definition.js';
+export { CHANNELS_REQUIRING_MESSAGE, checkMessageTemplate, messageTemplateExpressions, renderMessage } from './message/message-template.js';
+export type { MessageSegment, MessageTemplate, MessageTemplateMeta, RenderedMessage } from './message/message-template.js';
 export type { ProblemDetails, SchemaValidationError } from './problem.js';
 export { createRegistryIdempotencyStore } from './idempotency-store.js';
 export type { IdempotencyStore, IdempotencyResult } from './idempotency-store.js';
@@ -70,6 +72,7 @@ export type {
   DeliveryAttemptResult,
   DeliveryJob,
   DeliveryJobStatus,
+  DeliveryMessage,
   DeliveryQueue,
   EnqueueDeliveryInput,
   PoisonAlert,
@@ -96,6 +99,7 @@ export {
   unknownDocumentTypeProblem,
   unknownTemplateProblem,
   unresolvedRecipientsProblem,
+  unresolvedMessageTemplateProblem,
 } from './problem.js';
 export {
   composeRenderArchiveAndEnqueue,

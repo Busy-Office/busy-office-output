@@ -41,7 +41,12 @@ describe('sample-memo: a document type registered from outside the engine tree',
 
       // Verb 5, from a definition that lives under test/, not packages/.
       const registration = port.registerDocumentType(sampleMemo);
-      expect(registration).toEqual({ status: 'registered', documentType: 'sample-memo', templateIds: ['sample-memo-global-v1'] });
+      expect(registration).toEqual({
+        status: 'registered',
+        documentType: 'sample-memo',
+        templateIds: ['sample-memo-global-v1'],
+        messageTemplateIds: ['sample-memo-email-global-v1'],
+      });
       // The built-ins are still there — the host's type sits beside them.
       expect(deps.documentTypes.documentTypes()).toEqual(['invoice', 'payslip', 'purchase-order', 'sample-memo']);
 

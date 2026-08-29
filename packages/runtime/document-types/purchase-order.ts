@@ -77,4 +77,15 @@ export const purchaseOrder: DocumentTypeDefinition = {
   // of them); `po-companyCode-1000-v1` is meta-only — see header comment.
   templates: templatesFor('purchase-order', { 'po-global-v1': purchaseOrderTemplate }),
   rules: rulesFor('purchase-order'),
+  // GAP-10: the email rule needs a governed subject/body. One wildcard-
+  // locale template; generic wording, no legal copy — see
+  // document-types/payslip.ts for the locale-varying case.
+  messageTemplates: [
+    {
+      meta: { id: 'po-email-global-v1', variant: { documentType: 'purchase-order' }, version: '1.0.0', lifecycle: 'published', provenance: 'human' },
+      channel: 'email',
+      subject: ['Purchase order ', { expr: 'header.poNumber' }],
+      body: ['Purchase order ', { expr: 'header.poNumber' }, ' is attached.\n\nThis message was generated automatically.\n'],
+    },
+  ],
 };

@@ -25,6 +25,12 @@ export interface ChannelSendInput {
   channel: string;
   /** The registry docId this delivery is for. */
   docId: string;
+  /** GAP-10: the rendered subject/body off the delivery job — evaluated
+   * at enqueue from the resolved message template, never here. Present
+   * for channels that carry a message (email); a sender for such a channel
+   * refuses a job without one rather than inventing a default. PII:
+   * never logged. */
+  message?: { subject: string; body: string };
 }
 
 /**

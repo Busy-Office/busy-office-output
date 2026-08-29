@@ -3,6 +3,10 @@
  * only — DoD: both deliver the archived bytes"). NO LIVE NETWORK: every
  * test injects a fake `TransporterLike` whose `sendMail()` records what it
  * received — there is no live SMTP server in this environment.
+ *
+ * GAP-10: subject/body come off the delivery job (`input.message`),
+ * rendered at enqueue from the resolved message template. The sender has
+ * no default subject — a job without a message is refused.
  */
 import { describe, expect, it } from 'vitest';
 import type { ChannelSendInput } from './channel-sender.js';
@@ -26,6 +30,7 @@ function input(overrides: Partial<ChannelSendInput> = {}): ChannelSendInput {
     recipients: ['ap-clerk@example.com'],
     channel: 'email',
     docId: 'doc-123',
+    message: { subject: 'Purchase order PO-1', body: 'Purchase order PO-1 is attached.\n' },
     ...overrides,
   };
 }
@@ -48,6 +53,26 @@ describe('EmailChannelSender', () => {
     expect(sent.to).toEqual(['a@example.com', 'b@example.com']);
     expect(sent.attachments).toHaveLength(1);
     expect(Buffer.compare(sent.attachments[0].content, Buffer.from(archiveBytes))).toBe(0);
+  });
+
+  it('GAP-10: the subject and plain-text body are exactly the rendered message on the job — nothing hardcoded, nothing re-rendered', async () => {
+    const { transporter, calls } = fakeTransporter();
+    const sender = new EmailChannelSender({ from: 'output@example.com', transporter });
+
+    await sender.send(input({ message: { subject: 'S from template', body: 'B from template\n' } }));
+
+    const sent = calls[0] as { subject: string; text: string; html?: unknown };
+    expect(sent.subject).toBe('S from template');
+    expect(sent.text).toBe('B from template\n');
+    expect(sent.html).toBeUndefined();
+  });
+
+  it('GAP-10: refuses a job with no rendered message rather than inventing a default subject', async () => {
+    const { transporter, calls } = fakeTransporter();
+    const sender = new EmailChannelSender({ from: 'output@example.com', transporter });
+
+    await expect(sender.send(input({ message: undefined }))).rejects.toThrow(/no rendered message/);
+    expect(calls).toHaveLength(0);
   });
 
   it('rejects (not silently no-ops) when there are no recipients', async () => {

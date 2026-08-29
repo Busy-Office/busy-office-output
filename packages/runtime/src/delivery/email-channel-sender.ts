@@ -17,8 +17,16 @@
  * default and gives tests a second, even-more-realistic option beyond a
  * hand-rolled fake if they want one.
  *
+ * Subject and body (GAP-10) come off the delivery job (`input.message`) —
+ * rendered at enqueue from the lifecycle-governed message template the
+ * resolution named (src/message/message-template.ts). There is NO default
+ * subject here: a job with no message is refused (the queue's retry ->
+ * poison path surfaces it), because "bytes with a hardcoded subject" is
+ * exactly the operator-config fallback the maintainer's decision rules
+ * out.
+ *
  * No payloads in logs (CLAUDE.md golden rule): this file never logs
- * `archiveBytes` or `recipients`.
+ * `archiveBytes`, `recipients`, or `message`.
  */
 import nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -46,22 +54,17 @@ export interface EmailChannelSenderOptions {
    * `smtp` — the mechanism this sender's tests use to avoid all network
    * I/O. Takes priority over `smtp`. */
   transporter?: TransporterLike;
-  /** Subject line for delivered documents. Defaults to a docId-bearing
-   * subject when omitted. */
-  subjectPrefix?: string;
 }
 
 export class EmailChannelSender implements ChannelSender {
   private readonly transporter: TransporterLike;
   private readonly from: string;
-  private readonly subjectPrefix: string;
 
   constructor(options: EmailChannelSenderOptions) {
     if (typeof options.from !== 'string' || options.from.trim() === '') {
       throw new TypeError('EmailChannelSender requires a non-empty from address.');
     }
     this.from = options.from;
-    this.subjectPrefix = options.subjectPrefix ?? 'Document';
     if (options.transporter !== undefined) {
       this.transporter = options.transporter;
     } else if (options.smtp !== undefined) {
@@ -83,11 +86,14 @@ export class EmailChannelSender implements ChannelSender {
     if (input.recipients.length === 0) {
       throw new Error(`EmailChannelSender.send: docId "${input.docId}" has no recipients.`);
     }
+    if (input.message === undefined) {
+      throw new Error(`EmailChannelSender.send: docId "${input.docId}" has no rendered message (subject/body) on its delivery job.`);
+    }
     await this.transporter.sendMail({
       from: this.from,
       to: input.recipients,
-      subject: `${this.subjectPrefix} ${input.docId}`,
-      text: `Document ${input.docId} is attached.`,
+      subject: input.message.subject,
+      text: input.message.body,
       attachments: [
         {
           filename: `${input.docId}.pdf`,

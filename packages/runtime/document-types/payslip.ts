@@ -26,6 +26,7 @@
  */
 import type { DocNode } from '@busy-office/output-schema';
 import type { DocumentTypeDefinition } from '../src/registration/document-type-definition.js';
+import type { MessageTemplate } from '../src/message/message-template.js';
 import { readContract, rulesFor, templatesFor } from './load-sources.js';
 
 const payslipTemplate: DocNode = {
@@ -141,6 +142,57 @@ const payslipPdfDirectTemplate: DocNode = {
   ],
 };
 
+/**
+ * Email message templates (GAP-10, maintainer decision 2026-08-29): the
+ * subject/body a payslip email carries are TEMPLATES under this document
+ * type's ownership — resolved by locale through the same most-specific
+ * match as the document templates above, `published`, provenance `human`.
+ * Two locales, deliberately different wording, so "varying by locale" is
+ * real (the per-recipient gate exercises exactly these two). Short and
+ * generic on purpose: no legal/HR copy. No wildcard-locale fallback: a
+ * payslip email for a locale with no message template is an
+ * `unresolved-message-template` determination failure, never a
+ * default-subject send. Segments only — every non-literal is a named
+ * expression under docs/EXPRESSION-GRAMMAR.md.
+ */
+const payslipEmailEnUS: MessageTemplate = {
+  meta: {
+    id: 'payslip-email-en-US-v1',
+    variant: { documentType: 'payslip', locale: 'en-US' },
+    version: '1.0.0',
+    lifecycle: 'published',
+    provenance: 'human',
+  },
+  channel: 'email',
+  subject: ['Your payslip for the period ending ', { expr: 'header.payPeriodEnd' }],
+  body: [
+    'Hello ',
+    { expr: 'header.employeeName' },
+    ',\n\nYour payslip for the pay period ending ',
+    { expr: 'header.payPeriodEnd' },
+    ' is attached.\n\nThis message was generated automatically.\n',
+  ],
+};
+
+const payslipEmailDeDE: MessageTemplate = {
+  meta: {
+    id: 'payslip-email-de-DE-v1',
+    variant: { documentType: 'payslip', locale: 'de-DE' },
+    version: '1.0.0',
+    lifecycle: 'published',
+    provenance: 'human',
+  },
+  channel: 'email',
+  subject: ['Ihre Gehaltsabrechnung für den Zeitraum bis ', { expr: 'header.payPeriodEnd' }],
+  body: [
+    'Guten Tag ',
+    { expr: 'header.employeeName' },
+    ',\n\nIhre Gehaltsabrechnung für den Abrechnungszeitraum bis ',
+    { expr: 'header.payPeriodEnd' },
+    ' finden Sie im Anhang.\n\nDiese Nachricht wurde automatisch erstellt.\n',
+  ],
+};
+
 export const payslip: DocumentTypeDefinition = {
   documentType: 'payslip',
   contract: readContract('payslip.schema.json'),
@@ -149,4 +201,5 @@ export const payslip: DocumentTypeDefinition = {
     'payslip-companyCode-1000-v1': payslipPdfDirectTemplate,
   }),
   rules: rulesFor('payslip'),
+  messageTemplates: [payslipEmailEnUS, payslipEmailDeDE],
 };

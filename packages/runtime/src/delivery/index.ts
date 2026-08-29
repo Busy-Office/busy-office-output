@@ -4,6 +4,7 @@ export type {
   DeliveryAttemptResult,
   DeliveryJob,
   DeliveryJobStatus,
+  DeliveryMessage,
   DeliveryQueue,
   EnqueueDeliveryInput,
 } from './delivery-queue.js';
