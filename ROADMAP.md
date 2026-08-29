@@ -171,30 +171,43 @@ are done.
 - [x] **GAP-12** CI is red and installs no validators: remove the deleted `spike/` step from `.github/workflows/ci.yml`, install pinned typst 0.15.1 + verapdf + poppler-utils — DoD: CI green on push, `npm run verify` passing there *(2026-08-29: commit 8c9fa64 — GitHub Actions run 33229511242 conclusion=success on the real ubuntu-latest runner, vs failure on the two preceding commits under the old workflow. Every "in CI" compliance claim is now actually true: typst 0.15.1 + veraPDF 1.30.2 + poppler-utils installed, pinned, PATH-checked, npm ci + npm run verify passing there)*
 - [x] **GAP-03** Bursting measurement: run 8,000 docs Typst-only through the real pipeline (fan-out, real render/archive/enqueue), record ms/doc + total wall-clock against the 30-min window in `docs/RESULTS.md` — DoD: numbers in RESULTS.md *(2026-08-29: MEASURED, not projected — 8,000 payslips run to completion through the full pipeline (validate+determine+mint+render+archive+enqueue) in 18.64 min, 139.8 ms/doc, **1.61x inside the 30-min window** single-process; concurrency-4 extrapolated from N=2,000: 6.5 min, 4.62x. Render is 99% of per-doc cost (138.7 of 139.8 ms). docs/RESULTS.md §Bursting — real pipeline; bench: `npm run bench:burst`, not part of npm test)*; **[HUMAN]** then decides ADR-002 on them — **still open, human-only**
 - [x] **GAP-15** `rendererVersion` never persisted: `archiveArtifact` writes `rendererId@version` onto the registry row (surfaced by having two renderers — the audit row can no longer say which produced the bytes) — DoD: a pdf-direct row and a Typst row carry different correct values in a test; console's `template@ver · renderer@ver` stops rendering "—" *(2026-08-29: combined id@version in the existing column, no migration; written in the same UPDATE as archiveRef; empty renderer rejected before any bytes are written (fail-closed, same as retentionUntil). e2e asserts typst@0.15.1 vs pdf-direct@1.17.1 differ, derived from real Renderer.version; console shows the value on archived rows and honestly "—" on DRAFT rows. 264/264)*
+- [ ] **GAP-16** `idempotency-store.ts` wrapper mints NULL locale (not on the server/embed mint path — both go through `submit-resolution.ts` — but a future caller would silently lose locale). Cleaner fix: delete the now-unused `IdempotencyStore` facade outright (GAP-11 already named it a cleanup candidate) — DoD: either `locale` threaded through or the facade deleted; `npm run verify` green. *Sequenced after GAP-07/08 (same tree).*
 - [ ] **GAP-07/08** Consumer contract + registration seam (design ratified by GAP-01/02 = standalone product): `OutputPort` v1 typed with all five verbs (`emit`, `preview`, `status`, `reproduce`, `registerDocumentType`) + one document type registering from outside the engine tree — DoD: contract tests, lint-enforced boundary. *Needs an arb-chair design ruling before build.*
 - [ ] **GAP-10** Email message body templating — **decision made 2026-08-29: lifecycle-governed template**, not channel config. Subject/body are templates resolved per document type + locale via the same variant resolution (`TemplateMeta` with a message-template kind, or a sibling template resolved alongside the document's), entering the same lifecycle, corpus-gated, provenance recorded. EmailChannelSender renders subject/body from the resolved message template and attaches the archived PDF — DoD: a payslip email test asserts subject + body rendered from a template (not a hardcoded string), varying by locale; body never contains a value not in the template's expressions; payslip-log-scrub still passes. *Sequenced after the Stage 4 clause-2 build (same seams).*
 - [x] **[HUMAN]** **GAP-05** ADR-008 licence choice + LICENSE file (interim "evaluation only" already in README) *(2026-08-29: Apache-2.0, holder Busy Office — LICENSE, NOTICE, CONTRIBUTING.md with DCO, SPDX field in every package.json, README updated. npm trusted publishing + erp-graph edge flip are follow-ups outside this repo)*
 - [x] **[HUMAN]** **GAP-06** Print scope: name a site that can't use PDF+OS spooler, or ratify "PDF is the print path" *(2026-08-29: ratified "PDF is the print path" — no print agent enters scope, Deferred wall entry stands)*
 - [x] **[HUMAN]** **GAP-09** Embedded-topology typst-binary leak: ratify T2 split worker vs renderer-behind-a-process-seam as the host default *(2026-08-29: T2 split worker ratified — host embeds the thin API, rendering in a separate worker that owns the binary. ADR-007 addendum. Nothing built, no active host under ADR-009)*
 
-### Exit gate — `/gate-check 4`  — **3/4 PASS, 1 FAIL — Stage 4 NOT closed (2026-08-29)**
+### Exit gate — `/gate-check 4`  — **4/4 PASS — Stage 4 exit gate MET (2026-08-29)**
 8,000-recipient payroll run inside the stated window, per-recipient locale and
 channel, one audit row each; ADR-002 closed.
 
-Independent corpus-qa gate-check (real commands, fresh N=50 bench run
-corroborating the recorded 8,000 within 5%, direct SQLite queries):
-1. 8,000 inside the window — **PASS** (18.64 min measured, 1.61x; fresh run 133 ms/doc vs recorded 139.8)
-2. per-recipient locale and channel — **FAIL, not demonstrated.** The routing
-   mechanism exists and is unit-tested (variant resolution over locale,
-   per-rule channel), but the 8,000 run uses ONE rule → ONE template → ONE
-   channel → ONE SHARED recipient string, with `locale` never set or
-   persisted. "Per-recipient" is literally false as demonstrated. Recipients
-   today come from the rule, not the payload — a design point (rule
-   expression vs caller context) routed to arb-chair before building.
-3. one audit row each — **PASS** (53 rows for 53 docs, all ORIGINAL, archiveRef + rendererVersion set, one delivered row each)
+Two independent corpus-qa gate-checks. First (before c6d7221): 3/4, clause 2
+FAIL — the routing mechanism existed but the 8,000 run used one rule/template/
+channel and one shared recipient, locale never set or persisted. Second
+(after c6d7221, re-derived: fresh N=60 run matching the recorded 8,000 within
+0.2%, direct SQLite, the permanent gate's assertions read line-by-line):
+1. 8,000 inside the window — **PASS** (18.63 min measured, 139.7 ms/doc, 1.61x)
+2. per-recipient locale and channel — **PASS.** Recipients/locale are caller-
+   supplied determination context, rule may override (arb-chair; HLD §1 —
+   an employee's mailbox is master data, outside the boundary). 8,000 run:
+   8,003 docs each to a distinct email, de-DE/en-US × email/object-store
+   all with meaningful shares; `locale` persisted (migration 0010); trace
+   persisted on the embed path (was dropped); `trace_log` carries
+   `recipientsSource` and never an address (63/63 vs 0/63 in the check).
+   Permanent gate `per-recipient-routing.test.ts` in `npm test`.
+3. one audit row each — **PASS** per RESOLUTION: 84 rows = 84 jobs = 84
+   resolutions at N=60; rows exceed N because the DE rule fans out and each
+   copy is its own DocumentInstance with its own docId and delivery job
+   (HLD §3) — correct, not a leak.
 4. ADR-002 closed — **PASS**
 
-- [ ] **Close clause 2**: per-recipient routing demonstrated across the 8,000 run — ≥2 locales × 2 channels, each doc landing on the template/channel/recipient its own event names, verifiable from registry rows (locale persisted; embed-path trace persisted) — DoD: re-run `--n 8000 --drain`, row-based assertion passes, RESULTS.md updated. *Awaiting arb-chair ruling on the recipient/locale source mechanism.*
+- [x] **Close clause 2** *(2026-08-29, c6d7221 — see above)*
+
+Stage 4 exit gate met. Remaining Stage 4 items (GAP-07/08 consumer contract,
+GAP-10 email templating, template-from-sample on redacted samples) are
+Stage 4-owned build tasks, not exit-gate conditions; GAP-13 (thesis check)
+remains the human-only gate carried from Stage 3.
 
 ---
 

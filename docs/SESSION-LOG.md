@@ -11,6 +11,36 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — Stage 4 exit gate MET (4/4); GAP-09/10 decided; GAP-07/08 in build
+- Did: arb-chair ruled clause 2 — recipients/locale are caller-supplied
+  determination context, rule may override (decisive driver: HLD §1 puts
+  master data outside the boundary; an employee's mailbox is master data,
+  not payslip content — so no email field on any contract, no expression
+  evaluation in rules). Built it (c6d7221): unresolved-recipients outcome
+  (atomic, traced, 422, never an empty send), recipientsSource on the
+  trace (records WHERE, never the address), migration 0010 locale column,
+  embed-path trace persistence fixed (had been dropped), DE fan-out rule
+  routing to object-store with a rule-supplied recipient so both
+  precedence branches are exercised, permanent per-recipient-routing gate
+  in npm test. 8,000 re-run: 18.63 min (baseline 18.64 — per-recipient
+  routing costs nothing), 8,003 docs each to a distinct email, 2 locales
+  × 2 channels. Second corpus-qa gate-check re-derived all four clauses
+  PASS (fresh N=60 within 0.2%, direct SQLite, trace_log 63/63 carry
+  recipientsSource and 0/63 carry an address). Stage 4 exit gate met.
+  Also this stretch: ADR-002 + ADR-008 accepted, GAP-06/09/10 decided,
+  GAP-11/12/03/15 closed, pdf-direct landed, licence + vendor-name sweep.
+- Open: GAP-07/08 (OutputPort v1 + registerDocumentType — arb-chair ruled,
+  BUILD IN FLIGHT), GAP-10 (email templating — decided, build queued
+  behind GAP-07/08, same seams), GAP-16 (trivial NULL-locale wrapper gap,
+  queued behind GAP-07/08, same tree), template-from-sample on redacted
+  samples (blocked on real samples). GAP-13 thesis check — human-only,
+  carried from Stage 3.
+- Next: verify + commit GAP-07/08 when it lands, then GAP-10, then GAP-16.
+  Stage 5 (Governance) becomes the next stage once those Stage 4-owned
+  tasks are done — GAP-13's note in the register says Stage 5 forward-
+  build increases exposure past an unvalidated thesis; worth surfacing to
+  the maintainer before starting it.
+
 ## 2026-08-29 — GAP-15 closed; /gate-check 4 → 3/4, Stage 4 NOT closed
 - Did: GAP-15 (rendererId@version persisted at archive time, fail-closed,
   264/264). Then ran /gate-check 4 via corpus-qa (real commands, fresh

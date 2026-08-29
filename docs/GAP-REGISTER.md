@@ -222,6 +222,21 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   row and a Typst-rendered row carry different, correct values; the
   console's `template@ver · renderer@ver` line stops rendering "—".
 
+### GAP-16 — idempotency-store.ts wrapper mints NULL locale
+- Type: TASK — **OPEN, Claude-doable, trivial** (surfaced 2026-08-29 by the
+  Stage 4 gate re-check)
+- `idempotency-store.ts`'s `getOrCreateForResolution` wrapper calls
+  `registryStore.getOrCreateByResolutionKey` without the `locale` param
+  clause 2 added. Not on the server or embed mint path (both go through
+  `submit-resolution.ts`, which passes it), so no effect on the gate — but a
+  future caller of the wrapper would mint a NULL-locale row silently. The
+  wrapper is also already flagged as a deprecated/ignored path since
+  GAP-11 (`IngressServerOptions.idempotencyStore` is ignored).
+- Closes when: either the wrapper threads `locale` through (one param), or
+  the now-unused `IdempotencyStore` facade is deleted outright (the cleaner
+  fix — GAP-11's commit already named it a cleanup candidate). Sequenced
+  after GAP-07/08 lands (same tree).
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
