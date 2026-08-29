@@ -338,3 +338,24 @@ describe('SqliteRegistryStore template lifecycle log (ROADMAP Stage 5 task 1, mi
     store.close();
   });
 });
+
+describe('SqliteRegistryStore reprint log (ROADMAP Stage 5 task 2, migration 0013)', () => {
+  it('append returns an increasing id; list is per docId, oldest first; unknown docId is []; an invalid action is rejected by the CHECK', () => {
+    const store = createSqliteRegistryStore(':memory:');
+    const base = { docId: 'doc-A', actorRole: 'hr-clerk', actorSubjectId: 'clerk-1', reason: 'audit', occurredAt: '2026-08-29T00:00:00.000Z' };
+
+    expect(store.listReprintLog('doc-A')).toEqual([]);
+    const first = store.appendReprintLog({ ...base, action: 'reproduce', resultDocId: null });
+    const second = store.appendReprintLog({ ...base, action: 'regenerate', resultDocId: 'doc-B', occurredAt: '2026-08-29T00:00:01.000Z' });
+    store.appendReprintLog({ ...base, docId: 'doc-Z', action: 'reissue', resultDocId: 'doc-D' });
+    expect(second).toBeGreaterThan(first);
+
+    expect(store.listReprintLog('doc-A')).toEqual([
+      { id: first, ...base, action: 'reproduce', resultDocId: null },
+      { id: second, ...base, action: 'regenerate', resultDocId: 'doc-B', occurredAt: '2026-08-29T00:00:01.000Z' },
+    ]);
+    expect(store.listReprintLog('doc-B')).toEqual([]);
+    expect(() => store.appendReprintLog({ ...base, action: 'watermark' as never, resultDocId: null })).toThrow();
+    store.close();
+  });
+});

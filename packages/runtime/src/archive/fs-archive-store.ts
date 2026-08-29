@@ -71,6 +71,27 @@ export class FsArchiveStore implements ArchiveStore {
     return new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength);
   }
 
+  /**
+   * Read `mediaType` back off the `.meta.json` sidecar `archive()` wrote
+   * (Stage 5 task 2 — the first reader of that sidecar). `undefined` when
+   * the sidecar is missing or carries no string `mediaType`; never throws
+   * for a missing sidecar (the bytes are the artifact, the sidecar is
+   * insurance — see the module comment).
+   */
+  async retrieveMediaType(archiveRef: string): Promise<string | undefined> {
+    const metaPath = `${join(this.rootDir, archiveRef)}.meta.json`;
+    let raw: string;
+    try {
+      raw = await readFile(metaPath, 'utf8');
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+      throw err;
+    }
+    const parsed: unknown = JSON.parse(raw);
+    const mediaType = (parsed as { mediaType?: unknown } | null)?.mediaType;
+    return typeof mediaType === 'string' && mediaType !== '' ? mediaType : undefined;
+  }
+
   /** Deletes the bytes file and its `.meta.json` sidecar. Idempotent —
    * ENOENT on either is swallowed, since "already gone" is exactly the
    * post-condition a purge is trying to reach. */

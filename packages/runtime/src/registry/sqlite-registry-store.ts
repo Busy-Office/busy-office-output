@@ -41,6 +41,9 @@ import type {
   ListDocumentsQuery,
   OutboxEntry,
   RegistryStore,
+  ReprintLogAction,
+  ReprintLogEntry,
+  ReprintLogEvent,
   ResolutionEventKey,
   TemplateLifecycleEvent,
 } from './registry-store.js';
@@ -64,6 +67,30 @@ function toLifecycleEvent(row: TemplateLifecycleRow): TemplateLifecycleEvent {
     version: row.version,
     fromState: row.from_state as TemplateLifecycle | null,
     toState: row.to_state as TemplateLifecycle,
+    actorRole: row.actor_role,
+    actorSubjectId: row.actor_subject_id,
+    reason: row.reason,
+    occurredAt: row.occurred_at,
+  };
+}
+
+interface ReprintLogRow {
+  id: number;
+  doc_id: string;
+  action: string;
+  result_doc_id: string | null;
+  actor_role: string;
+  actor_subject_id: string;
+  reason: string;
+  occurred_at: string;
+}
+
+function toReprintLogEntry(row: ReprintLogRow): ReprintLogEntry {
+  return {
+    id: row.id,
+    docId: row.doc_id,
+    action: row.action as ReprintLogAction,
+    resultDocId: row.result_doc_id,
     actorRole: row.actor_role,
     actorSubjectId: row.actor_subject_id,
     reason: row.reason,
@@ -440,6 +467,35 @@ export class SqliteRegistryStore implements RegistryStore {
       )
       .all(templateId, version) as unknown as TemplateLifecycleRow[];
     return rows.map(toLifecycleEvent);
+  }
+
+  appendReprintLog(event: ReprintLogEvent): number {
+    const result = this.db
+      .prepare(
+        `INSERT INTO reprint_log
+           (doc_id, action, result_doc_id, actor_role, actor_subject_id, reason, occurred_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        event.docId,
+        event.action,
+        event.resultDocId,
+        event.actorRole,
+        event.actorSubjectId,
+        event.reason,
+        event.occurredAt,
+      );
+    return Number(result.lastInsertRowid);
+  }
+
+  listReprintLog(docId: string): ReprintLogEntry[] {
+    const rows = this.db
+      .prepare(
+        `SELECT id, doc_id, action, result_doc_id, actor_role, actor_subject_id, reason, occurred_at
+         FROM reprint_log WHERE doc_id = ? ORDER BY id ASC`,
+      )
+      .all(docId) as unknown as ReprintLogRow[];
+    return rows.map(toReprintLogEntry);
   }
 
   private selectTemplateLifecycle(templateId: string, version: string): TemplateLifecycle | undefined {

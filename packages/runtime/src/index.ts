@@ -32,6 +32,9 @@ export type {
   DocumentState,
   DeliveryHistoryEvent,
   TemplateLifecycleEvent,
+  ReprintLogAction,
+  ReprintLogEvent,
+  ReprintLogEntry,
   GetOrCreateResult,
   OutboxEntry,
 } from './registry/index.js';
@@ -127,6 +130,10 @@ export type {
   DocumentStatus,
   ReproduceInput,
   ReproduceResult,
+  RegenerateInput,
+  RegenerateResult,
+  ReprintAuditInput,
+  ReprintRefusal,
 } from './embed/create-output.js';
 export { submitResolution } from './submit-resolution.js';
 export type { SubmitResolutionOutcome } from './submit-resolution.js';

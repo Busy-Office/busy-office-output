@@ -1,6 +1,9 @@
 export type {
   DeliveryHistoryEvent,
   TemplateLifecycleEvent,
+  ReprintLogAction,
+  ReprintLogEvent,
+  ReprintLogEntry,
   DocumentRegistryRow,
   DocumentState,
   GetOrCreateResult,

@@ -181,19 +181,36 @@ describe('OutputPort v1 — preview', () => {
   });
 });
 
-describe('OutputPort v1 — reproduce (Stage 5 stub)', () => {
-  it('returns not-implemented and touches neither the registry nor the authorization port', async () => {
+describe('OutputPort v1.1 — reproduce (Stage 5 task 2: live, no longer a stub)', () => {
+  // Until Stage 5 task 2 this asserted `not-implemented` and that the
+  // registry and authorization port were never touched. Both are now
+  // FALSE BY DESIGN (ADR-007 v1.1): `not-implemented` is gone from the
+  // union, and reproduce's first act is a registry read followed by
+  // `canAccess` — it is that port's first real caller. The full
+  // three-path DoD lives in reprint.test.ts; this keeps the v1 contract
+  // fact that an UNKNOWN docId is a typed answer that reads the registry
+  // once, authorizes nothing (no row to authorize against), writes
+  // nothing.
+  it('an unknown docId is { status: "unknown-document" } — one registry read, no authorization call, no write', async () => {
     const registryStore = createSqliteRegistryStore(':memory:');
     const registrySpies = spyOnEveryMethod(registryStore);
+    const readSpy = vi.spyOn(registryStore, 'getByDocId');
+    const writeSpies = (['appendReprintLog', 'mintWithOutbox', 'getOrCreateByResolutionKey', 'updateState'] as const).map((m) =>
+      vi.spyOn(registryStore, m),
+    );
     const authorization = createDefaultAuthorizationPort(createDocumentTypeRegistry());
     const authzSpy = vi.spyOn(authorization, 'canAccess');
     const port = createOutput({ registryStore, authorization });
 
-    const result = await port.reproduce({ docId: 'any-doc-id', actor: { role: 'hr-clerk' } });
-    expect(result).toEqual({ status: 'not-implemented', availableFrom: 'stage-5' });
+    const result = await port.reproduce({ docId: 'any-doc-id', actor: { role: 'hr-clerk', subjectId: 'clerk-1' }, reason: 'audit' });
+    expect(result).toEqual({ status: 'unknown-document', docId: 'any-doc-id' });
 
-    for (const spy of registrySpies) expect(spy).not.toHaveBeenCalled();
     expect(authzSpy).not.toHaveBeenCalled();
+    expect(readSpy).toHaveBeenCalledTimes(1);
+    for (const spy of writeSpies) expect(spy).not.toHaveBeenCalled();
+    // Nothing but that one read (and its private SELECT helper) ran.
+    expect(registrySpies.filter((s) => s.mock.calls.length > 0).length).toBeLessThanOrEqual(2);
+    expect(registryStore.listReprintLog('any-doc-id')).toEqual([]);
     registryStore.close();
   });
 });

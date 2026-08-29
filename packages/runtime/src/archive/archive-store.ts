@@ -103,4 +103,14 @@ export interface ArchiveStore {
    * row; the caller is responsible for recording that the purge happened.
    */
   purge(archiveRef: string): Promise<void>;
+
+  /**
+   * OPTIONAL (Stage 5 task 2, `OutputPort.reproduce`): the IANA media type
+   * recorded when `archiveRef` was archived, or `undefined` when this
+   * store did not record one. A store that cannot answer leaves the method
+   * unimplemented and `reproduce` OMITS `mediaType` rather than guessing —
+   * "application/pdf" is never asserted as if it had been read back.
+   * `FsArchiveStore` answers from its `.meta.json` sidecar.
+   */
+  retrieveMediaType?(archiveRef: string): Promise<string | undefined>;
 }

@@ -60,6 +60,36 @@ export interface TemplateLifecycleEvent {
   occurredAt: string;
 }
 
+/** The three reprint actions (Stage 5 task 2) — the same trichotomy
+ * `authorization/authorization-port.ts`'s `ReprintAction` names; repeated
+ * here as a string literal union so this port stays import-free of the
+ * authorization module. */
+export type ReprintLogAction = 'reproduce' | 'regenerate' | 'reissue';
+
+/**
+ * One append-only row of the reprint log (ROADMAP Stage 5 task 2;
+ * migrations/0013_add_reprint_log.sql) — the METADATA stamp that records a
+ * reproduce / regenerate / reissue against `docId`. `resultDocId` is
+ * `null` for `reproduce` (nothing minted) and the NEW row's docId for
+ * `regenerate` / `reissue`. Audit fields only: never payload, bytes, or
+ * recipients.
+ */
+export interface ReprintLogEvent {
+  docId: string;
+  action: ReprintLogAction;
+  resultDocId: string | null;
+  actorRole: string;
+  actorSubjectId: string;
+  reason: string;
+  /** RFC 3339. */
+  occurredAt: string;
+}
+
+/** A persisted `ReprintLogEvent` with its autoincrement id. */
+export interface ReprintLogEntry extends ReprintLogEvent {
+  id: number;
+}
+
 /**
  * The idempotency key for ONE resolution (ROADMAP Stage 3 "Fan-out: one
  * event → N resolutions" task). `BusinessEventKey`'s four-tuple
@@ -388,6 +418,19 @@ export interface RegistryStore {
   /** Every lifecycle row for `templateId@version`, oldest first (the seed
    * row first). `[]` for an unknown key. */
   listTemplateLifecycleHistory(templateId: string, version: string): TemplateLifecycleEvent[];
+
+  /**
+   * Append one reprint-log row (Stage 5 task 2; migrations/
+   * 0013_add_reprint_log.sql) and return its id — the `reprintLogId` the
+   * `reproduce` verb hands back. Append-only: never edited, never deleted.
+   * Does NOT check that `event.docId` exists — the caller
+   * (embed/create-output.ts) has already fetched and authorized the row.
+   */
+  appendReprintLog(event: ReprintLogEvent): number;
+
+  /** Every reprint-log row stamped against `docId`, oldest first. `[]`
+   * for a docId that was never reproduced/regenerated/reissued. */
+  listReprintLog(docId: string): ReprintLogEntry[];
 
   /** Release the underlying connection/handle. Safe to call once, at shutdown. */
   close(): void;
