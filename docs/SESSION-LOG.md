@@ -11,6 +11,31 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — gap register: GAP-11/12/03 closed (loop ticks 1–2)
+- Did: maintainer-authored gap register (docs/GAP-REGISTER.md) ratified
+  Session A in chat (GAP-01 -> ADR-009 standalone product; GAP-02 spine
+  non-optional; GAP-04 developer-authors-as-code) and GAP-14 doc drift
+  fixed. Then the loop (every 20 min) closed the three Claude-doable
+  tasks: GAP-11 — server.ts onto the transactional outbox via a shared
+  submit-resolution.ts (no third divergent copy), serve() startup resume
+  sweep, HTTP-path crash-resume test with red/green proof. GAP-12 — CI
+  red-to-green on the real runner (run 33229511242) with pinned typst
+  0.15.1 + veraPDF 1.30.2 + poppler-utils, install sequence proven in an
+  x86_64 Ubuntu container first. GAP-03 — 8,000 payslips MEASURED through
+  the full real pipeline: 18.64 min, 139.8 ms/doc, 1.61x inside the
+  30-min window single-process (render is 99% of cost); concurrency-4
+  extrapolated 6.5 min.
+- Open: ADR-002 (GAP-03's human half — measurement clears Typst-only,
+  decision is the maintainer's), GAP-05 licence, GAP-06 print scope,
+  GAP-09 host topology, GAP-13 thesis gate — all human-only. GAP-07/08
+  (consumer contract + registration seam) and GAP-10 (email templating)
+  need an arb-chair/decision before build. Template-from-sample on
+  redacted samples still blocked on real samples.
+- Next: nothing in Stage 4 is buildable without a decision now. The
+  loop's next ticks will be noops until one of: ADR-002 decided (-> Stage
+  4 exit gate run), GAP-07/08 ruled (-> consumer contract build), or
+  GAP-10 decided (-> email templating build).
+
 ## 2026-08-29 — Stage 4: document-level authorization
 - Did: arb-chair ruling — pure AuthorizationPort evaluator only (ADR-007's
   already-named boundary, first concrete shape), not the live reprint
