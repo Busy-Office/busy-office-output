@@ -169,6 +169,13 @@ export interface Resolution {
   channel: string;
   recipients: string[];
   locale?: string;
+  /** The winning template's `TemplateMeta.renderer` — the per-template
+   * renderer id (never a global setting, docs/UI-DESIGN.md absent-list)
+   * that composition.ts resolves against its renderer registry. Optional
+   * only so outbox rows minted before this field existed still redrive
+   * (they fall back to the default renderer); every fresh resolution
+   * carries it. */
+  renderer?: string;
 }
 
 export type DeterminationResult =
@@ -242,6 +249,7 @@ export function determine(
       channel: rule.resolution.channel,
       recipients: rule.resolution.recipients,
       locale: variantQuery.locale,
+      renderer: winningTemplate.renderer,
     });
   }
 

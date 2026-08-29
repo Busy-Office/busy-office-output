@@ -1,0 +1,7 @@
+{
+  "id": "payslip-companyCode-1000-v1",
+  "variant": { "documentType": "payslip", "companyCode": "1000" },
+  "version": "1.0.0",
+  "lifecycle": "published",
+  "renderer": "pdf-direct"
+}

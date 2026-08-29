@@ -314,6 +314,9 @@ async function handleEvent(
         channel: resolution.channel,
         recipients: resolution.recipients,
         locale: resolution.locale,
+        // Which renderer the winning template declared (ADR-002 routing):
+        // part of the audit answer to "what produced this artifact".
+        ...(resolution.renderer !== undefined ? { renderer: resolution.renderer } : {}),
         ...(composed !== undefined ? { composition: composed } : {}),
       };
     }),

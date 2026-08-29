@@ -11,10 +11,11 @@
     "packages/*"
   ],
   "scripts": {
-    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/cli/diff.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/runtime/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/runtime/src/archive/index.ts",
+    "typecheck": "tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/schema/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-typst/src/cli/diff.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/render-pdf-direct/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/runtime/src/index.ts && tsc --strict --noEmit --target es2022 --module nodenext --moduleResolution nodenext packages/runtime/src/archive/index.ts",
     "test": "vitest run",
     "diff": "tsx packages/render-typst/src/cli/diff.ts",
     "bench:po": "tsx test/corpus/purchase-order/bench.ts",
+    "bench:pdf-direct": "tsx test/corpus/pdf-direct/bench.ts",
     "verify": "npm run typecheck && npm test",
     "bench:burst": "tsx test/bench/bursting.ts"
   },

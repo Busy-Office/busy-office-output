@@ -201,10 +201,82 @@ const payslipTemplate: DocNode = {
   ],
 };
 
+/**
+ * ROADMAP Stage 4 "pdf-direct second renderer" (ADR-002 Accepted) added
+ * the fourth entry: `payslip-companyCode-1000-v1`
+ * (packages/runtime/rules/templates/payslip-companyCode-1000.json,
+ * `"renderer": "pdf-direct"`). Same tree as `payslipTemplate` above with
+ * ONE difference — no `carryForward` on the line table — because the
+ * routing rule this task decided (bounded by ADR-001) is: pdf-direct
+ * serves single-page, Latin-only, no-carry-forward documents, and the
+ * renderer refuses a `carryForward` table outright rather than
+ * approximating it. Reused VERBATIM from
+ * `test/corpus/pdf-direct/templates.ts` (`payslipPdfDirectTemplate`),
+ * where the pdf-direct corpus gates it (determinism, one page, veraPDF).
+ * `payslip-global-v1` stays on Typst untouched — the 8,000-payslip burst
+ * measurement in docs/RESULTS.md was made against it and remains valid.
+ */
+const payslipPdfDirectTemplate: DocNode = {
+  kind: 'document',
+  page: { size: 'A4', margin: [40, 40, 40, 40] },
+  children: [
+    {
+      kind: 'header',
+      children: [
+        { kind: 'text', value: 'header.payslipNumber', style: 'title' },
+        {
+          kind: 'fieldGrid',
+          columns: 2,
+          fields: [
+            { label: 'Pay period start', value: 'header.payPeriodStart' },
+            { label: 'Pay period end', value: 'header.payPeriodEnd' },
+            { label: 'Pay date', value: 'header.payDate' },
+            { label: 'Currency', value: 'header.currency' },
+            { label: 'Employer', value: 'header.employer.name' },
+            { label: 'Employee', value: 'header.employeeName' },
+            { label: 'Employee ID', value: 'header.employeeId' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'section',
+      children: [
+        {
+          kind: 'table',
+          bind: 'lines',
+          repeatHeader: true,
+          columns: [
+            { key: 'lineNumber', width: 'flex', align: 'r', label: '#' },
+            { key: 'code', width: 'flex', align: 'l', label: 'Code' },
+            { key: 'description', width: 'flex', align: 'l', label: 'Description' },
+            { key: 'type', width: 'flex', align: 'c', label: 'Type' },
+            { key: 'amount.amount', width: 'flex', align: 'r', label: 'Amount' },
+          ],
+        },
+      ],
+    },
+    {
+      kind: 'totals',
+      keepTogether: true,
+      rows: [
+        { label: 'Gross pay', value: 'totals.grossPay.amount' },
+        { label: 'Total deductions', value: 'totals.totalDeductions.amount' },
+        { label: 'Net pay', value: 'totals.netPay.amount' },
+      ],
+    },
+    {
+      kind: 'footer',
+      children: [{ kind: 'pageNumber', format: 'Page {page} of {pages}' }],
+    },
+  ],
+};
+
 const TEMPLATE_CONTENT: Readonly<Record<string, DocNode>> = {
   'po-global-v1': purchaseOrderTemplate,
   'invoice-global-v1': invoiceTemplate,
   'payslip-global-v1': payslipTemplate,
+  'payslip-companyCode-1000-v1': payslipPdfDirectTemplate,
 };
 
 /** Returns the hardcoded `DocNode` tree for `templateId`, or `undefined` if

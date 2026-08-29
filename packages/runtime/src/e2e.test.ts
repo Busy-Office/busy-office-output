@@ -26,11 +26,11 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { countPdfPages } from '@busy-office/render-typst';
+import { countPdfPages, verifyPdfA } from '@busy-office/render-typst';
 import { createIngressServer } from './server.js';
 import { createRuntimeDeps, type RuntimeDeps } from './index.js';
 import { drainOnce } from './worker.js';
-import { sampleBusinessEventKey, validInvoice, validPurchaseOrder, withBusinessEvent } from './fixtures.js';
+import { sampleBusinessEventKey, validInvoice, validPayslip, validPurchaseOrder, withBusinessEvent } from './fixtures.js';
 
 const tempDirs: string[] = [];
 function tempDir(prefix: string): string {
@@ -195,4 +195,56 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
 
     expect(Buffer.compare(archivedBytes, outboxBytes)).toBe(0);
   });
+
+  it(
+    'payslip for companyCode 1000 routes to pdf-direct (ADR-002): one page, PDF/A-2b per veraPDF, archived + delivered',
+    async () => {
+      // `determination.companyCode` (server.ts's optional routing-hint
+      // envelope field) resolves the most-specific variant —
+      // packages/runtime/rules/templates/payslip-companyCode-1000.json,
+      // `"renderer": "pdf-direct"` — the one real template on the second
+      // renderer. Same pipeline, same archive, same delivery; only the
+      // Renderer implementation differs, selected per template.
+      const payload = {
+        ...withBusinessEvent(
+          validPayslip(),
+          sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-1000', event: 'payslip.issued' }),
+        ),
+        determination: { companyCode: '1000' },
+      };
+      const { status, json } = await post(payload);
+      expect(status).toBe(202);
+      expect(json.trace).toMatchObject({ outcome: 'matched' });
+
+      const [resolution] = json.resolutions;
+      expect(resolution.templateId).toBe('payslip-companyCode-1000-v1');
+      expect(resolution.renderer).toBe('pdf-direct');
+      expect(resolution.composition).toMatchObject({ outcome: 'rendered' });
+
+      const archivedBytes = await deps.archiveStore.retrieve(resolution.composition.archiveRef);
+      expect(countPdfPages(archivedBytes)).toBe(1);
+      // pdf-direct's own producer string proves which renderer actually produced the archived bytes.
+      expect(Buffer.from(archivedBytes).includes(Buffer.from('busy-office-output pdf-direct'))).toBe(true);
+      const pdfa = await verifyPdfA(archivedBytes, '2b');
+      expect(pdfa.failures).toEqual([]);
+      expect(pdfa.compliant).toBe(true);
+
+      const attempts = await drainOnce(deps.deliveryQueue, deps.channelSender);
+      expect(attempts.find((a) => a.job.id === resolution.composition.deliveryJobId)?.outcome).toBe('delivered');
+    },
+    30_000,
+  );
+
+  it('payslip without a companyCode still resolves payslip-global-v1 on typst (the routing rule is per template, not per document type)', async () => {
+    const payload = withBusinessEvent(
+      validPayslip(),
+      sampleBusinessEventKey({ businessObject: 'PSLIP', businessObjectId: 'PS-000789-global', event: 'payslip.issued' }),
+    );
+    const { status, json } = await post(payload);
+    expect(status).toBe(202);
+    const [resolution] = json.resolutions;
+    expect(resolution.templateId).toBe('payslip-global-v1');
+    expect(resolution.renderer).toBe('typst');
+    expect(resolution.composition).toMatchObject({ outcome: 'rendered' });
+  }, 30_000);
 });

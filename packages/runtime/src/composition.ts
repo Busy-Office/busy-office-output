@@ -29,7 +29,19 @@ export interface CompositionDeps {
   registryStore: RegistryStore;
   archiveStore: ArchiveStore;
   deliveryQueue: DeliveryQueue;
+  /** The default renderer — used when a resolution carries no `renderer`
+   * id (outbox rows minted before that field existed, older test
+   * fixtures) and as the entry for its own `id` in the registry. */
   renderer: Renderer;
+  /** Renderer registry keyed by `Renderer.id` (ADR-002: pdf-direct as a
+   * second renderer; renderer selection is a TEMPLATE property —
+   * `TemplateMeta.renderer` → `Resolution.renderer` → this lookup). A
+   * resolution naming an id that is neither here nor `renderer.id` is a
+   * `'render-failed'` outcome with a clear message, never a silent
+   * fallback to the default: rendering a template that declared
+   * `"pdf-direct"` through Typst would be a wrong artifact archived
+   * "successfully". */
+  renderers?: Readonly<Record<string, Renderer>>;
   /** Returns an RFC 3339 timestamp for a freshly-archived artifact's
    * mandatory retentionUntil, given the resolved `documentType`. Defaults
    * to `retentionUntilFor` (archive/retention-policy.ts) — the
@@ -42,6 +54,33 @@ export type CompositionOutcome =
   | { outcome: 'rendered'; archiveRef: string; retentionUntil: string; deliveryJobId: number }
   | { outcome: 'no-template-content'; templateId: string }
   | { outcome: 'render-failed'; templateId: string; error: string };
+
+/**
+ * The routing decision point (ADR-002 task: "routing rule decided in this
+ * task"): which `Renderer` implementation serves `resolution`. The rule
+ * itself lives in the template (`TemplateMeta.renderer`, e.g.
+ * packages/runtime/rules/templates/payslip-companyCode-1000.json says
+ * `"pdf-direct"`); this function only honours it. Throws — inside the
+ * callers' try/catch, so it surfaces as `'render-failed'` — when the id is
+ * unknown, rather than substituting the default.
+ */
+export function selectRenderer(deps: CompositionDeps, resolution: Pick<Resolution, 'renderer' | 'templateId'>): Renderer {
+  const id = resolution.renderer;
+  if (id === undefined) return deps.renderer;
+  // The default renderer serves its own id ahead of the registry: a caller
+  // that swaps `deps.renderer` (tests wrap it to simulate a hang/crash —
+  // serve-crash-resume.test.ts) must see that swap honoured for every
+  // template on that renderer, not bypassed via a registry entry.
+  if (deps.renderer.id === id) return deps.renderer;
+  const fromRegistry = deps.renderers?.[id];
+  if (fromRegistry !== undefined) return fromRegistry;
+  throw new Error(
+    `template '${resolution.templateId}' declares renderer '${id}', but no renderer with that id is registered (have: ${[
+      deps.renderer.id,
+      ...Object.keys(deps.renderers ?? {}),
+    ].join(', ')})`,
+  );
+}
 
 /**
  * Retention-until, per document type (ROADMAP Stage 4, "Retention per doc
@@ -76,7 +115,7 @@ export async function composeRenderArchiveAndEnqueue(
   }
 
   try {
-    const artifact = await deps.renderer.render({
+    const artifact = await selectRenderer(deps, resolution).render({
       kind: 'ir',
       ir: { irVersion: '1', root: docNode, data },
     });
@@ -142,9 +181,10 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
   }
 
   try {
+    const renderer = selectRenderer(deps, resolution);
     const [coverBytes, mainArtifact] = await Promise.all([
-      renderCoverSheet(deps.renderer, docId),
-      deps.renderer.render({ kind: 'ir', ir: { irVersion: '1', root: docNode, data } }),
+      renderCoverSheet(renderer, docId),
+      renderer.render({ kind: 'ir', ir: { irVersion: '1', root: docNode, data } }),
     ]);
 
     const mergedBytes = await mergePdfs([coverBytes, mainArtifact.bytes, termsAndConditionsBytes]);

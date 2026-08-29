@@ -66,8 +66,13 @@ function zeroFillInsideParens(source: string, regex: RegExp, groupCount: number)
 export function normalizePdf(pdfBytes: Uint8Array): Uint8Array {
   let text = Buffer.from(pdfBytes).toString(LATIN1);
 
-  text = zeroFillInsideParens(text, /\/CreationDate\(([^)]*)\)/g, 1);
-  text = zeroFillInsideParens(text, /\/ModDate\(([^)]*)\)/g, 1);
+  // `\s*` before the paren: typst writes `/CreationDate(D:...)`, pdf-lib
+  // (packages/render-pdf-direct) writes `/CreationDate (D:...)` with a
+  // space — same token, same zero-fill. Without it two pdf-direct renders
+  // in different wall-clock seconds would not byte-match after
+  // normalization (covered by normalize-pdf.test.ts).
+  text = zeroFillInsideParens(text, /\/CreationDate\s*\(([^)]*)\)/g, 1);
+  text = zeroFillInsideParens(text, /\/ModDate\s*\(([^)]*)\)/g, 1);
   text = zeroFillInsideParens(text, /\/ID\s*\[\s*\(([^)]*)\)\s*\(([^)]*)\)\s*\]/g, 2);
 
   text = zeroFillTag(text, 'xmp:ModifyDate');

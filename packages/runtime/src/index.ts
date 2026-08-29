@@ -120,6 +120,7 @@ import { createSqliteDeliveryQueue } from './delivery/sqlite-delivery-queue.js';
 import { DEFAULT_BACKOFF_POLICY, type BackoffPolicy, type DeliveryQueue } from './delivery/delivery-queue.js';
 import { FsChannelSender } from './delivery/fs-channel-sender.js';
 import { TypstRenderer } from '@busy-office/render-typst';
+import { PdfDirectRenderer } from '@busy-office/render-pdf-direct';
 import { resumeStrandedCompositions, type CompositionDeps, type ResumeOutcome } from './composition.js';
 import { startWorker, type Worker } from './worker.js';
 
@@ -191,9 +192,15 @@ export function createRuntimeDeps(
   const archiveStore = new FsArchiveStore(archiveDir);
   const backoffPolicy = DEFAULT_BACKOFF_POLICY;
   const deliveryQueue = createSqliteDeliveryQueue(dbPath, { registryStore, archiveStore, backoffPolicy });
+  // Renderer registry (ADR-002 Accepted): Typst is the default and the
+  // volume renderer; pdf-direct is the in-process second path a template
+  // opts into via `TemplateMeta.renderer: "pdf-direct"` (see
+  // composition.ts's `selectRenderer` for the routing decision point).
   const renderer = new TypstRenderer();
+  const pdfDirect = new PdfDirectRenderer();
+  const renderers = { [renderer.id]: renderer, [pdfDirect.id]: pdfDirect };
   const channelSender = new FsChannelSender(outboxDir);
-  const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, renderer };
+  const composition: CompositionDeps = { registryStore, archiveStore, deliveryQueue, renderer, renderers };
   return { registryStore, archiveStore, deliveryQueue, idempotencyStore, composition, channelSender, backoffPolicy };
 }
 
