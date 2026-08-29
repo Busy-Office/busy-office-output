@@ -340,10 +340,18 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   for task 1 (auto-retire is a policy, not a state-machine property) but a
   real operational trap: an operator publishing v2 may expect v1 to stop
   winning.
-- Closes when: either publish auto-retires the superseded same-variant
-  version (policy decided by the maintainer), or the review-and-approve
-  screen (task 4) makes the superseded version's continued live status
-  visible so it can be retired explicitly.
+- 2026-08-29 update: the visibility arm is BUILT — task 4's review
+  screen labels every published same-variant key "live now: X@v — stays
+  live after publish until retired" and the Templates list shows both
+  as published (log truth), proven by the task-4 gate-check. The task-2
+  gate-check sharpened the trap: with v1 and v2 both published,
+  `regenerate` (and `emit`) pick the FIRST-REGISTERED one — version
+  number plays no part in `resolveTemplate`'s tie-break — so "current
+  published template" holds only under retire-then-publish discipline.
+  Retire has no operator surface (GAP-25 sibling).
+- Closes when: the maintainer decides auto-retire-on-publish (policy) or
+  names retire's surface; the "visible so it can be retired explicitly"
+  half is done, the "explicitly" half has nowhere to happen yet.
 
 ### GAP-21 — LIFECYCLE_STATES is a hand-maintained mirror of the schema union — **CLOSED 2026-08-29**
 - Type: TASK — a single `satisfies Record<TemplateLifecycle, true>` on a
