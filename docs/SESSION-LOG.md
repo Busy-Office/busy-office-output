@@ -1159,6 +1159,11 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 37, 2026-08-30: noop — waiting on the maintainer to provide real
+  operator-demo results for docs/PREMORTEM.md's scoring sheet (asked for
+  directly in chat, not yet supplied). A demo-readiness note (technical
+  verification only, no operator data) was added to that file since the
+  last tick — d2ff4db. Not a dispatcher tick (37%4≠0).
 - tick 36, 2026-08-29: dispatcher tick (36%4=0), noop — INBOX empty, nothing to rule on; consecutiveNoopDispatches 1→2. Normal tick also noop — docs/PREMORTEM.md is now frozen (b916635, pre-registered predictions/scoring framework, per the maintainer's own demo-readiness discipline) but still unscored (all rows blank). Between ticks, the maintainer asked for a live demo readiness check: built the Dockerfile image and ran it via podman, fired the real fixture PO event through it (HTTP 202, 67ms, real trace/render/archive/delivery, fresh container zero external services), confirmed `/output` shows it — container left running (`busy-office-demo`) for the actual operator demos. No repo files changed by that — not logged as a session entry, just noted here.
 - tick 35, 2026-08-29: noop — docs/PREMORTEM.md scaffolded this session (5f5506a) but still all-blank template, no operator notes filled in yet. Not a dispatcher tick (35%4≠0).
 - tick 34, 2026-08-29: noop — unchanged since tick 33. Not a dispatcher tick (34%4≠0).
