@@ -11,6 +11,27 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-29 — GAP-15 closed; /gate-check 4 → 3/4, Stage 4 NOT closed
+- Did: GAP-15 (rendererId@version persisted at archive time, fail-closed,
+  264/264). Then ran /gate-check 4 via corpus-qa (real commands, fresh
+  N=50 bench corroborating the 8,000 run within 5%, direct SQLite):
+  clauses 1/3/4 PASS; clause 2 "per-recipient locale and channel" FAILS
+  as demonstrated — the routing mechanism exists and is unit-tested, but
+  the 8,000 run sends every recipient through one rule/template/channel
+  and one SHARED recipient string, with locale never set or persisted.
+  Recorded honestly on the ROADMAP exit gate rather than ticked.
+- Open: the clause-2 close. One genuine design point isolated by the
+  gate-check and routed to arb-chair before building: recipients today
+  come from the RULE (OutputRuleResolution.recipients), not the payload —
+  for a payroll run each payslip must reach its own employee, so the
+  recipient is per-document data. Rule-expression vs caller-context, plus
+  whether locale gets a registry column and whether create-output.ts
+  should persist the trace like server.ts does. Everything else in
+  Stage 4: GAP-07/08 (arb-chair), GAP-10 (decision), GAP-09/13 (human),
+  template-from-sample (blocked on samples).
+- Next: build clause 2 per the arb-chair ruling, re-run --n 8000 --drain,
+  re-run /gate-check 4.
+
 ## 2026-08-29 — ADR-002 + ADR-008 accepted; pdf-direct renderer landed
 - Did: ADR-002 accepted on the real 8,000-doc measurement (Typst-only
   clears the window 1.61x; maintainer chose to KEEP pdf-direct as a

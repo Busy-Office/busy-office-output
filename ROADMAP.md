@@ -177,9 +177,24 @@ are done.
 - [x] **[HUMAN]** **GAP-06** Print scope: name a site that can't use PDF+OS spooler, or ratify "PDF is the print path" *(2026-08-29: ratified "PDF is the print path" — no print agent enters scope, Deferred wall entry stands)*
 - [ ] **[HUMAN]** **GAP-09** Embedded-topology typst-binary leak: ratify T2 split worker vs renderer-behind-a-process-seam as the host default (low priority under ADR-009 standalone product — no active host)
 
-### Exit gate — `/gate-check 4`
+### Exit gate — `/gate-check 4`  — **3/4 PASS, 1 FAIL — Stage 4 NOT closed (2026-08-29)**
 8,000-recipient payroll run inside the stated window, per-recipient locale and
 channel, one audit row each; ADR-002 closed.
+
+Independent corpus-qa gate-check (real commands, fresh N=50 bench run
+corroborating the recorded 8,000 within 5%, direct SQLite queries):
+1. 8,000 inside the window — **PASS** (18.64 min measured, 1.61x; fresh run 133 ms/doc vs recorded 139.8)
+2. per-recipient locale and channel — **FAIL, not demonstrated.** The routing
+   mechanism exists and is unit-tested (variant resolution over locale,
+   per-rule channel), but the 8,000 run uses ONE rule → ONE template → ONE
+   channel → ONE SHARED recipient string, with `locale` never set or
+   persisted. "Per-recipient" is literally false as demonstrated. Recipients
+   today come from the rule, not the payload — a design point (rule
+   expression vs caller context) routed to arb-chair before building.
+3. one audit row each — **PASS** (53 rows for 53 docs, all ORIGINAL, archiveRef + rendererVersion set, one delivered row each)
+4. ADR-002 closed — **PASS**
+
+- [ ] **Close clause 2**: per-recipient routing demonstrated across the 8,000 run — ≥2 locales × 2 channels, each doc landing on the template/channel/recipient its own event names, verifiable from registry rows (locale persisted; embed-path trace persisted) — DoD: re-run `--n 8000 --drain`, row-based assertion passes, RESULTS.md updated. *Awaiting arb-chair ruling on the recipient/locale source mechanism.*
 
 ---
 
