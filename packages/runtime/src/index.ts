@@ -102,6 +102,8 @@ export type {
   SubmitEventResult,
   SubmitResolutionResult,
 } from './embed/create-output.js';
+export { submitResolution } from './submit-resolution.js';
+export type { SubmitResolutionOutcome } from './submit-resolution.js';
 export { drainOnce, startWorker } from './worker.js';
 export type { Worker } from './worker.js';
 export { getTemplateContent } from './render/template-content.js';
@@ -118,7 +120,7 @@ import { createSqliteDeliveryQueue } from './delivery/sqlite-delivery-queue.js';
 import { DEFAULT_BACKOFF_POLICY, type BackoffPolicy, type DeliveryQueue } from './delivery/delivery-queue.js';
 import { FsChannelSender } from './delivery/fs-channel-sender.js';
 import { TypstRenderer } from '@busy-office/render-typst';
-import type { CompositionDeps } from './composition.js';
+import { resumeStrandedCompositions, type CompositionDeps, type ResumeOutcome } from './composition.js';
 import { startWorker, type Worker } from './worker.js';
 
 /**
@@ -204,6 +206,20 @@ export function createRuntimeDeps(
  * `FsChannelSender` delivery (arb-chair ruling). A replayed event returns
  * the same docId even across a restart of this process (durable registry).
  *
+ * Crash recovery (GAP-11): a previous run of this process may have died
+ * between `mintWithOutbox` and composition-complete, leaving pending
+ * `composition_outbox` rows. `serve()` redrives them ONCE at startup via
+ * `resumeStrandedCompositions` — a one-time sweep, not a timer: in this
+ * single-process topology nothing else mints against this registry, so
+ * every pending row at startup is by definition stranded (minAgeMs 0), and
+ * `submitResolution` self-heals any stranded row a later replay happens to
+ * hit. The sweep runs concurrently with `listen()` (it never blocks
+ * ingress; a request arriving mid-sweep for the same docId is safe —
+ * `clearOutboxEntry` is idempotent and `resumeStrandedCompositions` skips
+ * rows whose archiveRef is already set). It is exposed as the returned
+ * server's `resumed` promise so a caller/test can await it. Only docIds
+ * are logged, never payloads.
+ *
  * The returned `http.Server` has a `worker` property attached (the started
  * delivery-poll loop, `Worker.stop()` to halt it) so callers that need a
  * clean shutdown can do `server.worker.stop()` alongside `server.close()`.
@@ -211,15 +227,27 @@ export function createRuntimeDeps(
 export function serve(port = 3000, dbPath: string = defaultRegistryDbPath()) {
   const deps = createRuntimeDeps(dbPath);
   const server = createIngressServer({
-    idempotencyStore: deps.idempotencyStore,
     registryStore: deps.registryStore,
     composition: deps.composition,
     deliveryQueue: deps.deliveryQueue,
     backoffPolicy: deps.backoffPolicy,
   });
+  const resumed: Promise<ResumeOutcome[]> = resumeStrandedCompositions(deps.composition)
+    .then((outcomes) => {
+      if (outcomes.length > 0) {
+        // eslint-disable-next-line no-console
+        console.log(`[serve] resumed ${outcomes.length} stranded composition(s): ${outcomes.map((o) => o.docId).join(', ')}`);
+      }
+      return outcomes;
+    })
+    .catch((err: unknown) => {
+      // eslint-disable-next-line no-console
+      console.error('[serve] stranded-composition resume failed', err instanceof Error ? err.message : String(err));
+      return [] as ResumeOutcome[];
+    });
   const worker: Worker = startWorker(deps.deliveryQueue, deps.channelSender);
   server.listen(port);
-  return Object.assign(server, { worker });
+  return Object.assign(server, { worker, resumed });
 }
 
 // Allow `node src/index.ts` / `tsx src/index.ts` to start the server directly.

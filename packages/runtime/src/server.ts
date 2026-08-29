@@ -2,11 +2,12 @@
  * Event ingress (ROADMAP Stage 3 task 1; HLD §2 "Event API": validate,
  * contract, idempotency). Scoped to validate + contract + idempotency only —
  * determination/fan-out/registry/archive/delivery are separate, later tasks.
- * Idempotency here is backed by the durable document registry (registry/) —
- * see idempotency-store.ts's header comment. `createIngressServer()` with
- * no override defaults to an in-memory-backed registry (fast, isolated —
- * what tests use); `index.ts`'s `serve()` wires a real on-disk registry by
- * default for standalone single-process runs.
+ * Idempotency here is backed by the durable document registry (registry/),
+ * minted through the ONE shared per-resolution step in submit-resolution.ts
+ * (transactional outbox, GAP-11). `createIngressServer()` with no override
+ * defaults to an in-memory-backed registry (fast, isolated — what tests
+ * use); `index.ts`'s `serve()` wires a real on-disk registry by default
+ * for standalone single-process runs.
  *
  * Built on Node's built-in `http` module rather than a framework: a single
  * route (`POST /event`) with one job (parse JSON, validate against a JSON
@@ -23,14 +24,12 @@ import {
   validateContract,
   type DocumentType,
 } from './contract-validation.js';
-import {
-  createRegistryIdempotencyStore,
-  type IdempotencyStore,
-} from './idempotency-store.js';
+import type { IdempotencyStore } from './idempotency-store.js';
 import { createSqliteRegistryStore } from './registry/sqlite-registry-store.js';
 import type { RegistryStore } from './registry/registry-store.js';
 import { determine, loadOutputRules, loadTemplateCandidates, type DeterminationContext } from './determination/index.js';
-import { composeRenderArchiveAndEnqueue, type CompositionDeps } from './composition.js';
+import type { CompositionDeps } from './composition.js';
+import { submitResolution } from './submit-resolution.js';
 import { extractPayslipOwnerId } from './authorization/authorization-port.js';
 import {
   invalidContractProblem,
@@ -182,7 +181,6 @@ function extractDeterminationContext(payload: unknown): Partial<Pick<Determinati
 async function handleEvent(
   req: IncomingMessage,
   res: ServerResponse,
-  idempotencyStore: IdempotencyStore,
   registryStore: RegistryStore,
   composition?: CompositionDeps,
 ): Promise<void> {
@@ -279,38 +277,37 @@ async function handleEvent(
   }
 
   // Idempotency (HLD §4): replay of the same event returns the SAME docId(s),
-  // without re-running fan-out/render/delivery (none of which exist yet —
-  // this is ingress + determination only, but the response already proves
-  // the contract). One resolution per firing rule (ROADMAP Stage 3
-  // "Fan-out"): each gets its OWN idempotency lookup, keyed on the
-  // four-tuple plus the firing ruleId (idempotency-store.ts's
-  // `getOrCreateForResolution`), so a replayed event returns the same N
-  // docIds, never 2N. 202 if any resolution was newly minted this call; 200
-  // only when every resolution was already seen (a pure replay).
-  // Composition + render + archive + enqueue (ROADMAP Stage 3, "Single-process
-  // serve"): only for a NEWLY minted docId this call (`!replayed`) — a
-  // replay must return the same docId without re-doing work already done
-  // (docs/POLICY.md: the archive is the reproduction, never re-rendered).
-  // Only runs at all when `composition` deps were supplied to
-  // `createIngressServer` — a bare `createIngressServer()` (what most tests
-  // use) keeps behaving exactly as before: determination + idempotency
-  // only, no filesystem/renderer side effects. `serve()` (index.ts) always
-  // supplies `composition` for real single-process runs.
+  // without re-running fan-out/render/delivery. One resolution per firing
+  // rule (ROADMAP Stage 3 "Fan-out"): each gets its OWN mint, keyed on the
+  // four-tuple plus the firing ruleId, so a replayed event returns the same
+  // N docIds, never 2N. 202 if any resolution was newly minted this call;
+  // 200 only when every resolution was already seen (a pure replay).
+  //
+  // Mint + composition + render + archive + enqueue is the ONE shared
+  // per-resolution step in submit-resolution.ts (GAP-11): with `composition`
+  // deps supplied (`serve()` always does), the docId is minted via the
+  // transactional outbox (`RegistryStore.mintWithOutbox`), so a crash
+  // between mint and composition-complete on THIS path is found and
+  // redriven by `resumeStrandedCompositions` on the next start — it used
+  // to strand a permanently-DRAFT row with no outbox entry. A bare
+  // `createIngressServer()` (what most tests use) still behaves exactly as
+  // before: determination + idempotency only, no filesystem/renderer side
+  // effects, and no `composition` field in the response.
+  const data = documentPayload as DataContractEnvelope;
+  const ownerId = extractPayslipOwnerId(documentType, data);
   const results = await Promise.all(
     determination.resolutions.map(async (resolution) => {
-      const { docId, replayed } = idempotencyStore.getOrCreateForResolution(
-        businessEventKey,
-        resolution.ruleId,
-        documentType,
-        extractPayslipOwnerId(documentType, documentPayload as DataContractEnvelope),
-      );
-      const composed =
-        composition !== undefined && !replayed
-          ? await composeRenderArchiveAndEnqueue(composition, docId, resolution, documentPayload as DataContractEnvelope)
-          : undefined;
+      const outcome = await submitResolution(registryStore, composition, businessEventKey, resolution, data, documentType, ownerId);
+      // Response shape is unchanged: `composition` is present only when
+      // composition actually ran this call — never on a plain replay
+      // (`{ outcome: 'replayed' }` is the embedded module's vocabulary, not
+      // the HTTP one). A replay that redrove a stranded outbox row DID
+      // compose, so it carries the real outcome, exactly like a first
+      // sighting.
+      const composed = outcome.composition !== undefined && outcome.composition.outcome !== 'replayed' ? outcome.composition : undefined;
       return {
-        docId,
-        replayed,
+        docId: outcome.docId,
+        replayed: outcome.replayed,
         ruleId: resolution.ruleId,
         templateId: resolution.templateId,
         templateVersion: resolution.templateVersion,
@@ -356,18 +353,21 @@ async function handleEvent(
 }
 
 export interface IngressServerOptions {
+  /**
+   * @deprecated Accepted for call-site compatibility but NO LONGER READ
+   * (GAP-11): the HTTP path mints straight against `registryStore` via the
+   * shared submit-resolution.ts step (`mintWithOutbox` when `composition`
+   * is supplied), not through the `IdempotencyStore` facade. Supplying a
+   * facade wrapping a different store than `registryStore` would have been
+   * a wiring bug before; now it is simply ignored.
+   */
   idempotencyStore?: IdempotencyStore;
   /**
-   * The durable registry backing `idempotencyStore` (ROADMAP Stage 3
-   * "Minimal console, read-only") — needed directly (not just through the
-   * `IdempotencyStore` facade) for trace-log persistence and for the
-   * read-only `/output/*` console routes (console.ts). Defaults to a fresh
-   * `:memory:` store when omitted, exactly like `idempotencyStore`'s own
-   * default. A caller that supplies a custom `idempotencyStore` should also
-   * supply the SAME `registryStore` it wraps (see `serve()`/`e2e.test.ts`)
-   * — otherwise the console/trace-log would read from a different,
-   * disconnected in-memory store than the one `idempotencyStore` mints
-   * docIds against.
+   * The durable document registry (ROADMAP Stage 3 "Minimal console,
+   * read-only"): every docId is minted here, and it also backs trace-log
+   * persistence and the read-only `/output/*` console routes (console.ts).
+   * Defaults to a fresh `:memory:` store when omitted (test isolation).
+   * `serve()` (index.ts) supplies its on-disk store.
    */
   registryStore?: RegistryStore;
   /**
@@ -404,7 +404,6 @@ export function createIngressServer(options: IngressServerOptions = {}) {
   // database. `index.ts`'s `serve()` overrides this with a durable,
   // on-disk-backed store for standalone single-process runs.
   const registryStore = options.registryStore ?? createSqliteRegistryStore(':memory:');
-  const idempotencyStore = options.idempotencyStore ?? createRegistryIdempotencyStore(registryStore);
   const composition = options.composition;
   const deliveryQueue = options.deliveryQueue;
   const backoffPolicy = options.backoffPolicy;
@@ -433,7 +432,7 @@ export function createIngressServer(options: IngressServerOptions = {}) {
         sendProblem(res, methodNotAllowedProblem(req.method));
         return;
       }
-      await handleEvent(req, res, idempotencyStore, registryStore, composition);
+      await handleEvent(req, res, registryStore, composition);
     })().catch(() => {
       // Last-resort guard: never leak an unhandled-exception stack (which may
       // embed payload data) — respond with an opaque problem+json instead.

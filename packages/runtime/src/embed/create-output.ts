@@ -13,13 +13,13 @@
  * uses, and a caller wanting those same defaults can call it directly and
  * pass the pieces through, exactly like a test would.
  *
- * `submitEvent` reuses `determine()` (determination/) and
- * `composeRenderArchiveAndEnqueue` (composition.ts) verbatim — this module
- * does not reimplement rule evaluation, template resolution, rendering, or
- * archiving. What IS new here is closing the transactional-outbox gap
- * (registry/registry-store.ts's `mintWithOutbox`, composition.ts's
- * `resumeStrandedCompositions`) for the mint step every resolution goes
- * through: see those two files' header comments for the full mechanism.
+ * `submitEvent` reuses `determine()` (determination/) and the shared
+ * per-resolution mint -> compose -> clear-outbox step (submit-resolution.ts,
+ * which server.ts's HTTP path also calls — GAP-11) verbatim — this module
+ * does not reimplement rule evaluation, template resolution, rendering,
+ * archiving, or the transactional-outbox mint (registry/registry-store.ts's
+ * `mintWithOutbox`, composition.ts's `resumeStrandedCompositions`): see
+ * those files' header comments for the full mechanism.
  *
  * No PostgresRegistryStore: out of scope per this task's binding ruling
  * (same reasoning as why S3/email stayed mock-tested-only — no live
@@ -46,12 +46,12 @@ import {
   type Resolution,
 } from '../determination/index.js';
 import {
-  composeRenderArchiveAndEnqueue,
   resumeStrandedCompositions,
   type CompositionDeps,
   type CompositionOutcome,
   type ResumeOutcome,
 } from '../composition.js';
+import { submitResolution } from '../submit-resolution.js';
 
 export interface CreateOutputDeps {
   registryStore: RegistryStore;
@@ -162,41 +162,25 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
     data: DataContractEnvelope,
     documentType: DocumentType,
   ): Promise<SubmitResolutionResult> {
-    // Transactional outbox (registry/registry-store.ts's `mintWithOutbox`,
-    // migrations/0005_add_composition_outbox.sql): mint the docId AND
-    // durably record the composition work it owes, atomically. A crash
-    // right after this call returns is never a lost write — either this
-    // call, a later `submitEvent` replay, or `resumeStrandedCompositions`
-    // will find the outbox row and finish the work.
-    const { row, created } = deps.registryStore.mintWithOutbox(
-      { ...businessEvent, ruleId: resolution.ruleId },
+    // Transactional outbox mint -> compose -> clear-outbox lives in ONE
+    // shared step (../submit-resolution.ts) that server.ts's HTTP path
+    // calls too (GAP-11) — never re-implement it here.
+    const outcome = await submitResolution(
+      deps.registryStore,
+      composition,
+      businessEvent,
       resolution,
       data,
       documentType,
       extractPayslipOwnerId(documentType, data),
     );
-
-    let composed: CompositionOutcome | { outcome: 'replayed' };
-    if (created) {
-      composed = await composeRenderArchiveAndEnqueue(composition, row.docId, resolution, data);
-      deps.registryStore.clearOutboxEntry(row.docId);
-    } else {
-      // Replay of an already-seen resolution. Usually a cheap no-op — but
-      // if a prior attempt crashed between mint and composition-complete,
-      // its outbox row is still there; redrive it now instead of silently
-      // returning `replayed` for work that was never actually finished.
-      const pending = deps.registryStore.getOutboxEntry(row.docId);
-      if (pending !== undefined) {
-        composed = await composeRenderArchiveAndEnqueue(composition, row.docId, resolution, data);
-        deps.registryStore.clearOutboxEntry(row.docId);
-      } else {
-        composed = { outcome: 'replayed' };
-      }
-    }
+    // `composition` deps are always supplied on this path, so the shared
+    // step never returns `undefined` here; the fallback is type-only.
+    const composed: CompositionOutcome | { outcome: 'replayed' } = outcome.composition ?? { outcome: 'replayed' };
 
     return {
-      docId: row.docId,
-      replayed: !created,
+      docId: outcome.docId,
+      replayed: outcome.replayed,
       ruleId: resolution.ruleId,
       templateId: resolution.templateId,
       templateVersion: resolution.templateVersion,

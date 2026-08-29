@@ -100,14 +100,16 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 
 ## Tasks
 
-### GAP-11 — serve() still mints pre-outbox (T3 crash gap)
-- Type: TASK — **OPEN, Claude-doable, one session**
-- Verified 2026-08-29: `mintWithOutbox` is used only in
-  `embed/create-output.ts`; `server.ts` uses `getOrCreateByResolutionKey`
-  (the old mint). A crash mid-composition in the primary demo topology
-  strands permanently-DRAFT rows invisible to `resumeStrandedCompositions`.
-- Closes when: server.ts on `mintWithOutbox`; crash-resume test green in
-  serve mode; ROADMAP checkbox added and ticked.
+### GAP-11 — serve() still mints pre-outbox (T3 crash gap) — **CLOSED 2026-08-29**
+- Type: TASK
+- Was: `server.ts` used the pre-outbox mint; a crash mid-composition in
+  the primary demo topology stranded rows invisible to
+  `resumeStrandedCompositions`. Also: `serve()` never called
+  `resumeStrandedCompositions` at all, so even embed-path strandings were
+  recoverable-in-principle but never actually recovered.
+- Closed: all three conditions met. Shared `submit-resolution.ts` used by
+  both call sites; `serve()` runs a startup resume sweep;
+  `serve-crash-resume.test.ts` green with red/green proof; ROADMAP ticked.
 
 ### GAP-12 — CI violates "no claim without a validator in CI"
 - Type: TASK — **OPEN, Claude-doable, one session**
