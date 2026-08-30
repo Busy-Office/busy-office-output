@@ -9,7 +9,9 @@
  *                          (+ optional `reissues` audit link: reissue IS emit with a new key)
  *   preview                render only — no registry row, archive, delivery, trace, or docId
  *   status                 registry read by BusinessEventKey → DocumentStatus[] (one per ruleId)
- *   reproduce              archive fetch — bytes only, original row untouched, reprint_log stamp
+ *   reproduce              archive fetch — bytes always, original row untouched, reprint_log
+ *                          stamp, plus an optional additive redelivery (`deliverTo`, object-store
+ *                          channel only) enqueued through the normal DeliveryQueue
  *   regenerate             NEW DocumentInstance (state REPRINT) from CALLER-SUPPLIED data
  *                          against the current published template, reprint_log stamp
  *   peekArchive            same authorization check as reproduce, archive fetch — but a
@@ -279,9 +281,28 @@ export interface DocumentStatus {
 
 // ----------------------------------------------------------- reproduce
 
-/** reproduce = fetch archive. Bytes ONLY — no delivery (there is
- * no `channel` here by design). */
-export type ReproduceInput = ReprintAuditInput;
+/**
+ * Channels a `reproduce` redelivery may target. Deliberately just
+ * `object-store`: the only `ChannelSender` that ships already-archived
+ * bytes with no message needed. `email` is excluded on purpose — an email
+ * redelivery needs a rendered subject/body from a payload this port does
+ * not hold (the registry keeps no payload by design, HLD §1); sending a
+ * bare attachment instead would defeat the message-template requirement
+ * `emit`/`regenerate` enforce for every other email job.
+ */
+export type ReproduceDeliveryChannel = 'object-store';
+
+/** reproduce = fetch archive. Bytes always; a delivery job additionally
+ * ONLY when `deliverTo` is supplied. */
+export interface ReproduceInput extends ReprintAuditInput {
+  /**
+   * Optional, additive redelivery of the reproduced bytes: enqueued
+   * through the normal `DeliveryQueue` (same retry/backoff/poison
+   * machinery as any other job) — never a synchronous send, and never a
+   * re-render. Omitted: today's bytes-only behavior, unchanged.
+   */
+  deliverTo?: { channel: ReproduceDeliveryChannel; recipients: string[] };
+}
 
 export type ReproduceResult =
   | ReprintRefusal
@@ -302,6 +323,9 @@ export type ReproduceResult =
       /** The id of the `reprint_log` row this fetch stamped — the metadata
        * stamp, in lieu of any change to the bytes or the original row. */
       reprintLogId: number;
+      /** The id of the `DeliveryJob` this call enqueued — present only
+       * when `ReproduceInput.deliverTo` was supplied. */
+      deliveryJobId?: number;
     };
 
 // ---------------------------------------------------------- peekArchive
@@ -402,7 +426,10 @@ export interface OutputPort {
    * FIRST (`forbidden` before the archive is touched), requires an actor
    * subjectId and a reason, then returns the archived bytes BYTE-IDENTICAL
    * and stamps one `reprint_log` row. The original row is untouched (state
-   * stays ORIGINAL, updatedAt unchanged). No delivery.
+   * stays ORIGINAL, updatedAt unchanged). No delivery — unless
+   * `input.deliverTo` is supplied, in which case the same bytes are also
+   * enqueued for delivery (`DeliveryQueue.enqueue`, never a synchronous
+   * send) on top of the unchanged audit stamp.
    */
   reproduce(input: ReproduceInput): Promise<ReproduceResult>;
 
@@ -739,12 +766,34 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       const mediaType = await deps.archiveStore.retrieveMediaType?.(row.archiveRef);
       const reprintLogId = stampReprint(row, 'reproduce', actor, input.reason, null);
 
+      // Redelivery is layered on top of the normal audited path above —
+      // the reprint_log stamp already happened and is never skipped, this
+      // only ADDS a delivery job. Reuses the same DeliveryQueue every
+      // other path enqueues through (composition.ts) rather than sending
+      // synchronously, so a redelivery gets the same retry/backoff/poison
+      // handling as any other job.
+      let deliveryJobId: number | undefined;
+      if (input.deliverTo !== undefined) {
+        if (deps.deliveryQueue === undefined) {
+          // A wiring bug, not a runtime condition: the caller asked for
+          // redelivery and this port was built with nowhere to enqueue it.
+          throw new Error('OutputPort.reproduce requires a deliveryQueue on this port when deliverTo is supplied; none was supplied.');
+        }
+        const job = deps.deliveryQueue.enqueue({
+          docId: row.docId,
+          channel: input.deliverTo.channel,
+          recipients: input.deliverTo.recipients,
+        });
+        deliveryJobId = job.id;
+      }
+
       return {
         status: 'reproduced',
         docId: row.docId,
         bytes,
         ...(mediaType !== undefined ? { mediaType } : {}),
         reprintLogId,
+        ...(deliveryJobId !== undefined ? { deliveryJobId } : {}),
       };
     },
 

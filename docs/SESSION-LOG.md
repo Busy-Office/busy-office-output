@@ -11,6 +11,46 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GAP-22 closed: reproduce gains optional redelivery
+- Did: widened `ReproduceInput` in `packages/runtime/src/embed/
+  create-output.ts` with an optional `deliverTo?: { channel:
+  'object-store'; recipients: string[] }`. Checked the actual
+  `ChannelSender` implementations (`channel-router.ts`,
+  `object-store-channel-sender.ts`, `email-channel-sender.ts`,
+  `fs-channel-sender.ts`) before allowing a channel literal:
+  `object-store` and `email` are the two first-class, channel-named
+  senders a `ChannelRouter` dispatches to; `fs`/`filesystem` is the
+  channel-agnostic zero-config DEFAULT (any channel string routes to it
+  regardless), not a channel of its own standing — so only `object-store`
+  was added, not `fs`. `email` stays excluded exactly per the gap's
+  original reasoning (GAP-10: no message template without a payload).
+  When `deliverTo` is present and `reproduce` succeeds, it calls the SAME
+  `DeliveryQueue.enqueue` composition.ts already uses (no message, no new
+  delivery path, no synchronous send) with the reproduced doc's docId.
+  `admitReprint`/`stampReprint` are unchanged — the redelivery is
+  additive on top of the existing audited `reprint_log` stamp, never a
+  separate unaudited path (opposite of GAP-29's deliberately-unaudited
+  preview route). The `reproduced` result gained an optional
+  `deliveryJobId`, present only when `deliverTo` was supplied.
+  New test file `packages/runtime/src/embed/reproduce-redeliver.test.ts`
+  (2 tests): `'deliverTo present: a pending object-store delivery job
+  appears in the queue backing store for the reproduced docId'` and
+  `'deliverTo omitted: no delivery job is created (today's bytes-only
+  behavior is unchanged)'` — both against a real `SqliteRegistryStore` +
+  `SqliteDeliveryQueue` sharing one on-disk file and a real
+  `FsArchiveStore`, bytes minted via `archiveArtifact` (no renderer, the
+  `document-detail-reproduce.test.ts` shortcut) — `OutputPort.reproduce`
+  and `DeliveryQueue.enqueue` both run for real. `npm run verify`: 82/82
+  files, 521/521 tests, fully green. Commit c3e2b7a (see `git log`).
+- Open: nothing on this gap. GAP-22's own text noted an alternative
+  closure path ("a decision on email re-delivery without a payload") —
+  not taken; the `deliverTo` widening was the simpler, already-scoped
+  closure and GAP-10's email constraint stands unchanged.
+- Next: GAP-31 (null inputHash/outputHash) still needs a maintainer
+  ruling before anyone touches it. Otherwise nothing else Claude-doable
+  on the roadmap — still blocked on GAP-18 (human-only) or a Stage 7
+  track trigger.
+
 ## 2026-08-30 — GAP-30 closed: GAP-NN/Stage-N comment sweep (non-test files)
 - Did: swept `GAP-\d+`/`Stage \d+` references out of source comments in
   `packages/*/src`, per CLAUDE.md's rule against task-referencing

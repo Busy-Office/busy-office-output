@@ -395,16 +395,51 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   until the array and table are updated. One-line fix; no behaviour change.
 
 ### GAP-22 — Reproduce-and-deliver: reproduce returns bytes only
-- Type: SEAM — **OPEN, low priority** (named by the Stage 5 task-2 ruling)
-- `reproduce` returns the archived bytes and stamps the audit log; it
-  does NOT re-deliver to a channel. Reasons ruled: the registry row holds
-  no recipients (they live on delivery jobs); the email channel needs a
-  message template rendered from a payload the runtime does not hold
-  (GAP-10) — a reproduce-to-email would have to send a bare attachment,
-  which GAP-10 forbids. Task 4's console consumes bytes as a download.
-- Closes when: `reproduce` gains `deliverTo?: { channel, recipients }` for
-  object-store/fs channels only (no message needed), or a decision on
-  what an email re-delivery's subject/body should be without the payload.
+- Type: SEAM — **CLOSED** (built, gate-checked: `npm run verify` green
+  82/82 files, 521/521 tests, incl. the two new
+  `packages/runtime/src/embed/reproduce-redeliver.test.ts` tests run in
+  isolation. Originally OPEN, low priority, named by the Stage 5 task-2
+  ruling)
+- `reproduce` returned the archived bytes and stamped the audit log only;
+  it did NOT re-deliver to a channel. Reasons ruled: the registry row
+  holds no recipients (they live on delivery jobs); the email channel
+  needs a message template rendered from a payload the runtime does not
+  hold (GAP-10) — a reproduce-to-email would have to send a bare
+  attachment, which GAP-10 forbids. Task 4's console consumes bytes as a
+  download.
+- Closed by widening `ReproduceInput`
+  (`packages/runtime/src/embed/create-output.ts`) with an optional
+  `deliverTo?: { channel: 'object-store'; recipients: string[] }`.
+  `object-store` only — checked against the actual `ChannelSender`
+  implementations (`channel-router.ts`, `object-store-channel-sender.ts`,
+  `email-channel-sender.ts`, `fs-channel-sender.ts`): `object-store` and
+  `email` are the two first-class, channel-named senders a `ChannelRouter`
+  dispatches to; `fs`/`filesystem` is the channel-agnostic zero-config
+  DEFAULT sender (any channel string routes to it), not a distinct
+  channel literal of its own standing, so it was not added as a second
+  option. `email` stays excluded exactly per the gap's own reasoning
+  (GAP-10). When `deliverTo` is present and reproduce succeeds
+  (authorized, archived, bytes retrieved), the SAME `DeliveryQueue.enqueue`
+  composition.ts already uses is called with the reproduced doc's
+  `docId`/channel/recipients — no message, no synchronous send, no new
+  delivery path. `admitReprint`/`stampReprint` are unchanged and still run
+  first, unconditionally: the redelivery is additive on top of the
+  existing audited `reprint_log` stamp, never a separate unaudited path
+  (the opposite of GAP-29's deliberately-unaudited preview route). The
+  `reproduced` result gained an optional `deliveryJobId`, present only
+  when `deliverTo` was supplied.
+- Evidence: `packages/runtime/src/embed/reproduce-redeliver.test.ts` —
+  `'deliverTo present: a pending object-store delivery job appears in the
+  queue backing store for the reproduced docId'` asserts a real `pending`
+  row in `SqliteDeliveryQueue.listJobs` (channel/recipients/docId
+  matching) plus the reprint_log stamp still exactly one row;
+  `'deliverTo omitted: no delivery job is created (today's bytes-only
+  behavior is unchanged)'` asserts zero jobs and the same single stamp.
+  Both run against a real `SqliteRegistryStore` + `SqliteDeliveryQueue`
+  sharing one on-disk file and a real `FsArchiveStore`, bytes minted via
+  `archiveArtifact` (no renderer, the same shortcut
+  `document-detail-reproduce.test.ts` uses) — `OutputPort.reproduce` and
+  `DeliveryQueue.enqueue` both run for real, nothing faked.
 
 ### GAP-23 — Visible REPRINT watermark needs a grammar root
 - Type: DECISION — **OPEN, human-only** (named by the Stage 5 task-2 ruling)
