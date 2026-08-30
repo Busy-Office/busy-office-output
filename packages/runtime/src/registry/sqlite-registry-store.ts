@@ -312,7 +312,14 @@ export class SqliteRegistryStore implements RegistryStore {
     }
   }
 
-  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string, rendererVersion: string): void {
+  updateArchiveRef(
+    docId: string,
+    archiveRef: string,
+    retentionUntil: string,
+    rendererVersion: string,
+    inputHash: string,
+    outputHash: string,
+  ): void {
     if (typeof archiveRef !== 'string' || archiveRef.trim() === '') {
       throw new TypeError('updateArchiveRef requires a non-empty archiveRef.');
     }
@@ -322,12 +329,20 @@ export class SqliteRegistryStore implements RegistryStore {
     if (typeof rendererVersion !== 'string' || rendererVersion.trim() === '') {
       throw new TypeError('updateArchiveRef requires a non-empty rendererVersion (rendererId@version).');
     }
+    if (typeof inputHash !== 'string' || inputHash.trim() === '') {
+      throw new TypeError('updateArchiveRef requires a non-empty inputHash.');
+    }
+    if (typeof outputHash !== 'string' || outputHash.trim() === '') {
+      throw new TypeError('updateArchiveRef requires a non-empty outputHash.');
+    }
     const now = new Date().toISOString();
     const result = this.db
       .prepare(
-        'UPDATE document_registry SET archive_ref = ?, retention_until = ?, renderer_version = ?, updated_at = ? WHERE doc_id = ?',
+        `UPDATE document_registry
+         SET archive_ref = ?, retention_until = ?, renderer_version = ?, input_hash = ?, output_hash = ?, updated_at = ?
+         WHERE doc_id = ?`,
       )
-      .run(archiveRef, retentionUntil, rendererVersion, now, docId);
+      .run(archiveRef, retentionUntil, rendererVersion, inputHash, outputHash, now, docId);
     if (result.changes === 0) {
       throw new Error(`Cannot update archiveRef: no registry row for docId ${docId}.`);
     }

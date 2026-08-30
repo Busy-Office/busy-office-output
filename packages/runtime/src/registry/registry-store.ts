@@ -349,8 +349,23 @@ export interface RegistryStore {
    * that produced the archived bytes — written in the SAME update as
    * archiveRef so the audit row can never be archived-but-renderer-unknown.
    * Rows archived before this column was written legitimately carry null.
+   *
+   * `inputHash`/`outputHash`: SHA-256 hex digests, written in the SAME
+   * update as archiveRef/rendererVersion — a row can never be
+   * archived-but-hash-unknown, matching the rendererVersion precedent
+   * above. `inputHash` is the raw payload as received; `outputHash` is
+   * the archived bytes exactly as stored (tamper-evidence, not a
+   * reproducibility check). Rows archived before these columns were
+   * written legitimately carry null.
    */
-  updateArchiveRef(docId: string, archiveRef: string, retentionUntil: string, rendererVersion: string): void;
+  updateArchiveRef(
+    docId: string,
+    archiveRef: string,
+    retentionUntil: string,
+    rendererVersion: string,
+    inputHash: string,
+    outputHash: string,
+  ): void;
 
   /**
    * Every archived row (`archiveRef` set, not yet purged) whose

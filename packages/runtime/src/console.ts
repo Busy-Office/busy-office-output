@@ -48,13 +48,14 @@
  * action per screen (none, live, for any of these three — see
  * docs/UI-DESIGN.md's five principles).
  *
- * inputHash/outputHash/rendererVersion are rendered "—" wherever null —
- * inputHash/outputHash are not yet computed (composition.ts leaves them
- * unset — see docs/GAP-REGISTER.md); rendererVersion
- * (`rendererId@version`) is written by
- * `archiveArtifact` at archive time, so it is null only for DRAFT rows and
- * rows archived before it was persisted. The console must be honest about
- * those nulls, never fabricate or hide them.
+ * inputHash/outputHash/rendererVersion are rendered "—" wherever null.
+ * All three are written together by `archiveArtifact` at archive time
+ * (inputHash: SHA-256 of the raw payload as received; outputHash: SHA-256
+ * of the archived bytes as stored, a tamper-evidence check, not a
+ * reproducibility check; rendererVersion: `rendererId@version`), so all
+ * three are null only for DRAFT rows and rows archived before these
+ * columns were persisted. The console must be honest about those nulls,
+ * never fabricate or hide them.
  */
 import type { ServerResponse } from 'node:http';
 import type { DocNode, TemplateLifecycle, TemplateMeta, VariantKey } from '@busy-office/output-schema';

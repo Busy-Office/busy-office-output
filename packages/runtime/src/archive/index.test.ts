@@ -43,6 +43,7 @@ describe('archiveArtifact', () => {
       mediaType: 'application/pdf',
       retentionUntil: '2033-01-01T00:00:00Z',
       renderer: { id: 'fake-renderer', version: '9.9.9' },
+      inputHash: 'test-input-hash',
     });
 
     const updated = registryStore.getByDocId(row.docId);
@@ -77,6 +78,7 @@ describe('archiveArtifact', () => {
         mediaType: 'application/pdf',
         retentionUntil: undefined as unknown as string,
         renderer: { id: 'fake-renderer', version: '9.9.9' },
+        inputHash: 'test-input-hash',
       }),
     ).rejects.toThrow(TypeError);
 
@@ -108,6 +110,7 @@ describe('archiveArtifact', () => {
         mediaType: 'application/pdf',
         retentionUntil: '2033-01-01T00:00:00Z',
         renderer: { id: 'typst', version: '' },
+        inputHash: 'test-input-hash',
       }),
     ).rejects.toThrow(TypeError);
 

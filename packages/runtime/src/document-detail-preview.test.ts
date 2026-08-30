@@ -78,6 +78,7 @@ describe('GET /output/documents/:docId/preview', () => {
         mediaType: 'application/pdf',
         retentionUntil: '2030-01-01T00:00:00Z',
         renderer: { id: 'typst', version: '0.15.1' },
+        inputHash: 'test-input-hash',
       });
       return { docId: row.docId, bytes };
     }

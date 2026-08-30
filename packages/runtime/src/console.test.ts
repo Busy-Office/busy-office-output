@@ -134,6 +134,7 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
         mediaType: 'application/pdf',
         retentionUntil: '2030-01-01T00:00:00Z',
         renderer: { id: 'pdf-direct', version: '1.17.1' },
+        inputHash: 'test-input-hash',
       });
     } finally {
       rmSync(archiveRoot, { recursive: true, force: true });
@@ -272,6 +273,7 @@ describe('Operations screen (GET /output/operations) and its poison cross-links'
         mediaType: 'application/pdf',
         retentionUntil: '2030-01-01T00:00:00Z',
         renderer: { id: 'fake-renderer', version: '0.0.1' },
+        inputHash: 'test-input-hash',
       });
       return row.docId;
     }

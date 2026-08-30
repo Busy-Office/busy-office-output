@@ -11,6 +11,7 @@
  * don't. Delivery, fan-out and rule determination are NOT here — this is
  * archive-only, per the task that produced this file.
  */
+import { createHash } from 'node:crypto';
 import type { Renderer } from '@busy-office/output-schema';
 import type { ArchiveStore } from './archive-store.js';
 import type { RegistryStore } from '../registry/registry-store.js';
@@ -38,6 +39,13 @@ export interface ArchiveArtifactInput {
    * registry write that sets archiveRef, so a row is never
    * archived-but-renderer-unknown. */
   renderer: Pick<Renderer, 'id' | 'version'>;
+  /** SHA-256 hex digest of the raw payload as received at `POST /event`
+   * (the `DataContractEnvelope`) — the caller computes this
+   * (composition.ts), since this function never sees the payload, only
+   * the rendered `bytes`. Threaded through to the same registry write as
+   * archiveRef/rendererVersion, so a row is never archived-but-
+   * inputHash-unknown. */
+  inputHash: string;
 }
 
 /** The registry's `rendererVersion` wire format: `<rendererId>@<version>`,
@@ -55,10 +63,17 @@ export function rendererVersionString(renderer: Pick<Renderer, 'id' | 'version'>
 
 /**
  * Archive an artifact's bytes and update its registry row to match:
- * archiveRef + rendererVersion set, state DRAFT -> ORIGINAL. Returns the
- * archiveRef. Throws (without touching the registry row) if the underlying
- * archive write fails for any reason, including a missing/invalid
- * retentionUntil or an unidentifiable renderer.
+ * archiveRef + rendererVersion + inputHash + outputHash set, state DRAFT ->
+ * ORIGINAL. Returns the archiveRef. Throws (without touching the registry
+ * row) if the underlying archive write fails for any reason, including a
+ * missing/invalid retentionUntil or an unidentifiable renderer — so a
+ * failed archive attempt leaves both hashes null, exactly like archiveRef.
+ *
+ * `outputHash` is computed here, over the exact `bytes` handed to
+ * `archiveStore.archive` — a tamper-evidence hash of what's actually
+ * stored, not a reproducibility hash (no normalization). `inputHash` is
+ * computed by the caller (over the raw payload, which this function never
+ * sees) and only threaded through to the same registry write.
  */
 export async function archiveArtifact(input: ArchiveArtifactInput): Promise<string> {
   // Validate before writing bytes: a bad renderer identity must not leave
@@ -69,7 +84,8 @@ export async function archiveArtifact(input: ArchiveArtifactInput): Promise<stri
     mediaType: input.mediaType,
     retentionUntil: input.retentionUntil,
   });
-  input.registryStore.updateArchiveRef(input.docId, archiveRef, input.retentionUntil, rendererVersion);
+  const outputHash = createHash('sha256').update(input.bytes).digest('hex');
+  input.registryStore.updateArchiveRef(input.docId, archiveRef, input.retentionUntil, rendererVersion, input.inputHash, outputHash);
   input.registryStore.updateState(input.docId, 'ORIGINAL');
   return archiveRef;
 }

@@ -15,6 +15,7 @@
  * sqlite-delivery-queue.ts) reads bytes back from the archive, never from
  * here again.
  */
+import { createHash } from 'node:crypto';
 import type { DataContractEnvelope, Renderer } from '@busy-office/output-schema';
 import { mergePdfs } from '@busy-office/render-typst';
 import type { RegistryStore } from './registry/registry-store.js';
@@ -48,6 +49,20 @@ function renderResolutionMessage(
     throw new Error(`message template '${resolution.messageTemplateId}' resolved at determination but is not registered`);
   }
   return renderMessage(template, data);
+}
+
+/**
+ * SHA-256 hex digest of the raw payload as received at `POST /event` (the
+ * `DataContractEnvelope`) — `inputHash` on the registry row. Deliberately
+ * the raw envelope, not the resolved/merged template content: that's
+ * already reconstructable from `templateVersion` + the variant chain, so
+ * hashing it too would be a redundant second hash for a value already
+ * audit-trailed via registration. `JSON.stringify` is the same canonicalization
+ * `packages/render-pdf-direct/src/renderer.ts` already uses for its own
+ * content hash — no new convention introduced here.
+ */
+function payloadInputHash(data: DataContractEnvelope): string {
+  return createHash('sha256').update(JSON.stringify(data)).digest('hex');
 }
 
 export interface CompositionDeps {
@@ -159,6 +174,7 @@ export async function composeRenderArchiveAndEnqueue(
       mediaType: artifact.mediaType,
       retentionUntil,
       renderer,
+      inputHash: payloadInputHash(data),
     });
 
     const job = deps.deliveryQueue.enqueue({
@@ -232,6 +248,7 @@ export async function composeConcatenatedRenderArchiveAndEnqueue(
       // The merged PDF's page content came from this renderer; the merge
       // itself is a page-level concatenation, not a second rendering.
       renderer,
+      inputHash: payloadInputHash(data),
     });
 
     const job = deps.deliveryQueue.enqueue({

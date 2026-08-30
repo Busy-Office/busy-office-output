@@ -714,9 +714,8 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   explicitly out of scope for this closure, not silently dropped — a
   future task if the maintainer wants them swept too.
 
-### GAP-31 — inputHash/outputHash never computed, permanently null
+### GAP-31 — inputHash/outputHash never computed, permanently null — **CLOSED 2026-08-30**
 - Type: Silent capability gap
-- Status: OPEN — needs maintainer ruling (fix vs. accept, GAP-28 pattern)
 - `inputHash`/`outputHash` are real columns (`registry-store.ts:146-147`,
   a real SQLite column each) — this isn't missing infra, just an
   uncomputed field. `composition.ts` never writes them; registry rows
@@ -788,11 +787,34 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
      computed only alongside `archiveArtifact`'s existing
      `archiveRef`/`rendererVersion` write — consistent with today's
      "nothing fabricated on failure" behavior, no new invariant.
-  Not yet built — next step: `composition.ts` computes both hashes at
-  the `archiveArtifact` call site and passes them through to the
-  registry write, with a test proving a composed document's row carries
-  non-null `inputHash`/`outputHash` and a failed composition still
-  leaves both null.
+- **Built.** `RegistryStore.updateArchiveRef` widened to take
+  `inputHash`/`outputHash` (`registry-store.ts`, `sqlite-registry-store.ts`
+  — both required non-empty strings, same fail-closed style as
+  `rendererVersion`). `archiveArtifact` (`archive/index.ts`) computes
+  `outputHash` itself (SHA-256 over the exact `bytes` handed to
+  `archiveStore.archive` — no normalization) and threads a caller-supplied
+  `inputHash` through to the same registry write as `archiveRef`/
+  `rendererVersion`; a failed `archiveArtifact` call leaves the row
+  untouched, so both hashes stay null exactly like `archiveRef` does
+  today — no new invariant. `composition.ts` gained `payloadInputHash()`
+  (SHA-256 of `JSON.stringify(DataContractEnvelope)`, the same
+  canonicalization `render-pdf-direct/src/renderer.ts` already uses for
+  its own content hash), called at both `archiveArtifact` sites
+  (`composeRenderArchiveAndEnqueue` and the concatenated variant).
+  `console.ts` now shows a real hash instead of "—" for any successfully
+  archived row.
+- Evidence: `packages/runtime/src/hash.test.ts` (new) — `'a composed
+  document carries inputHash = SHA-256(payload) and outputHash =
+  SHA-256(archived bytes)'` independently recomputes both expected
+  digests and asserts equality against the registry row (not just
+  "non-null"); `'a failed composition leaves both inputHash and
+  outputHash null, exactly like archiveRef'` drives a real render
+  failure through `composeRenderArchiveAndEnqueue` and asserts the row
+  stays fully null. `npm run verify`: 84/84 files, 524/524 tests, run
+  clean inside a podman container mirroring CI's exact toolchain (typst
+  0.15.1, veraPDF 1.30.2, poppler-utils) after two host-side runs hit
+  spurious timeouts from unrelated concurrent-agent resource contention,
+  not a real regression.
 - Closes when: the above lands with a passing test and `npm run verify`
   green.
 

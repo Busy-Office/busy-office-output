@@ -90,6 +90,7 @@ async function setUpArchivedArtifact(): Promise<Fixture> {
     mediaType: 'application/pdf',
     retentionUntil: '2030-01-01T00:00:00Z',
     renderer: { id: 'fake-renderer', version: '0.0.1' },
+    inputHash: 'test-input-hash',
   });
 
   return { dbPath, registryStore, archiveStore, docId: row.docId, archiveRef, originalBytes };
@@ -312,6 +313,7 @@ describe('SqliteDeliveryQueue', () => {
           mediaType: 'application/pdf',
           retentionUntil: '2030-01-01T00:00:00Z',
           renderer: { id: 'fake-renderer', version: '0.0.1' },
+          inputHash: 'test-input-hash',
         });
         return row.docId;
       }

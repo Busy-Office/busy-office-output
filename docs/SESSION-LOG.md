@@ -11,6 +11,30 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GAP-31 closed: inputHash/outputHash computed and persisted
+- Did: per the maintainer's "as recommended" ruling on all four GAP-31
+  sub-questions, wired real SHA-256 `inputHash`/`outputHash` into the
+  registry write. `archiveArtifact` computes `outputHash` over the exact
+  archived bytes (tamper-evidence, no normalization); `composition.ts`'s
+  new `payloadInputHash()` hashes the raw payload; both thread through
+  the same `updateArchiveRef` write as `archiveRef`/`rendererVersion`, so
+  a row can never be archived-but-hash-unknown, and both stay null on a
+  failed composition (same as `archiveRef` today). `packages/runtime/src/
+  hash.test.ts` proves both the happy path (recomputed digests match the
+  registry row, not just "non-null") and the failure path.
+- Ran into resource contention: two host-side `npm run verify` runs while
+  this session had multiple background agents + the hourly cloud loop
+  active hit spurious timeouts (veraPDF, corpus variant-inheritance,
+  per-recipient-routing) — not real regressions. Confirmed clean by
+  running inside a podman container built to mirror CI's exact toolchain
+  (`.github/ci/install-tools.sh`: typst 0.15.1, veraPDF 1.30.2,
+  poppler-utils): 84/84 files, 524/524 tests, green.
+- Open: nothing.
+- Next: GAP-18/23/24/28/31 are all now ruled and closed (28/31 built this
+  session, 18/23 decision-only, 24 stays open-low-priority per its
+  ruling). Nothing else is Claude-doable — still waiting on GAP-24's
+  eventual authn build (no urgency named) or a Stage 7 trigger.
+
 ## 2026-08-30 — GAP-28 closed: fail loudly on a malformed totals-row expression
 - Did: per the maintainer's "fail loudly" ruling, made a totals row whose
   expression resolves to a plain object (a template author writing

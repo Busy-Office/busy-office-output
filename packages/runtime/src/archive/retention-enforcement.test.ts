@@ -56,6 +56,7 @@ describe('enforceRetention', () => {
       // Already in the past relative to `now` below.
       retentionUntil: '2020-01-01T00:00:00Z',
       renderer: { id: 'fake-renderer', version: '0.0.1' },
+      inputHash: 'test-input-hash',
     });
 
     // Sanity: bytes are really there before enforcement runs.
@@ -106,6 +107,7 @@ describe('enforceRetention', () => {
       mediaType: 'application/pdf',
       retentionUntil: '2099-01-01T00:00:00Z',
       renderer: { id: 'fake-renderer', version: '0.0.1' },
+      inputHash: 'test-input-hash',
     });
 
     const results = await enforceRetention({ registryStore, archiveStore }, '2026-08-28T00:00:00Z');
@@ -135,6 +137,7 @@ describe('enforceRetention', () => {
       mediaType: 'application/pdf',
       retentionUntil: '2020-01-01T00:00:00Z',
       renderer: { id: 'fake-renderer', version: '0.0.1' },
+      inputHash: 'test-input-hash',
     });
 
     const first = await enforceRetention({ registryStore, archiveStore }, '2026-08-28T00:00:00Z');
