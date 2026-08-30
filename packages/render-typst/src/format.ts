@@ -174,17 +174,42 @@ export function formatAddressLines(address: AddressLike, locale?: string): strin
 }
 
 /**
+ * Thrown by `formatDisplayValue` when a bound expression resolves to a
+ * plain object (or array) that isn't one of the recognized displayable
+ * shapes (string/number/date/address/money-amount) — e.g. an expression
+ * pointing at a `Money { currency, amount }` object itself instead of its
+ * `.amount` field. Follows the same "specific named error, not a generic
+ * `Error`" convention as `TypstOverflowError`/`TypstCompileError`
+ * (renderer.ts) so the failure is recognizable and testable by class, and
+ * propagates as a normal render rejection since `formatDisplayValue` runs
+ * synchronously inside `emitDocument`, called before the async `typst`
+ * subprocess is ever spawned.
+ */
+export class UnformattableValueError extends Error {}
+
+/**
  * One value formatter shared by every emit site (fieldGrid, table cells,
  * totals rows) that prints a bound leaf value as a single line of text —
  * money and dates get locale-aware display; an address value (multi-line,
  * only meaningful in fieldGrid) is joined with ", " here for the
  * single-line callers and handled specially by the fieldGrid emitter for
- * its real multi-line form. Anything else falls back to plain `String()`.
+ * its real multi-line form. Anything else that is a plain string/number/
+ * boolean falls back to `String()`; a plain object or array that matches
+ * none of the recognized shapes throws `UnformattableValueError` rather
+ * than silently stringifying to the useless "[object Object]" — fail
+ * loudly on a malformed expression instead of printing garbage into a
+ * real document.
  */
 export function formatDisplayValue(path: string, value: unknown, locale?: string): string {
   if (value === undefined || value === null) return '';
   if (typeof value === 'number' && isMoneyAmountPath(path)) return formatMoneyCentsLocale(value, locale);
   if (looksLikeIsoDate(value)) return formatIsoDateLocale(value, locale);
   if (isAddressLike(value)) return formatAddressLines(value, locale).join(', ');
+  if (typeof value === 'object') {
+    const hint = isMoneyAmountPath(path) ? '' : ` — did you mean "${path}.amount"?`;
+    throw new UnformattableValueError(
+      `expression "${path}" resolved to an object, not a displayable string, number, date, address, or money amount${hint}`,
+    );
+  }
   return String(value);
 }

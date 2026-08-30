@@ -4,7 +4,7 @@ export { normalizePdf } from './normalize-pdf.js';
 export { countPdfPages } from './pdf-page-count.js';
 export { emitDocument, OVERFLOW_MARKER_LABEL } from './emit-typst.js';
 export { evaluateExpression, evaluateRelative } from './evaluate.js';
-export { formatMoneyCents, isMoneyAmountPath, formatMoneyCentsLocale, formatIsoDateLocale, looksLikeIsoDate, isAddressLike, formatAddressLines, isRtlLocale, formatDisplayValue } from './format.js';
+export { formatMoneyCents, isMoneyAmountPath, formatMoneyCentsLocale, formatIsoDateLocale, looksLikeIsoDate, isAddressLike, formatAddressLines, isRtlLocale, formatDisplayValue, UnformattableValueError } from './format.js';
 export type { AddressLike } from './format.js';
 export { extractPdfWords, PdfTextExtractionError } from './diff/pdf-words.js';
 export type { Word, PageWords, ExtractWordsOptions } from './diff/pdf-words.js';
