@@ -20,7 +20,7 @@ import { enforceRetention } from './retention-enforcement.js';
 
 function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   return {
-    businessObject: 'EKKO',
+    businessObject: 'PurchaseOrderHeader',
     businessObjectId: '4500009999',
     event: 'po.released',
     templateVersion: '1.0.0',

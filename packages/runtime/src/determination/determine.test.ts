@@ -32,7 +32,7 @@ const templates: TemplateMeta[] = [
 
 const baseCtx: DeterminationContext = {
   documentType: 'purchase-order',
-  businessObject: 'EKKO',
+  businessObject: 'PurchaseOrderHeader',
   event: 'po.released',
 };
 

@@ -16,7 +16,7 @@ import { createSqliteRegistryStore } from './sqlite-registry-store.js';
 
 function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   return {
-    businessObject: 'EKKO',
+    businessObject: 'PurchaseOrderHeader',
     businessObjectId: '4500001234',
     event: 'po.released',
     templateVersion: '1.0.0',
@@ -48,7 +48,7 @@ describe('SqliteRegistryStore (:memory:)', () => {
 
     expect(created).toBe(true);
     expect(row.state).toBe('DRAFT');
-    expect(row.businessObject).toBe('EKKO');
+    expect(row.businessObject).toBe('PurchaseOrderHeader');
     expect(row.businessObjectId).toBe('4500001234');
     expect(row.templateVersion).toBe('1.0.0');
     expect(row.archiveRef).toBeNull();
@@ -229,7 +229,7 @@ describe('SqliteRegistryStore trace log (ROADMAP Stage 3 "Minimal console, read-
     const store = createSqliteRegistryStore(':memory:');
     const trace = {
       documentType: 'purchase-order',
-      businessObject: 'EKKO',
+      businessObject: 'PurchaseOrderHeader',
       event: 'po.released',
       rules: [],
       resolutions: [],
@@ -248,7 +248,7 @@ describe('SqliteRegistryStore trace log (ROADMAP Stage 3 "Minimal console, read-
     const store = createSqliteRegistryStore(':memory:');
     const first = {
       documentType: 'purchase-order',
-      businessObject: 'EKKO',
+      businessObject: 'PurchaseOrderHeader',
       event: 'po.released',
       rules: [],
       resolutions: [],
@@ -299,7 +299,7 @@ describe('SqliteRegistryStore persistence across a process restart', () => {
 describe('SqliteRegistryStore listByEventKey (OutputPort v1 `status`, GAP-07)', () => {
   it('returns every row minted for one four-tuple — one per ruleId, oldest first — and [] for an unknown key', () => {
     const store = createSqliteRegistryStore(':memory:');
-    const key: BusinessEventKey = { businessObject: 'VBRK', businessObjectId: 'INV-LBEK-1', event: 'invoice.posted', templateVersion: '1.0.0' };
+    const key: BusinessEventKey = { businessObject: 'SalesInvoiceHeader', businessObjectId: 'INV-LBEK-1', event: 'invoice.posted', templateVersion: '1.0.0' };
     const a = store.getOrCreateByResolutionKey({ ...key, ruleId: 'invoice-default-email' }, 'invoice').row;
     const b = store.getOrCreateByResolutionKey({ ...key, ruleId: 'invoice-archival-copy' }, 'invoice').row;
     // A different templateVersion is a different event — must not leak in.

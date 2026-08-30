@@ -86,7 +86,7 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
     expect(status).toBe(200);
     expect(contentType).toContain('text/html');
     expect(body).toContain(docId);
-    expect(body).toContain('EKKO');
+    expect(body).toContain('PurchaseOrderHeader');
     expect(body).toContain('console-detail-1');
     expect(body).toContain('po.released');
     // inputHash/outputHash/rendererVersion are genuinely null this task — must render "—", never be hidden or fabricated.
@@ -108,7 +108,7 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
   it('GAP-15: `template@ver · renderer@ver` shows the real rendererId@version for an archived row and stays "—" for a DRAFT row', async () => {
     // DRAFT (never archived): rendererVersion is legitimately null -> "—".
     const draft = registryStore.getOrCreateByEventKey({
-      businessObject: 'EKKO',
+      businessObject: 'PurchaseOrderHeader',
       businessObjectId: 'console-renderer-draft',
       event: 'po.released',
       templateVersion: '1.0.0',
@@ -119,7 +119,7 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
 
     // Archived through the real archiveArtifact seam with a renderer identity.
     const archived = registryStore.getOrCreateByEventKey({
-      businessObject: 'EKKO',
+      businessObject: 'PurchaseOrderHeader',
       businessObjectId: 'console-renderer-archived',
       event: 'po.released',
       templateVersion: '1.0.0',
@@ -168,7 +168,7 @@ describe('console (read-only): /output/documents, /output/documents/:docId, /out
     expect(status).toBe(200);
     expect(contentType).toContain('text/html');
     expect(body).toContain('purchase-order');
-    expect(body).toContain('EKKO');
+    expect(body).toContain('PurchaseOrderHeader');
     expect(body).toContain('po.released');
     expect(body).toContain('matched');
     // The firing rule's row carries an anchor id the resolution block links back to.
@@ -259,7 +259,7 @@ describe('Operations screen (GET /output/operations) and its poison cross-links'
 
     async function mintArchivedDoc(businessObjectId: string): Promise<string> {
       const { row } = registryStore.getOrCreateByEventKey({
-        businessObject: 'EKKO',
+        businessObject: 'PurchaseOrderHeader',
         businessObjectId,
         event: 'po.released',
         templateVersion: '1.0.0',

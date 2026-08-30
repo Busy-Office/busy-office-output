@@ -76,7 +76,7 @@ describe('OutputPort v1 — emit → status', () => {
     const { deps } = realDeps();
     try {
       // invoice.posted fires two rules (default email + fan-out archival copy).
-      const businessEvent = sampleBusinessEventKey({ businessObject: 'VBRK', businessObjectId: 'INV-STATUS-1', event: 'invoice.posted' });
+      const businessEvent = sampleBusinessEventKey({ businessObject: 'SalesInvoiceHeader', businessObjectId: 'INV-STATUS-1', event: 'invoice.posted' });
       const emitted = await deps.output.emit({ documentType: 'invoice', payload: validInvoice(), businessEvent });
       expect(emitted.status).toBe('accepted');
       if (emitted.status !== 'accepted') throw new Error('unreachable');
@@ -331,7 +331,7 @@ describe('OutputPort v1 — the consumer round-trip over serve()\'s HTTP wiring'
       expect(docs.documents[0].archived).toBe(true);
       expect(JSON.stringify(docs)).not.toContain('ownerId');
 
-      const missingKey = await fetch(`${baseUrl}/documents?businessObject=EKKO`);
+      const missingKey = await fetch(`${baseUrl}/documents?businessObject=PurchaseOrderHeader`);
       expect(missingKey.status).toBe(400);
 
       const archivedBefore = archivedFiles(archiveDir).length;

@@ -158,7 +158,7 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
     }
     async function mintArchived(businessObjectId: string, documentType = 'purchase-order', ownerId?: string): Promise<string> {
       const { row } = registryStore.getOrCreateByResolutionKey(
-        { businessObject: 'EKKO', businessObjectId, event: 'po.released', templateVersion: '1.0.0', ruleId: 'r1' },
+        { businessObject: 'PurchaseOrderHeader', businessObjectId, event: 'po.released', templateVersion: '1.0.0', ruleId: 'r1' },
         documentType,
         ownerId,
       );
@@ -175,7 +175,7 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
     /** A `mintWithOutbox` row: `cleared` = render failed (outbox cleared, DRAFT stays). */
     function mintDraft(businessObjectId: string, cleared: boolean): string {
       const { row } = registryStore.mintWithOutbox(
-        { businessObject: 'EKKO', businessObjectId, event: 'po.released', templateVersion: '1.0.0', ruleId: 'r1' },
+        { businessObject: 'PurchaseOrderHeader', businessObjectId, event: 'po.released', templateVersion: '1.0.0', ruleId: 'r1' },
         { ruleId: 'r1' },
         { header: { note: 'never printed' } },
         'purchase-order',
@@ -201,7 +201,7 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
     /** Rows minted directly have no persisted trace; the crawl and the
      * no-secret sweep want the Rule trace screen reachable, so seed one. */
     function seedTrace(docId: string): void {
-      registryStore.appendTraceLog(docId, { documentType: 'purchase-order', businessObject: 'EKKO', event: 'po.released', outcome: 'matched', rules: [], resolutions: [] });
+      registryStore.appendTraceLog(docId, { documentType: 'purchase-order', businessObject: 'PurchaseOrderHeader', event: 'po.released', outcome: 'matched', rules: [], resolutions: [] });
     }
     function submitForReview(): string {
       const key = { templateId: 'memo-draft', version: '2.0.0' };
@@ -511,7 +511,7 @@ describe('Overview (GET /output) and Settings (GET /output/settings)', () => {
   it('renderOverviewPage honours an injected `now` (the two threshold groups)', () => {
     const registryStore = createSqliteRegistryStore(':memory:');
     closers.push(() => registryStore.close());
-    const { row } = registryStore.mintWithOutbox({ businessObject: 'EKKO', businessObjectId: 'now-1', event: 'e', templateVersion: '1', ruleId: 'r' }, {}, {}, 'purchase-order');
+    const { row } = registryStore.mintWithOutbox({ businessObject: 'PurchaseOrderHeader', businessObjectId: 'now-1', event: 'e', templateVersion: '1', ruleId: 'r' }, {}, {}, 'purchase-order');
     const at = (ms: number) => belowNav(renderOverviewPage({ registryStore }, new Date(Date.parse(row.createdAt) + ms)));
     expect(at(STRANDED_AFTER_MS - 1)).toBe(ALL_GREEN_BODY);
     expect(at(STRANDED_AFTER_MS)).toContain(`<a href="/output/documents/${row.docId}">`);
