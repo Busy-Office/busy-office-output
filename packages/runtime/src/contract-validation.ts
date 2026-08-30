@@ -1,6 +1,6 @@
 /**
- * Contract compilation + validation (ROADMAP Stage 3 task 1, reshaped by
- * GAP-08): payloads are validated against JSON Schema 2020-12 data
+ * Contract compilation + validation: payloads are validated against
+ * JSON Schema 2020-12 data
  * contracts — the schemas are the validation source of truth, not the
  * TypeScript aliases in @busy-office/output-schema (CLAUDE.md:
  * packages/schema stays zero-runtime-dependency; ajv lives here, in
@@ -8,7 +8,8 @@
  *
  * This module knows NO document type. It used to hardcode the list of
  * known types and read `packages/schema/contracts/*.schema.json` itself —
- * that hardcoded knowledge WAS GAP-08 ("engine owns the document types").
+ * that hardcoded knowledge was the exact seam the engine's
+ * document-type-blind registration boundary now closes.
  * Now a contract arrives as a plain schema object inside a
  * `DocumentTypeDefinition` (registration/document-type-definition.ts) and
  * is compiled here on registration; `src/registration/document-type-

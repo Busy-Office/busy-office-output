@@ -1,7 +1,6 @@
 /**
- * FsArchiveStore: the default embedded `ArchiveStore` implementation
- * (ROADMAP Stage 3, "Archive store (FS + S3-compatible)"). Writes bytes to
- * a local directory — what single-process `serve()` uses by default
+ * FsArchiveStore: the default embedded `ArchiveStore` implementation.
+ * Writes bytes to a local directory — what single-process `serve()` uses by default
  * (CLAUDE.md: "API + worker + embedded queue + FS archive in one
  * command"), living under the same `./data/` root as the SQLite registry
  * (`./data/registry.db` — see src/index.ts's `defaultRegistryDbPath`),
@@ -21,8 +20,8 @@
  * A small JSON sidecar (`<id>.meta.json`) is written next to the bytes
  * recording `mediaType` and `retentionUntil` — retrieve() doesn't need it
  * today (the ArchiveStore port only returns bytes), but the alternative is
- * losing that information the moment archive() returns, which would make
- * Stage 4's retention-enforcement task have nowhere to read it from.
+ * losing that information the moment archive() returns, which would leave
+ * retention enforcement with nowhere to read it from.
  * (The registry also persists `retentionUntil` per artifact — see
  * migrations/0002_add_retention_until.sql — so this sidecar is redundant
  * insurance, not the source of truth.)
@@ -72,8 +71,8 @@ export class FsArchiveStore implements ArchiveStore {
   }
 
   /**
-   * Read `mediaType` back off the `.meta.json` sidecar `archive()` wrote
-   * (Stage 5 task 2 — the first reader of that sidecar). `undefined` when
+   * Read `mediaType` back off the `.meta.json` sidecar `archive()` wrote.
+   * `undefined` when
    * the sidecar is missing or carries no string `mediaType`; never throws
    * for a missing sidecar (the bytes are the artifact, the sidecar is
    * insurance — see the module comment).

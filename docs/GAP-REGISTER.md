@@ -604,17 +604,35 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   no-`<script>` check on the served Document detail HTML. `npm run
   verify`: 81 test files / 519 tests passed.
 
-### GAP-30 — GAP-NN/Stage-N references embedded in source comments
+### GAP-30 — GAP-NN/Stage-N references embedded in source comments — **CLOSED 2026-08-30 (non-test files)**
 - Type: Doc hygiene / CLAUDE.md rule violation
-- Status: OPEN
-- 94 files in packages/*/src match `GAP-\d+|Stage \d+` in comments —
-  violates CLAUDE.md's "don't reference the current task/fix in code
-  comments" rule; these rot as GAPs close. Needs a mechanical sweep:
-  strip or rephrase task-referencing comments into durable "why"
-  comments, file by file. Not fixed here — separate task.
+- Was: 94 files matching `GAP-\d+|Stage \d+` in comments under
+  packages/*/src (the round-table's original count, which included test
+  files) — violates CLAUDE.md's "don't reference the current task/fix in
+  code comments" rule; these rot as GAPs close.
+- Scoping decision (made without asking, recorded here): swept
+  **non-test** `.ts` files only. A comment like "GAP-28 test" documenting
+  why a regression test exists is legitimate provenance, not the same rot
+  problem as a GAP reference embedded in production logic — left test
+  files untouched. If the maintainer wants test-file comments swept too,
+  that's a separate, smaller follow-up.
+- Closed: re-derived the real non-test file list (53 files, not 94 —
+  the round-table's figure included tests), then read and rewrote each
+  comment by hand: stripped the task-number reference and either kept the
+  genuine non-obvious "why" (rewritten to stand alone) or deleted the
+  comment outright when it added no durable value once the number was
+  gone. Also found and fixed two comments that had gone factually stale,
+  not just task-numbered: `pdf-words.ts` still said `pdftotext` was "not
+  yet pinned anywhere (no Dockerfile exists yet)" — false, it's pinned in
+  the Dockerfile and CI since GAP-12 closed; `authorization-port.ts` still
+  said the console's reprint trichotomy "stays inert text" — false since
+  GAP-26 made Reproduce a real control. `npm run verify`: 81/81 files,
+  519/519 tests, fully green (comment-only diff, as expected).
 - Closes when: grep for `GAP-\d+|Stage \d+` across packages/*/src
-  returns zero matches (or only in test files, if the maintainer rules
-  those exempt).
+  (excluding `*.test.ts`) returns zero matches — **confirmed, 0 matches**.
+  Test-file comments (documenting why a regression test exists) are
+  explicitly out of scope for this closure, not silently dropped — a
+  future task if the maintainer wants them swept too.
 
 ### GAP-31 — inputHash/outputHash never computed, permanently null
 - Type: Silent capability gap

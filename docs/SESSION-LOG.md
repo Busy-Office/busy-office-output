@@ -11,6 +11,32 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GAP-30 closed: GAP-NN/Stage-N comment sweep (non-test files)
+- Did: swept `GAP-\d+`/`Stage \d+` references out of source comments in
+  `packages/*/src`, per CLAUDE.md's rule against task-referencing
+  comments. Scoped to non-test `.ts` files (53 files, not the round
+  table's original 94 — that count included test files, which document
+  legitimate provenance for a regression test and were left alone by a
+  deliberate scoping call, recorded in GAP-30). Read and rewrote each
+  comment individually — stripped the task number, kept genuine "why"
+  content standing alone, deleted narration that added nothing once the
+  number was gone. Caught two comments that had gone factually stale
+  along the way (not just task-numbered): `render-typst/src/diff/
+  pdf-words.ts` claimed `pdftotext` was still unpinned (false since
+  GAP-12); `runtime/src/authorization/authorization-port.ts` claimed the
+  console's reprint trichotomy "stays inert text" (false since GAP-26).
+  `npm run verify`: 81/81 files, 519/519 tests, fully green.
+- Open: test-file comments referencing GAP/Stage numbers were left
+  untouched (out of scope by design, not dropped) — a smaller follow-up
+  if the maintainer wants those swept too. The CI lint gate the earlier
+  round table recommended (fail on `GAP-\d+|Stage \d+` in packages/*/src
+  comments) is now unblocked — GAP-30's non-test scope is closed, so the
+  gate would no longer fail on day one.
+- Next: GAP-31 (null inputHash/outputHash) still needs a maintainer
+  ruling before anyone touches it. Otherwise nothing else Claude-doable
+  on the roadmap — still blocked on GAP-18 (human-only) or a Stage 7
+  track trigger.
+
 ## 2026-08-30 — GAP-29: unaudited inline PDF preview + A4 frame on Document detail
 - Did: Document detail could previously only fetch archived bytes via
   `reproduce`, which unconditionally stamps a `reprint_log` audit row and

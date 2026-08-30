@@ -1,7 +1,7 @@
 /**
  * ChannelRouter: a `ChannelSender` that dispatches to a per-channel
- * `ChannelSender` by `input.channel` (ROADMAP Stage 3, "Channels: email +
- * object-store only"). Wherever `DeliveryQueue.attemptDelivery`/
+ * `ChannelSender` by `input.channel` (channels: email + object-store).
+ * Wherever `DeliveryQueue.attemptDelivery`/
  * `processNext` expects a single `ChannelSender`, a `ChannelRouter` wired
  * with the concrete senders is that single argument.
  *

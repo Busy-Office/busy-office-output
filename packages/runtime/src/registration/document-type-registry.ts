@@ -1,7 +1,7 @@
 /**
  * `DocumentTypeRegistry` — the engine's ONLY source of document-type
- * knowledge (GAP-08 "registration inversion", arb-chair ruling 2026-08-29
- * in docs/GAP-REGISTER.md). It holds, per registered
+ * knowledge ("registration inversion", arb-chair ruling,
+ * docs/GAP-REGISTER.md). It holds, per registered
  * `DocumentTypeDefinition`: the compiled contract validator, every
  * template's meta + `DocNode` content, and the output rules. Contract
  * validation (`emit`/`preview`), determination (`determine()`'s rule and
@@ -49,7 +49,7 @@ export interface DocumentTypeRegistry {
   /** The `DocNode` tree for `templateId`, or `undefined` if no registered
    * template has that id (composition reports `no-template-content`). */
   templateContent(templateId: string): DocNode | undefined;
-  /** Every registered message template meta (GAP-10), in registration
+  /** Every registered message template meta, in registration
    * order — the candidates `determine()` resolves a channel message
    * against, by the same `VariantKey` rule as `templateMetas()`. */
   messageTemplateMetas(): readonly MessageTemplateMeta[];
@@ -58,12 +58,12 @@ export interface DocumentTypeRegistry {
   messageTemplate(id: string): MessageTemplate | undefined;
   /** Registered document types, in registration order. */
   documentTypes(): readonly string[];
-  /** The owner-supplied retention period in years (GAP-17), or `undefined`
+  /** The owner-supplied retention period in years, or `undefined`
    * when the type supplied none (the retention policy then applies its
    * default) or is not registered. */
   retentionYears(documentType: string): number | undefined;
   /** The owner-supplied envelope dot-path to the document's natural-person
-   * owner (GAP-17), or `undefined` when the type is not owner-scoped or is
+   * owner, or `undefined` when the type is not owner-scoped or is
    * not registered. */
   ownerIdPath(documentType: string): string | undefined;
 }
@@ -112,7 +112,7 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
         problems.push({ path: `templates[${i}].content`, message: `template "${id}" content must be a DocNode object when present` });
       }
     });
-    // `parentId` inheritance (GAP-27): every template's `parentId`, when
+    // `parentId` inheritance: every template's `parentId`, when
     // present, must resolve — either to an already-registered template
     // (a prior `registerDocumentType` call) or to another template inside
     // THIS SAME definition (the common shape: base + overrides registered
@@ -163,7 +163,7 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
       }
       problems.push(...checkMessageTemplate(template, path));
     });
-    // GAP-17: owner-supplied per-type facts. Both optional; both rejected
+    // Owner-supplied per-type facts. Both optional; both rejected
     // atomically when present-but-wrong, like every other field.
     if (definition.retentionYears !== undefined) {
       const years = definition.retentionYears;
@@ -254,8 +254,8 @@ export function createDocumentTypeRegistry(): DocumentTypeRegistry {
     },
     templateContent(templateId: string): DocNode | undefined {
       // `parentId` content-merge (docs/VARIANT-RESOLUTION.md "parentId
-      // inheritance"; GAP-27 — the one thing Stage 1 specified here that
-      // four stage closures never actually wired up). Walk the chain
+      // inheritance" — specified early but left unwired for several
+      // closures before this landed). Walk the chain
       // most-specific-to-root via the already-built `resolveParentChain`,
       // collect whichever layers have registered content (a meta-only
       // ancestor contributes nothing, same as before this task), and fold

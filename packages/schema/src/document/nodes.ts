@@ -4,7 +4,7 @@
  * expressions per docs/EXPRESSION-GRAMMAR.md, parsed by
  * packages/schema/src/expression/parse.ts. If writing the PO and invoice
  * templates on paper needs a tenth, this freeze was wrong — that's the
- * Stage 1 paper-test gate.
+ * paper-test gate.
  */
 export type DocNode =
   | { kind: 'document'; page: PageSpec; children: DocNode[] }

@@ -1,6 +1,6 @@
 /**
- * The ONE per-resolution mint -> compose -> clear-outbox step (GAP-11,
- * docs/GAP-REGISTER.md). Both ingress paths call this and nothing else:
+ * The ONE per-resolution mint -> compose -> clear-outbox step. Both
+ * ingress paths call this and nothing else:
  *   - `server.ts`'s `handleEvent` (the `serve()` HTTP path — the PRIMARY
  *     demo topology), and
  *   - `embed/create-output.ts`'s `emit` (OutputPort v1, ADR-007 embedded module).
@@ -61,7 +61,7 @@ export async function submitResolution(
 
   // `resolution.locale` is persisted on the registry row at mint
   // (migrations/0010_add_locale.sql) — the row-level evidence for "each doc
-  // landed on the locale its own event named" (Stage 4 exit gate clause 2).
+  // landed on the locale its own event named" (per-recipient routing).
   if (composition === undefined) {
     const { row, created } = registryStore.getOrCreateByResolutionKey(key, documentType, ownerId, resolution.locale);
     return { docId: row.docId, replayed: !created, composition: undefined };

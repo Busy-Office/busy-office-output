@@ -2,7 +2,7 @@
  * Variant identity and lifecycle. SURVIVES BOTH ADR-000 PATHS:
  * Path B changes what `body` points at (an .odt archiveRef instead of a
  * node tree) but not how templates are keyed, resolved, or governed.
- * Locale is part of the key on day one — see roadmap Stage 1 rationale.
+ * Locale is part of the key on day one — see docs/VARIANT-RESOLUTION.md.
  */
 export interface VariantKey {
   documentType: string;
@@ -19,7 +19,7 @@ export interface TemplateMeta {
   variant: VariantKey;
   version: string;              // immutable once published
   parentId?: string;            // inheritance chain (most-specific-match wins)
-  lifecycle: TemplateLifecycle; // DECLARED INITIAL state only (Stage 5): seeded once into the runtime's
+  lifecycle: TemplateLifecycle; // DECLARED INITIAL state only: seeded once into the runtime's
                                 // persisted lifecycle log on registration; after that the log is the
                                 // state and this field is ignored. Only `published` is a live candidate.
   renderer: string;             // renderer id this template targets (per-template, not global)

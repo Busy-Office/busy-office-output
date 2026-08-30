@@ -2,8 +2,8 @@
  * Files-first rule + template-meta loading (ADR-003 Accepted Option 1):
  * rule files and template metas are diffable, reviewable, git-versioned
  * JSON, no DB. These two functions read a directory the CALLER names —
- * there is no default path and no module-level cache any more (GAP-08:
- * the engine knows no document type; registration into a
+ * there is no default path and no module-level cache any more (the
+ * engine knows no document type; registration into a
  * `DocumentTypeRegistry` is the cache). `packages/runtime/document-types/
  * *.ts` call them against `packages/runtime/rules/` and hand the result to
  * `OutputPort.registerDocumentType`; a host can point them at its own

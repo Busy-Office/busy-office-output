@@ -1,10 +1,10 @@
 /**
- * Composition + render + archive + enqueue (ROADMAP Stage 3, "Single-process
- * serve" task) — the step HLD §2's pipeline diagram calls Composition,
- * Rendering, and Archive, wired per-resolution after determination succeeds
- * (`OutputPort.emit`, embed/create-output.ts). Template CONTENT comes from
- * the `DocumentTypeRegistry` on `CompositionDeps.documentTypes` (GAP-08:
- * the engine holds no template tree of its own — `registerDocumentType`
+ * Composition + render + archive + enqueue — the step HLD §2's pipeline
+ * diagram calls Composition, Rendering, and Archive, wired per-resolution
+ * after determination succeeds (`OutputPort.emit`, embed/create-output.ts).
+ * Template CONTENT comes from
+ * the `DocumentTypeRegistry` on `CompositionDeps.documentTypes` (the
+ * engine holds no template tree of its own — `registerDocumentType`
  * is how content gets here); a resolved template with no registered
  * content composes to an honest `'no-template-content'` outcome, never a
  * crash and never fabricated output.
@@ -28,7 +28,7 @@ import { renderCoverSheet } from './render/cover-sheet.js';
 import { renderMessage, type RenderedMessage } from './message/message-template.js';
 
 /**
- * GAP-10: evaluate the resolution's message template (resolved at
+ * Evaluate the resolution's message template (resolved at
  * determination by ID) against the payload — ONCE, here, before render,
  * so the rendered subject/body ride on the delivery job and the sender
  * never re-reads the payload. `undefined` for a resolution whose channel
@@ -54,7 +54,7 @@ export interface CompositionDeps {
   registryStore: RegistryStore;
   archiveStore: ArchiveStore;
   deliveryQueue: DeliveryQueue;
-  /** Where template content comes from (GAP-08): the registry every
+  /** Where template content comes from: the registry every
    * `registerDocumentType` call fills. Composition looks up
    * `resolution.templateId` here and nowhere else. */
   documentTypes: DocumentTypeRegistry;
@@ -112,9 +112,8 @@ export function selectRenderer(deps: CompositionDeps, resolution: Pick<Resolutio
 }
 
 /**
- * Retention-until, per document type (ROADMAP Stage 4, "Retention per doc
- * type enforced end-to-end"). This used to be a single fixed 10-year
- * stand-in (ROADMAP Stage 3 scope boundary) applied to every document
+ * Retention-until, per document type. This used to be a single fixed
+ * 10-year stand-in applied to every document
  * type alike; it now defers to `retentionUntilFor`
  * (archive/retention-policy.ts), which genuinely varies by
  * `documentType` — see that module for the periods chosen and why they
@@ -180,9 +179,8 @@ export async function composeRenderArchiveAndEnqueue(
 }
 
 /**
- * Render + PAGE-MERGE + archive + enqueue for one resolution (ROADMAP
- * Stage 4, "PDF attachment concatenation" — DoD: "merged artifact archived
- * as one document, page counts asserted"). A separate, opt-in entry point
+ * Render + PAGE-MERGE + archive + enqueue for one resolution ("PDF
+ * attachment concatenation"). A separate, opt-in entry point
  * next to `composeRenderArchiveAndEnqueue`, not a change to its default
  * behavior: concatenation is not wired as every document's default
  * path — it is document-type/business-decision-specific which resolved
@@ -263,8 +261,7 @@ export type ResumeOutcome =
   | { docId: string; skipped: true };
 
 /**
- * Redrive every still-pending `composition_outbox` row (ROADMAP Stage 3
- * "Embeddable module ... transactional outbox" — see
+ * Redrive every still-pending `composition_outbox` row (see
  * migrations/0005_add_composition_outbox.sql for the full rationale).
  *
  * A pending outbox row means `mintWithOutbox` committed a docId but

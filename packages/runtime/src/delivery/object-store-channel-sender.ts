@@ -1,6 +1,6 @@
 /**
  * ObjectStoreChannelSender: the "object-store" `ChannelSender`
- * implementation (ROADMAP Stage 3, "Channels: email + object-store only").
+ * implementation.
  * Uses `@aws-sdk/client-s3`, already a `packages/runtime` dependency (see
  * `S3ArchiveStore`).
  *

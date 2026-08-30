@@ -1,7 +1,6 @@
 /**
- * Migration runner for the document registry's SQLite schema (ROADMAP
- * Stage 3, "Document registry ... DoD: one row per artifact, migration in
- * repo"). Real, versioned migrations — not an inline CREATE TABLE — so the
+ * Migration runner for the document registry's SQLite schema — one row
+ * per artifact, migration in repo. Real, versioned migrations — not an inline CREATE TABLE — so the
  * schema has a history and `serve` can evolve a real on-disk database across
  * releases without hand-editing it.
  *

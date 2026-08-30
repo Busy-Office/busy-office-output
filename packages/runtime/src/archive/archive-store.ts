@@ -1,9 +1,8 @@
 /**
- * ArchiveStore port (ROADMAP Stage 3: "Archive store (FS + S3-compatible)
- * with mandatory `retentionUntil` — DoD: archiving without retention
- * fails"). This is the seam the (not-yet-built) Delivery queue task will
- * read archived bytes back through, and what the Document registry task's
- * `archiveRef` column has been a pointer into since it landed.
+ * ArchiveStore port — mandatory `retentionUntil`; archiving without
+ * retention fails. This is the seam the Delivery queue reads archived
+ * bytes back through, and what the registry's `archiveRef` column is a
+ * pointer into.
  *
  * HLD: an Artifact's `retentionUntil` is mandatory — payslip retention is
  * not purchase-order retention, and there is no such thing as an archived
@@ -15,16 +14,14 @@
  * upstream cast, a test) still fails loudly instead of silently archiving
  * an artifact nothing will ever purge.
  *
- * `purge` (added for ROADMAP Stage 4's "Retention per doc type enforced
- * end-to-end") is the enforcement half: it deletes the bytes an
+ * `purge` is the retention-enforcement half: it deletes the bytes an
  * `archiveRef` points to, for a caller (`archive/retention-enforcement.ts`)
  * that has already decided — by reading `retentionUntil` back off the
  * registry row, never off this port — that they are past their retention
  * deadline. This port stays a dumb bytes-store: it does not read clocks,
  * does not decide who is expired, and does not touch the registry; all of
  * that judgment lives in `retention-enforcement.ts`.
- * NOT here: delivery, channels, rule determination — separate, later
- * Stage 3 tasks.
+ * NOT here: delivery, channels, rule determination — separate seams.
  *
  * No payloads in logs (CLAUDE.md golden rule: payslips = PII) — nothing in
  * this file or its implementations logs artifact bytes; only refs/hashes
@@ -96,7 +93,7 @@ export interface ArchiveStore {
 
   /**
    * Permanently delete the bytes previously archived under `archiveRef`
-   * (ROADMAP Stage 4 retention enforcement). Idempotent: purging an
+   * (used by retention enforcement). Idempotent: purging an
    * `archiveRef` that no longer exists (already purged, or never existed)
    * must NOT reject — a caller retrying a partially-completed purge run
    * must be able to call this again safely. Does not touch any registry
@@ -105,7 +102,7 @@ export interface ArchiveStore {
   purge(archiveRef: string): Promise<void>;
 
   /**
-   * OPTIONAL (Stage 5 task 2, `OutputPort.reproduce`): the IANA media type
+   * OPTIONAL (used by `OutputPort.reproduce`): the IANA media type
    * recorded when `archiveRef` was archived, or `undefined` when this
    * store did not record one. A store that cannot answer leaves the method
    * unimplemented and `reproduce` OMITS `mediaType` rather than guessing —

@@ -1,6 +1,6 @@
 /**
- * SqliteRegistryStore: the default embedded `RegistryStore` implementation
- * (ROADMAP Stage 3). Uses Node's built-in `node:sqlite` (`DatabaseSync`) —
+ * SqliteRegistryStore: the default embedded `RegistryStore` implementation.
+ * Uses Node's built-in `node:sqlite` (`DatabaseSync`) —
  * deliberately NOT `better-sqlite3` (an extra native binding) and NOT
  * Postgres (ADR-004 is Accepted — Option 1, SQLite-backed embedded, with
  * a Postgres `RegistryStore` adapter deliberately reserved but unbuilt:

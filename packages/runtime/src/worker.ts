@@ -1,9 +1,8 @@
 /**
- * Delivery worker loop (ROADMAP Stage 3, "Single-process serve" task):
- * drains the delivery queue by calling `DeliveryQueue.processNext`
- * repeatedly. Deliberately simple per the task's own scope note — a
- * `setInterval`-driven poll loop is enough for Stage 3, a more
- * sophisticated scheduler is not required.
+ * Delivery worker loop: drains the delivery queue by calling
+ * `DeliveryQueue.processNext` repeatedly. Deliberately simple — a
+ * `setInterval`-driven poll loop is enough for the single-process `serve`
+ * topology; a more sophisticated scheduler is not required.
  *
  * `drainOnce` is the deterministic building block: it processes every
  * currently-due job and returns once `processNext` reports none left — no

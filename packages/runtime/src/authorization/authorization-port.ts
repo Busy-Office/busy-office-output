@@ -1,24 +1,20 @@
 /**
- * AuthorizationPort (ROADMAP Stage 4, "Document-level authorization:
- * reproduce/regenerate/reissue evaluated against the document" — DoD:
- * "HR-clerk vs employee test — same endpoint, different outcome"). First
- * concrete shape for the boundary concept ADR-007 names but does not
- * define: "Host-side integration points are interfaces (AuthorizationPort,
- * storage adapters), never imports of host internals." This module is that
+ * AuthorizationPort — document-level authorization for the three reprint
+ * actions (reproduce/regenerate/reissue). First concrete shape for the
+ * boundary concept ADR-007 names but does not define: "Host-side
+ * integration points are interfaces (AuthorizationPort, storage
+ * adapters), never imports of host internals." This module is that
  * interface plus a minimal default, fail-closed implementation — no host
  * import, no HTTP, no session/token concept.
  *
  * CLAUDE.md: "Authorization is evaluated against the DOCUMENT, not the
  * endpoint." `canAccess` takes the `DocumentRegistryRow` itself (not a
- * route, not a docId string a caller would have to re-fetch) — the same
- * three reprint actions (reproduce/regenerate/reissue) go through this one
- * check regardless of which of the three a caller is attempting; a live
- * HTTP route wiring an `Actor` from a real session/token is explicitly
- * Stage 5 (see this task's scope ruling) and does not exist yet —
- * `packages/runtime/src/console.ts`'s reprint trichotomy stays inert text,
- * unchanged by this module.
+ * route, not a docId string a caller would have to re-fetch) — all three
+ * reprint actions go through this one check regardless of which a caller
+ * is attempting; the HTTP route wires an `Actor` from a proxy-asserted
+ * identity, not a real session/token (see docs/GAP-REGISTER.md).
  *
- * GAP-17: nothing here names a document type. Owner-scoping is read from
+ * Nothing here names a document type. Owner-scoping is read from
  * the `DocumentTypeRegistry` (`ownerIdPath`), which the type's owner
  * supplies through `DocumentTypeDefinition`.
  */
@@ -53,14 +49,14 @@ export interface AuthorizationPort {
   canAccess(actor: Actor, row: DocumentRegistryRow, action: ReprintAction): boolean;
 }
 
-/** What the default port reads from the registry (GAP-17): whether a
+/** What the default port reads from the registry: whether a
  * document type is owner-scoped, i.e. its definition supplies an
  * `ownerIdPath`. `Pick` so tests can hand in the narrowest thing. */
 export type OwnerScopeSource = Pick<DocumentTypeRegistry, 'ownerIdPath'>;
 
 /**
- * Minimal default `AuthorizationPort` (scope ruling, item 2), built over
- * the document-type registry (GAP-17 — the engine names no document type;
+ * Minimal default `AuthorizationPort`, built over
+ * the document-type registry (the engine names no document type;
  * "is this type owner-scoped?" is a fact the type's OWNER supplies via
  * `DocumentTypeDefinition.ownerIdPath`):
  *  - an OWNER-SCOPED type (its definition supplies `ownerIdPath` — the
@@ -105,7 +101,7 @@ export function createDefaultAuthorizationPort(documentTypes: OwnerScopeSource):
  * fallback) or when the path resolves to anything but a string.
  *
  * Evaluated with render-typst's `evaluateExpression` — the SAME frozen
- * dot-path evaluator templates and message templates use (GAP-10); no
+ * dot-path evaluator templates and message templates use; no
  * second path syntax. Deliberately defensive rather than trusting `data`'s
  * static type: called from the mint call site (`embed/create-output.ts`)
  * with an envelope that has already passed contract validation, but a

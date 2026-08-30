@@ -1,6 +1,6 @@
 /**
- * Structural diff (ROADMAP Stage 5 task 4 "Review-and-approve screen":
- * the compare mechanic; docs/UI-DESIGN.md — "S7 reuses it"). PURE: a
+ * Structural diff (Review-and-approve's compare mechanic;
+ * docs/UI-DESIGN.md — the future authoring Workspace reuses it). PURE: a
  * deterministic, recursive, JSON-pointer-addressed diff of two plain JSON
  * values — a `DocNode` tree, a message template's `{ subject, body }`
  * segments, or a meta slice — with NO rendering, NO renderer involved

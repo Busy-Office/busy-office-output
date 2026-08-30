@@ -1,7 +1,7 @@
 /**
  * The two third-party byte assets every pdf-direct artifact embeds (see
  * ../THIRD-PARTY-ASSETS.md for provenance + licences): the DejaVu Sans TTF
- * pair (PDF/A-2b requires every font embedded — the Stage 0 spike's
+ * pair (PDF/A-2b requires every font embedded — the original spike's
  * `StandardFonts.Helvetica` was the known violation, docs/STANDARDS.md) and
  * the sRGB2014 ICC profile for the OutputIntent. Read from disk once per
  * process and cached; the renderer is in-process and hot (ADR-002's whole

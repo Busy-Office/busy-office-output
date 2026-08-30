@@ -1,5 +1,5 @@
 /**
- * Determinism normalization (CLAUDE.md, ROADMAP Stage 2): zero out
+ * Determinism normalization (CLAUDE.md): zero out
  * CreationDate, ModDate, and the trailer document ID before hashing/
  * comparing rendered PDFs, so two renders of identical input are
  * byte-identical afterward. Placed here (not packages/schema, which stays
@@ -33,7 +33,7 @@
  * flake this fixed). All four XMP tags are zero-filled the same way.
  *
  * A THIRD source surfaced empirically once `typst compile` was run with
- * `--pdf-standard a-2b` (Stage 2 PDF/A task, docs/STANDARDS.md Tier 2):
+ * `--pdf-standard a-2b` (the PDF/A task, docs/STANDARDS.md Tier 2):
  * PDF/A's XMP profile adds an `<xmpMM:History>` sequence of `<rdf:li>`
  * events (Typst emits "saved" and "converted" entries), each carrying its
  * own `<stEvt:when>` timestamp and `<stEvt:instanceID>` — same shape of

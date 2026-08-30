@@ -1,7 +1,6 @@
 /**
- * Template lifecycle transition table (ROADMAP Stage 5 task 1: "Template
- * lifecycle draft→review→approved→published→retired ... DoD: state machine
- * tests"; arb-chair ruling 2026-08-29). PURE — the table is data, the
+ * Template lifecycle transition table (draft→review→approved→published→
+ * retired; arb-chair ruling). PURE — the table is data, the
  * evaluator does no I/O and reads no clock, so every edge and every
  * refusal is unit-testable without a store (transitions.test.ts).
  *
@@ -31,11 +30,11 @@
  * Separation of duties (ruling (d), maintainer-confirmed): on
  * review → approved the approver's `subjectId` must differ from the
  * `subjectId` on the MOST RECENT draft → review row of the key's history
- * (refusal `separation-of-duties`). Stage 5 task 3 adds the second
- * pairing: on approved → published the publisher's `subjectId` must
+ * (refusal `separation-of-duties`). A second pairing applies too:
+ * on approved → published the publisher's `subjectId` must
  * differ from the STANDING approve row's (same refusal code).
  *
- * Approval record (Stage 5 task 3, the stage exit gate — "a template
+ * Approval record (the exit gate — "a template
  * change cannot reach PRD without an approval record"): approved →
  * published additionally requires a STANDING approve row in the key's
  * history — a review → approved row with no later reopen/return
@@ -54,7 +53,7 @@ import type { TemplateLifecycleEvent } from '../registry/registry-store.js';
 
 /**
  * The state list is DERIVED from an object that `satisfies
- * Record<TemplateLifecycle, true>` (GAP-21): a union member missing here is
+ * Record<TemplateLifecycle, true>`: a union member missing here is
  * a compile error (missing property), and a key that is not a union member
  * is a compile error (excess property). Adding a state to the schema union
  * therefore cannot compile until this file — and with it the transition

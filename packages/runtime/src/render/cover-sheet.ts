@@ -1,5 +1,5 @@
 /**
- * Cover-sheet generator (ROADMAP Stage 4, "PDF attachment concatenation").
+ * Cover-sheet generator ("PDF attachment concatenation").
  *
  * Deliberately minimal — this proves the page-merge mechanism
  * (packages/render-typst's mergePdfs, docs/STANDARDS.md's PDF/A-2b

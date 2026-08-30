@@ -26,7 +26,7 @@ export interface TemplateTraceEntry {
 }
 
 /**
- * `unresolved-recipients` (Stage 4 exit-gate clause 2): rule(s) fired and
+ * `unresolved-recipients`: rule(s) fired and
  * every template resolved, but at least one firing rule's resolution ended
  * up with NO recipient — neither the rule nor the caller's
  * `DeterminationContext.recipients` supplied any. Atomic like
@@ -38,7 +38,7 @@ export type DeterminationOutcome =
   | 'no-rule-match'
   | 'no-template-match'
   | 'unresolved-recipients'
-  /** GAP-10: rule(s) fired, templates and recipients resolved, but a
+  /** Rule(s) fired, templates and recipients resolved, but a
    * firing rule's channel carries a message (`email`) and no registered
    * message template matches its variant query. Atomic like the others;
    * `ResolutionTrace.messageTemplates` explains every candidate. Never a
@@ -55,8 +55,8 @@ export type DeterminationOutcome =
 export type RecipientsSource = 'rule' | 'context' | 'none';
 
 /**
- * The template-resolution half of the TRACE for exactly ONE firing rule
- * (ROADMAP Stage 3 fan-out task). One event can now have zero, one, or many
+ * The template-resolution half of the TRACE for exactly ONE firing rule.
+ * One event can have zero, one, or many
  * of these — one per rule that actually fired (the winner-take-all pick,
  * plus every `fanOut: true` match, see rule-types.ts). Each carries its own
  * `variantQuery` because a fan-out rule's `resolution.locale`/`companyCode`/
@@ -79,7 +79,7 @@ export interface ResolutionTrace {
   winningTemplateId?: string;
   /** See `RecipientsSource`. Never the addresses themselves. */
   recipientsSource: RecipientsSource;
-  /** GAP-10: every message-template candidate evaluated for this firing
+  /** Every message-template candidate evaluated for this firing
    * rule's variant query. Present only when the rule's channel carries a
    * message (`CHANNELS_REQUIRING_MESSAGE`); absent for `object-store`. */
   messageTemplates?: TemplateTraceEntry[];

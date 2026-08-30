@@ -1,9 +1,9 @@
 /**
- * ChannelSender port (ROADMAP Stage 3, "Delivery queue" task). Deliberately
- * the SMALLEST possible seam between the queue mechanics built in this
- * file/task and actual channel implementations (email, object-store, ...) —
- * those are the NEXT roadmap task ("Channels") and are explicitly NOT built
- * here. `SqliteDeliveryQueue` depends only on this interface; tests inject
+ * ChannelSender port. Deliberately
+ * the SMALLEST possible seam between the delivery-queue mechanics and
+ * actual channel implementations (email, object-store, ...) — those are
+ * built separately, in their own files, never here.
+ * `SqliteDeliveryQueue` depends only on this interface; tests inject
  * fakes (including one that always throws, to simulate "kill the channel"
  * for the poison-path DoD) and never touch a real channel.
  *
@@ -25,7 +25,7 @@ export interface ChannelSendInput {
   channel: string;
   /** The registry docId this delivery is for. */
   docId: string;
-  /** GAP-10: the rendered subject/body off the delivery job — evaluated
+  /** The rendered subject/body off the delivery job — evaluated
    * at enqueue from the resolved message template, never here. Present
    * for channels that carry a message (email); a sender for such a channel
    * refuses a job without one rather than inventing a default. PII:

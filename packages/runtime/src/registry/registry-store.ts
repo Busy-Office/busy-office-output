@@ -1,13 +1,13 @@
 /**
- * RegistryStore port (ROADMAP Stage 3, HLD §3 "Data model (registry-centric)":
+ * RegistryStore port (HLD §3 "Data model (registry-centric)":
  * DocumentInstance + DeliveryAttempt). One row per artifact, forever
  * (CLAUDE.md golden rule) — this is the durable replacement for the
  * original in-memory idempotency Map (its `IdempotencyStore` facade was
- * deleted under GAP-16; submit-resolution.ts calls this port directly), and
- * the seam later Stage 3 tasks (archive store, delivery queue) attach to
+ * later deleted; submit-resolution.ts calls this port directly), and
+ * the seam archive store and delivery queue attach to
  * without this file changing.
  *
- * Deliberately minimal for THIS task's DoD — no more than what idempotency
+ * Deliberately minimal — no more than what idempotency
  * replay + a registry row + state + delivery history need:
  *   - getOrCreateByEventKey: the idempotency lookup — mints docId on first
  *     sighting, returns the same row on replay.
@@ -17,7 +17,7 @@
  *   - updateArchiveRef: record where the archived bytes live and the
  *     mandatory retentionUntil deadline for them (added for the Archive
  *     store task — see src/archive/archive-store.ts).
- * Extended for ROADMAP Stage 3 "Minimal console, read-only"
+ * Extended for the minimal read-only console
  * (migrations/0006_add_document_type.sql, 0007_add_trace_log.sql):
  *   - every mint method (getOrCreateByEventKey / getOrCreateByResolutionKey
  *     / mintWithOutbox) takes an optional `documentType`, persisted on the
@@ -28,9 +28,9 @@
  *     with server-side search + limit/offset (no other pagination chrome
  *     per docs/UI-DESIGN.md).
  * Explicitly NOT here: archiving bytes (that's ArchiveStore's job — this
- * port only records the resulting pointer), retention *enforcement*
- * (Stage 4), actually delivering anything — those are separate, later
- * ROADMAP tasks and must not be speculatively added to this port.
+ * port only records the resulting pointer), retention *enforcement*,
+ * actually delivering anything — those are separate seams and must not
+ * be speculatively added to this port.
  *
  * Backend-agnostic on purpose: this interface has no SQLite (or Postgres)
  * in its signatures. `SqliteRegistryStore` (sqlite-registry-store.ts) is the
@@ -42,8 +42,8 @@ import type { BusinessEventKey, TemplateLifecycle } from '@busy-office/output-sc
 import type { DeterminationTrace } from '../determination/trace.js';
 
 /**
- * One append-only row of the template lifecycle log (ROADMAP Stage 5 task
- * 1; migrations/0012_add_template_lifecycle.sql). The current state of a
+ * One append-only row of the template lifecycle log (migrations/
+ * 0012_add_template_lifecycle.sql). The current state of a
  * `templateId@version` is its LATEST row — there is no separate "current"
  * table. `fromState` is `null` on the seed row registration writes. Audit
  * fields only: never template content, never a payload.
@@ -60,15 +60,15 @@ export interface TemplateLifecycleEvent {
   occurredAt: string;
 }
 
-/** The three reprint actions (Stage 5 task 2) — the same trichotomy
+/** The three reprint actions — the same trichotomy
  * `authorization/authorization-port.ts`'s `ReprintAction` names; repeated
  * here as a string literal union so this port stays import-free of the
  * authorization module. */
 export type ReprintLogAction = 'reproduce' | 'regenerate' | 'reissue';
 
 /**
- * One append-only row of the reprint log (ROADMAP Stage 5 task 2;
- * migrations/0013_add_reprint_log.sql) — the METADATA stamp that records a
+ * One append-only row of the reprint log (migrations/
+ * 0013_add_reprint_log.sql) — the METADATA stamp that records a
  * reproduce / regenerate / reissue against `docId`. `resultDocId` is
  * `null` for `reproduce` (nothing minted) and the NEW row's docId for
  * `regenerate` / `reissue`. Audit fields only: never payload, bytes, or
@@ -91,8 +91,8 @@ export interface ReprintLogEntry extends ReprintLogEvent {
 }
 
 /**
- * The idempotency key for ONE resolution (ROADMAP Stage 3 "Fan-out: one
- * event → N resolutions" task). `BusinessEventKey`'s four-tuple
+ * The idempotency key for ONE resolution (fan-out: one
+ * event → N resolutions). `BusinessEventKey`'s four-tuple
  * (businessObject, businessObjectId, event, templateVersion) was built
  * assuming one event → one docId; with fan-out, one event can now produce
  * several resolutions that legitimately share ALL FOUR of those fields at
@@ -152,8 +152,8 @@ export interface DocumentRegistryRow {
    * it stays the historical deadline that was in force, even after the
    * bytes are gone. */
   retentionUntil: string | null;
-  /** RFC 3339 timestamp the archived bytes were purged at (ROADMAP Stage 4
-   * retention enforcement), or null if this artifact has never been
+  /** RFC 3339 timestamp the archived bytes were purged at (by retention
+   * enforcement), or null if this artifact has never been
    * purged — including rows never archived at all. See
    * migrations/0008_add_purged_at.sql and `markPurged` below for why this
    * is a separate column rather than a new `state` value or a silently
@@ -174,12 +174,12 @@ export interface DocumentRegistryRow {
    * the optional `documentType` argument to a mint method — never `null`,
    * same NOT-NULL-DEFAULT-'' reasoning as `ruleId` above. The Registry
    * console screen gates its lock glyph on whether the registered type is
-   * owner-scoped (supplies an `ownerIdPath`, GAP-17) — never on the name.
+   * owner-scoped (supplies an `ownerIdPath`) — never on the name.
    */
   documentType: string;
   /**
-   * The natural-person owner of this artifact (ROADMAP Stage 4,
-   * "Document-level authorization"), or `null` when this document type has
+   * The natural-person owner of this artifact (document-level
+   * authorization), or `null` when this document type has
    * no natural-person owner (e.g. purchase-order, invoice) or the row was
    * minted before migrations/0009_add_owner_id.sql. Populated ONLY for
    * payslip mints, from the payslip data contract's `header.employeeId` —
@@ -194,10 +194,10 @@ export interface DocumentRegistryRow {
   /**
    * The locale this resolution was determined with (`Resolution.locale`:
    * the firing rule's override, else the caller's determination context),
-   * persisted at mint (migrations/0010_add_locale.sql — Stage 4 exit gate
-   * clause 2's row-level evidence). `null` when neither supplied one, or
+   * persisted at mint (migrations/0010_add_locale.sql). `null` when
+   * neither supplied one, or
    * for rows minted before that migration. Locale-aware FORMATTING is a
-   * Stage 6 concern; this column records routing, not rendering.
+   * separate concern; this column records routing, not rendering.
    */
   locale: string | null;
   state: DocumentState;
@@ -208,7 +208,7 @@ export interface DocumentRegistryRow {
 
 /** `RegistryStore.listDocuments`'s query shape — the Registry console
  * screen's one search box plus its "load more" link, and the Overview
- * screen's `state` filter (Stage 5 task 5: "Not archived" = DRAFT rows).
+ * screen's `state` filter ("Not archived" = DRAFT rows).
  * Every field composes as one WHERE clause: no sortable columns/filter
  * dropdowns beside the one search box, no pagination widget beyond an
  * optional simple "load more" link (docs/UI-DESIGN.md). */
@@ -280,8 +280,8 @@ export interface RegistryStore {
   getOrCreateByResolutionKey(key: ResolutionEventKey, documentType?: string, ownerId?: string, locale?: string): GetOrCreateResult;
 
   /**
-   * The transactional-outbox-aware mint (ROADMAP Stage 3 "Embeddable
-   * module ... transactional outbox"): identical mint-or-fetch contract to
+   * The transactional-outbox-aware mint (the embeddable
+   * module's transactional outbox): identical mint-or-fetch contract to
    * `getOrCreateByResolutionKey`, except on first sighting (`created:
    * true`) it ALSO writes a `composition_outbox` row for the new docId, in
    * the SAME SQLite transaction as the `document_registry` insert — either
@@ -345,7 +345,7 @@ export interface RegistryStore {
    * every `ArchiveStore.archive()` call runs through before bytes are
    * even written).
    *
-   * `rendererVersion` (GAP-15): `<rendererId>@<version>` of the renderer
+   * `rendererVersion`: `<rendererId>@<version>` of the renderer
    * that produced the archived bytes — written in the SAME update as
    * archiveRef so the audit row can never be archived-but-renderer-unknown.
    * Rows archived before this column was written legitimately carry null.
@@ -354,8 +354,7 @@ export interface RegistryStore {
 
   /**
    * Every archived row (`archiveRef` set, not yet purged) whose
-   * `retentionUntil` is at or before `now` (ROADMAP Stage 4, "Retention
-   * per doc type enforced end-to-end") — the read side
+   * `retentionUntil` is at or before `now` — the read side
    * `retention-enforcement.ts`'s `enforceRetention` scans to decide what
    * to purge. `now`: RFC 3339 timestamp, so callers can drive this
    * deterministically in tests without depending on wall-clock time.
@@ -364,7 +363,7 @@ export interface RegistryStore {
 
   /**
    * Record that `docId`'s archived bytes were purged at `purgedAt`
-   * (ROADMAP Stage 4 retention enforcement): clears `archiveRef` to null
+   * (retention enforcement): clears `archiveRef` to null
    * (the bytes it pointed to no longer exist) and sets `purgedAt` — never
    * deletes the row, never touches `state` or `retentionUntil` (see
    * migrations/0008_add_purged_at.sql for the full reasoning). Throws if
@@ -373,8 +372,8 @@ export interface RegistryStore {
   markPurged(docId: string, purgedAt: string): void;
 
   /**
-   * Every registry row, most-recent-created first (ROADMAP Stage 3
-   * "Minimal console, read-only" — Registry screen's read model). See
+   * Every registry row, most-recent-created first — the
+   * read-only console's Registry screen's read model. See
    * `ListDocumentsQuery` for the search/limit/offset shape.
    */
   listDocuments(query?: ListDocumentsQuery): DocumentRegistryRow[];
@@ -382,7 +381,7 @@ export interface RegistryStore {
   /**
    * Every row minted for one `BusinessEventKey` four-tuple — one per
    * firing `ruleId` (fan-out ⇒ N rows), oldest first, ties by `ruleId`.
-   * `OutputPort.status`'s read model (GAP-07): the answer to "what did
+   * `OutputPort.status`'s read model: the answer to "what did
    * this business event produce?" without needing any docId. Same
    * columns the five-tuple unique index already covers (migrations/
    * 0003_add_rule_id_to_registry.sql) — no migration.
@@ -402,7 +401,7 @@ export interface RegistryStore {
   getTraceLog(id: string): DeterminationTrace | undefined;
 
   /**
-   * Append one template lifecycle row (Stage 5 task 1; migrations/
+   * Append one template lifecycle row (migrations/
    * 0012_add_template_lifecycle.sql) — CHECK-THEN-APPEND in ONE
    * transaction: the row is written only if the key's current state
    * (latest row's `toState`, or `null` when the key has no history) equals
@@ -424,7 +423,7 @@ export interface RegistryStore {
   listTemplateLifecycleHistory(templateId: string, version: string): TemplateLifecycleEvent[];
 
   /**
-   * Append one reprint-log row (Stage 5 task 2; migrations/
+   * Append one reprint-log row (migrations/
    * 0013_add_reprint_log.sql) and return its id — the `reprintLogId` the
    * `reproduce` verb hands back. Append-only: never edited, never deleted.
    * Does NOT check that `event.docId` exists — the caller

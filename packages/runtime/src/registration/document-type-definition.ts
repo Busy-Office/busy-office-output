@@ -1,7 +1,7 @@
 /**
  * `DocumentTypeDefinition` — the unit of registration for OutputPort v1's
- * fifth verb, `registerDocumentType` (GAP-07 / GAP-08, arb-chair ruling
- * 2026-08-29 recorded in docs/GAP-REGISTER.md). Everything the engine needs
+ * fifth verb, `registerDocumentType` (arb-chair ruling, docs/GAP-REGISTER.md).
+ * Everything the engine needs
  * to accept, route, and render one document type travels in ONE value:
  * the JSON Schema contract the engine compiles, the template metas +
  * their `DocNode` content, and the output rules that fire for it.
@@ -61,7 +61,7 @@ export interface DocumentTypeDefinition {
   templates: RegisteredTemplate[];
   rules: OutputRule[];
   /**
-   * Channel message templates (GAP-10): the email subject/body for this
+   * Channel message templates: the email subject/body for this
    * document type, per variant (locale, companyCode, ...), resolved by the
    * same most-specific-match rule as `templates`. Optional because a type
    * that only ever routes to `object-store` needs none; a type whose rule
@@ -72,8 +72,8 @@ export interface DocumentTypeDefinition {
    */
   messageTemplates?: MessageTemplate[];
   /**
-   * Retention period in whole years for every artifact of this type
-   * (GAP-17). A positive integer; the OWNER of the document type supplies
+   * Retention period in whole years for every artifact of this type.
+   * A positive integer; the OWNER of the document type supplies
    * it because "payslip ≠ purchase order lifespan" is a fact about the
    * type, not the engine. Optional: a type that supplies nothing gets the
    * engine's conservative default (10 years — `archive/retention-policy.ts`)
@@ -85,8 +85,8 @@ export interface DocumentTypeDefinition {
    * Envelope-rooted dot-path (docs/EXPRESSION-GRAMMAR.md, validated with
    * `parseExpression` at registration) to the natural person who OWNS each
    * document of this type — e.g. the built-in payslip's
-   * `'header.employeeId'`. Supplying it makes the type OWNER-SCOPED
-   * (GAP-17): the value is evaluated at mint and persisted as the registry
+   * `'header.employeeId'`. Supplying it makes the type OWNER-SCOPED:
+   * the value is evaluated at mint and persisted as the registry
    * row's `ownerId`, the default `AuthorizationPort` applies the
    * hr-clerk / owning-employee rule to the type instead of the coarse
    * default-allow, and the console marks its rows. A type without one has

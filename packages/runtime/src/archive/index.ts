@@ -1,6 +1,6 @@
 /**
- * Archive module barrel + the registry-wiring orchestration (ROADMAP
- * Stage 3, "Archive store ... DoD: archiving without retention fails").
+ * Archive module barrel + the registry-wiring orchestration. Archiving
+ * without retention fails.
  *
  * `archiveArtifact` is the one place that ties `ArchiveStore` (bytes in,
  * archiveRef out) to `RegistryStore` (the durable row): write the bytes,
@@ -33,7 +33,7 @@ export interface ArchiveArtifactInput {
   /** RFC 3339 timestamp. Mandatory — validated by `archiveStore.archive`
    * before any bytes are written. */
   retentionUntil: string;
-  /** The renderer that produced `bytes` (GAP-15; HLD §3 "template+renderer
+  /** The renderer that produced `bytes` (HLD §3 "template+renderer
    * versions" on the audit row). Persisted as `id@version` in the same
    * registry write that sets archiveRef, so a row is never
    * archived-but-renderer-unknown. */

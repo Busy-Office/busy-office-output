@@ -1,12 +1,11 @@
 /**
- * FsChannelSender: the default embedded `ChannelSender` (ROADMAP Stage 3
- * "Single-process serve" task; arb-chair ruling: "zero-external-services
- * delivery default"). Writes `input.archiveBytes` to
+ * FsChannelSender: the default embedded `ChannelSender` (arb-chair ruling:
+ * "zero-external-services delivery default"). Writes `input.archiveBytes` to
  * `./data/outbox/<channel>/<docId>-<attempt-or-uuid>.bin` plus a small JSON
  * sidecar (recipients, timestamp) — an inspectable, byte-verifiable
  * delivery record, never a silent no-op. Mirrors `FsArchiveStore` being the
  * default vs `S3ArchiveStore` opt-in: `serve()`'s default `ChannelRouter`
- * (or, for Stage 3's scope, a bare sender — see index.ts) wiring uses this
+ * (or a bare sender — see index.ts) wiring uses this
  * for every channel regardless of the `channel` string. Real
  * `EmailChannelSender`/`ObjectStoreChannelSender` stay available via
  * explicit config for production, unchanged.

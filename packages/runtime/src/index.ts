@@ -1,6 +1,6 @@
 /**
- * Runtime entry point AND the one composition root (Stage 3: determination
- * + delivery, HLD §2; GAP-07/GAP-08). This is the only engine file that
+ * Runtime entry point AND the one composition root (determination
+ * + delivery, HLD §2). This is the only engine file that
  * knows a document type exists: it imports the built-in definitions from
  * `packages/runtime/document-types/` (outside `src/`) and registers them
  * through `OutputPort.registerDocumentType` — the built-ins round-trip
@@ -219,7 +219,7 @@ export interface RuntimeDeps {
    * `DEFAULT_BACKOFF_POLICY`. */
   backoffPolicy: BackoffPolicy;
   /** What the Settings screen states, built here from the SAME values the
-   * backends above were constructed with (Stage 5 task 5). */
+   * backends above were constructed with. */
   consoleFacts: ConsoleFacts;
 }
 
@@ -362,7 +362,7 @@ export function createRuntimeDeps(
 /**
  * Register the three built-in document types (`packages/runtime/
  * document-types/`) through the port's own fifth verb — the ONLY place
- * the engine meets a concrete document type (GAP-08). Order is the
+ * the engine meets a concrete document type. Order is the
  * definitions' own (see document-types/index.ts). A non-`registered`
  * result here is a wiring bug in this repo, not a runtime condition, so
  * it throws at startup rather than serving a half-registered runtime.
@@ -401,13 +401,13 @@ export function createIngressServer(options: IngressServerOptions = {}) {
 /**
  * Single-process `serve` (CLAUDE.md: "API + worker + embedded queue + FS
  * archive in one command"). Wires ingress + determination + composition
- * (render + archive + enqueue, ROADMAP Stage 3 "Single-process serve") +
+ * (render + archive + enqueue) +
  * a delivery worker loop into ONE function, all defaulting to local,
  * zero-external-services backends: SQLite registry, FS archive,
  * `FsChannelSender` delivery (arb-chair ruling). A replayed event returns
  * the same docId even across a restart of this process (durable registry).
  *
- * Crash recovery (GAP-11): a previous run of this process may have died
+ * Crash recovery: a previous run of this process may have died
  * between `mintWithOutbox` and composition-complete, leaving pending
  * `composition_outbox` rows. `serve()` redrives them ONCE at startup via
  * `resumeStrandedCompositions` — a one-time sweep, not a timer: in this

@@ -1,6 +1,5 @@
 /**
- * The console (ROADMAP Stage 3 "Minimal console, read-only", extended by
- * Stage 5 task 4 "Review-and-approve screen"; docs/UI-DESIGN.md).
+ * The console (docs/UI-DESIGN.md).
  * Server-rendered HTML screens, no build step, no client framework, no
  * client JS — mounted under `/output` by server.ts:
  *
@@ -9,7 +8,7 @@
  *   - GET /output/documents            — Registry
  *   - GET /output/documents/:docId     — Document detail (rendered inline via
  *                      an A4-styled frame, below)
- *   - GET /output/documents/:docId/reproduce — Reproduce (GAP-26): streams the
+ *   - GET /output/documents/:docId/reproduce — Reproduce: streams the
  *                      archived bytes through `OutputPort.reproduce`, stamping
  *                      one `reprint_log` row. The ONLY reprint verb with a
  *                      console control — `regenerate`/`reissue` need
@@ -51,7 +50,8 @@
  *
  * inputHash/outputHash/rendererVersion are rendered "—" wherever null —
  * inputHash/outputHash are not yet computed (composition.ts leaves them
- * unset); rendererVersion (`rendererId@version`, GAP-15) is written by
+ * unset — see docs/GAP-REGISTER.md); rendererVersion
+ * (`rendererId@version`) is written by
  * `archiveArtifact` at archive time, so it is null only for DRAFT rows and
  * rows archived before it was persisted. The console must be honest about
  * those nulls, never fabricate or hide them.
@@ -72,8 +72,8 @@ import { sendHtml, sendProblem, sendText } from './http-helpers.js';
 import type { PeekInput, PeekResult, ReproduceInput, ReproduceResult } from './embed/create-output.js';
 
 /**
- * The read-only slice of `DocumentTypeRegistry` the console sees (Stage 5
- * task 4 arb-chair ruling): satisfied by the real registry, but with no
+ * The read-only slice of `DocumentTypeRegistry` the console sees:
+ * satisfied by the real registry, but with no
  * `register` — the console cannot add or mutate a document type. Includes
  * `ownerIdPath` so it subsumes `OwnerScopeSource` (the Registry lock).
  */
@@ -133,7 +133,7 @@ export const STRANDED_AFTER_MS = 5 * 60_000;
 const OVERVIEW_GROUP_CAP = 50;
 
 /**
- * What the Settings screen states (Stage 5 task 5) — a CLOSED shape of
+ * What the Settings screen states — a CLOSED shape of
  * booleans, numbers, names, and the three configured paths, BUILT by the
  * composition root (index.ts `buildConsoleFacts`) and handed to the server
  * as one optional `IngressServerOptions.consoleFacts`. No index signature,
@@ -189,7 +189,7 @@ export function isConsolePath(path: string): boolean {
     path === '/output/' ||
     path === '/output/settings' ||
     path === '/output/documents' ||
-    // Covers both the document detail route and GAP-26's
+    // Covers both the document detail route and
     // `/output/documents/:docId/reproduce` — server.ts dispatches the
     // latter to `handleReproduceRequest` before it ever reaches
     // `handleConsoleRequest`'s document-detail branch.
@@ -296,8 +296,8 @@ function renderDocumentsPage(registryStore: RegistryStore, query: URLSearchParam
 
   const rowsHtml = rows
     .map((row) => {
-      // Owner-scoped rows (the registered type supplies an `ownerIdPath`,
-      // GAP-17 — the built-in payslip does) carry the lock glyph. No
+      // Owner-scoped rows (the registered type supplies an `ownerIdPath` —
+      // the built-in payslip does) carry the lock glyph. No
       // registry threaded in (bare server) -> no type is owner-scoped.
       const lock = documentTypes?.ownerIdPath(row.documentType) !== undefined ? ' 🔒' : '';
       return `<li class="row">
@@ -328,7 +328,7 @@ ${loadMore}`,
   );
 }
 
-/** GAP-26: the reason is a fixed constant text — the operator is not
+/** The reproduce reason is a fixed constant text — the operator is not
  * prompted (the ruling named only "reproduce gains a console control", no
  * form; a tiny GET form to let the operator type a reason is a plausible
  * future extension, flagged rather than decided here). */
@@ -504,7 +504,7 @@ ${loadMore}`,
 }
 
 // ---------------------------------------------------------------------------
-// Templates list + Review-and-approve (Stage 5 task 4)
+// Templates list + Review-and-approve
 // ---------------------------------------------------------------------------
 
 const VARIANT_FIELDS = ['companyCode', 'country', 'partnerId', 'locale'] as const;
@@ -610,7 +610,7 @@ ${rows.map((r) => `<li>${escapeHtml(formatDiffRow(r))}</li>`).join('\n')}
 /**
  * The compare section. Baseline = every registered template of the same
  * kind with a deep-equal `VariantKey`, whose LOG lifecycle is `published`,
- * and whose key differs (GAP-20 visibility: the live version stays live
+ * and whose key differs (visibility rule: the live version stays live
  * after this one publishes, until it is retired). Content diff + meta diff
  * per baseline; the prose cases (none / meta-only / identical) are stated
  * in words, never as an empty list.
@@ -823,7 +823,7 @@ export function handleReviewPost(
 }
 
 // ---------------------------------------------------------------------------
-// Reproduce (GAP-26): GET /output/documents/:docId/reproduce
+// Reproduce: GET /output/documents/:docId/reproduce
 // ---------------------------------------------------------------------------
 
 const REPRODUCE_PATH = /^\/output\/documents\/([^/]+)\/reproduce$/;
@@ -996,7 +996,7 @@ export async function handlePreviewRequest(
 }
 
 // ---------------------------------------------------------------------------
-// Overview (failures-first home) + Settings (Stage 5 task 5)
+// Overview (failures-first home) + Settings
 // ---------------------------------------------------------------------------
 
 /** Everything the Overview reads. Only `registryStore` is mandatory: a
@@ -1220,7 +1220,7 @@ export function handleConsoleRequest(
   deliveryQueue?: DeliveryQueue,
   backoffPolicy?: BackoffPolicy,
   /** The document-type registry's read-only slice: "is this row's type
-   * owner-scoped?" (the Registry lock, GAP-17) and the Templates/review
+   * owner-scoped?" (the Registry lock) and the Templates/review
    * screens' metas, content, and rules. Optional so a bare server without
    * a registry still serves the document screens (templates 404). */
   documentTypes?: TemplateSource,

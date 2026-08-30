@@ -1,6 +1,5 @@
 /**
- * HTTP transport over `OutputPort` (ROADMAP Stage 3 task 1 "Event API",
- * reshaped by GAP-07): three routes, each a THIN adapter over one port
+ * HTTP transport over `OutputPort`: three routes, each a THIN adapter over one port
  * verb — parse the wire shape, call the verb, map its typed result to the
  * HTTP status + RFC 9457 problem+json / JSON body this API has always
  * returned. No determination, validation, minting, or rendering happens
@@ -11,9 +10,9 @@
  *   GET  /documents  → port.status    (?businessObject=&businessObjectId=&event=&templateVersion=)
  *   GET  /output/*   → console (console.ts), read-only on the document registry
  *                      (`/output` is the failures-first Overview, `/output/settings`
- *                      the read-only Settings — Stage 5 task 5)
- *   POST /output/templates/:id/:ver/review → the ONE console write (Stage 5
- *                      task 4): appends a lifecycle-log row through
+ *                      the read-only Settings)
+ *   POST /output/templates/:id/:ver/review → the ONE console write:
+ *                      appends a lifecycle-log row through
  *                      `TemplateLifecycleService.transition`; every other
  *                      `/output/*` path stays 405 on anything but GET.
  *
@@ -34,7 +33,7 @@
  * and the e2e tests pass — the composition's `documentTypes` registry
  * carries whatever was registered), else a bare, determination-only port
  * over a fresh `:memory:` registry. That bare default knows NO document
- * type — this file never imports one (engine boundary, GAP-08); the
+ * type — this file never imports one (engine boundary); the
  * composition root's `createIngressServer` wrapper (index.ts) is what
  * registers the built-ins for callers that want them.
  */
@@ -243,7 +242,7 @@ function extractDeterminationContext(payload: unknown): CallerDeterminationConte
       context[field] = value;
     }
   }
-  // `recipients` (Stage 4 clause 2 arb-chair ruling): caller-supplied
+  // `recipients` (arb-chair ruling): caller-supplied
   // master data, shape-validated only — an array of non-empty strings —
   // nothing more (no address parsing, no directory lookup: HLD §1 keeps
   // master data outside the boundary). Anything else is treated as absent
@@ -501,7 +500,7 @@ export interface IngressServerOptions {
    * for `/output/operations` to render (both or neither). */
   backoffPolicy?: BackoffPolicy;
   /**
-   * What the Settings screen (GET /output/settings, Stage 5 task 5)
+   * What the Settings screen (GET /output/settings)
    * states — the closed `ConsoleFacts` shape BUILT by the composition root
    * (index.ts `buildConsoleFacts`), never assembled here: this file sees
    * no sender config, no archive credentials, no env. Optional like
@@ -509,7 +508,7 @@ export interface IngressServerOptions {
    */
   consoleFacts?: ConsoleFacts;
   /**
-   * Who is acting on the review screen (Stage 5 task 4). PROXY-ASSERTED
+   * Who is acting on the review screen. PROXY-ASSERTED
    * lifecycle-audit identity only — never authenticated by this server,
    * NEVER handed to `AuthorizationPort` or any owner/PII scoping. Default
    * reads `X-Actor-Subject` / `X-Actor-Role` (role defaults to `console`).
@@ -550,8 +549,8 @@ export function createIngressServer(options: IngressServerOptions = {}) {
       const url = req.url ?? '/';
       const path = url.split('?')[0];
 
-      // Console (ROADMAP Stage 3 "Minimal console, read-only" + Stage 5
-      // task 4 review screen, docs/UI-DESIGN.md), mounted at /output — see
+      // Console (the read-only console + the review screen,
+      // docs/UI-DESIGN.md), mounted at /output — see
       // console.ts. GET everywhere; POST ONLY on the exact review route
       // (allowlist, not a prefix); every other method / path is 405.
       if (isConsolePath(path)) {
@@ -576,7 +575,7 @@ export function createIngressServer(options: IngressServerOptions = {}) {
           return;
         }
         const query = new URL(url, 'http://localhost').searchParams;
-        // GAP-26: GET /output/documents/:docId/reproduce — the one reprint
+        // GET /output/documents/:docId/reproduce — the one reprint
         // verb with a console control. Dispatched here (async — it calls
         // through to the port) rather than in `handleConsoleRequest`
         // (synchronous, RegistryStore reads only).

@@ -1,5 +1,5 @@
 /**
- * Determination (ROADMAP Stage 3, HLD §2 "Event API → Determination →
+ * Determination (HLD §2 "Event API → Determination →
  * Composition → ..."). Resolves N `(template variant, channel, recipients,
  * locale)` resolutions for a validated event — HLD §4: "fan-out: one event
  * → N resolutions — bursting is fan-out, not a subsystem" (§2 diagram).
@@ -12,7 +12,7 @@
  *  - Template resolution (REUSED, not reimplemented, per firing rule): the
  *    firing rule's overrides plus the event build a `VariantKey`, handed to
  *    `resolveTemplate` from `@busy-office/output-schema`
- *    (packages/schema/src/variant/resolve.ts, Stage 1) — the same
+ *    (packages/schema/src/variant/resolve.ts) — the same
  *    most-specific-match algorithm docs/VARIANT-RESOLUTION.md specifies.
  *    `matchesVariant`/`specificityScore` (also from that module) are used
  *    here ONLY to build the human-readable per-candidate TRACE; the actual
@@ -127,7 +127,7 @@ function evaluateRules(
 }
 
 /**
- * Stage 5 task 1 (arb-chair ruling 2026-08-29): ONLY `published` templates
+ * Arb-chair ruling: ONLY `published` templates
  * are live candidates. A non-published candidate (draft/review/approved/
  * retired) is marked `matched: false` with a `lifecycle:` reason and is
  * NOT handed to `resolveTemplate` — but it STAYS in the trace (HLD §9: no
@@ -172,8 +172,8 @@ function evaluateTemplateCandidates<T extends { id: string; variant: VariantKey;
     }
     return { templateId: candidate.id, matched, specificity, reasons };
   });
-  // The authoritative winner MUST come from resolveTemplate itself (Stage 1,
-  // not reimplemented here) — never derived from the trace entries above.
+  // The authoritative winner MUST come from resolveTemplate itself, not
+  // reimplemented here — never derived from the trace entries above.
   // Only the live (published) candidates are offered to it.
   const winner = resolveTemplate(
     candidates.filter((candidate) => candidate.lifecycle === 'published'),
@@ -197,7 +197,7 @@ export interface Resolution {
    * (they fall back to the default renderer); every fresh resolution
    * carries it. */
   renderer?: string;
-  /** GAP-10: the message template (email subject/body) that resolved for
+  /** The message template (email subject/body) that resolved for
    * this rule's channel, by ID — composition evaluates it at enqueue.
    * Present iff the channel carries a message (`CHANNELS_REQUIRING_MESSAGE`). */
   messageTemplateId?: string;
@@ -215,12 +215,12 @@ export type DeterminationResult =
   /** Rule(s) fired, templates resolved, but a firing rule has no recipient
    * from either the rule or the caller — see trace.ts's outcome doc. */
   | { outcome: 'unresolved-recipients'; trace: DeterminationTrace }
-  /** GAP-10: a firing rule's channel carries a message but no message
+  /** A firing rule's channel carries a message but no message
    * template matches its variant query — see trace.ts's outcome doc. */
   | { outcome: 'unresolved-message-template'; trace: DeterminationTrace };
 
 /**
- * `messageTemplateCandidates` (GAP-10): the registered message templates
+ * `messageTemplateCandidates`: the registered message templates
  * (`DocumentTypeRegistry.messageTemplateMetas()`), resolved per firing
  * rule by the SAME `resolveTemplate` call and variant query the document
  * template uses — only for channels in `CHANNELS_REQUIRING_MESSAGE`.
@@ -272,7 +272,7 @@ export function determine(
     };
 
     // Recipients follow the exact precedence shape `locale` uses one line
-    // above (arb-chair ruling, Stage 4 clause 2): the rule wins when it
+    // above (arb-chair ruling): the rule wins when it
     // names recipients, otherwise the caller's master data. The trace
     // records only the SOURCE — the addresses are PII and never enter it.
     const recipients = rule.resolution.recipients ?? ctx.recipients ?? [];
@@ -284,7 +284,7 @@ export function determine(
       variantQuery,
     );
 
-    // GAP-10: a channel that carries a message (email) resolves its
+    // A channel that carries a message (email) resolves its
     // subject/body template by the SAME variant query and the SAME
     // resolver — one rule, one trace shape, no second mechanism. The
     // trace records candidates and the winning ID only; the rendered text

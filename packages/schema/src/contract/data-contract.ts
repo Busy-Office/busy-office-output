@@ -20,7 +20,7 @@ export interface BusinessEventKey {
 }
 
 /**
- * Stage 1 document-type contracts (roadmap Stage 1, docs/STANDARDS.md Tier 1).
+ * Document-type contracts (docs/STANDARDS.md Tier 1).
  * Source of truth is the JSON Schema in `packages/schema/contracts/`; these
  * aliases are compile-time ergonomics only, kept in sync by hand per the
  * rename-compatibility policy (`packages/schema/contracts/RENAME-POLICY.md`).

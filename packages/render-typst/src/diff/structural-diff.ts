@@ -1,5 +1,5 @@
 /**
- * Structural diff between two rendered PDFs (ROADMAP Stage 2 / ADR-005
+ * Structural diff between two rendered PDFs (the ADR-005 AI-template
  * verifier). Reports page-count delta plus per-page word add/remove/move —
  * never a pixel diff. This is what `bo-output diff` (../cli/diff.ts) and
  * the ADR-005 AI-template corpus-diff gate both consume.

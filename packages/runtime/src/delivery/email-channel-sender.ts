@@ -1,6 +1,5 @@
 /**
- * EmailChannelSender: the "email" `ChannelSender` implementation (ROADMAP
- * Stage 3, "Channels: email + object-store only"). Uses `nodemailer` — a
+ * EmailChannelSender: the "email" `ChannelSender` implementation. Uses `nodemailer` — a
  * `packages/runtime`-only dependency (CLAUDE.md: `@busy-office/output-schema`
  * stays zero-runtime-dependency; this package is not that one).
  *
@@ -17,7 +16,7 @@
  * default and gives tests a second, even-more-realistic option beyond a
  * hand-rolled fake if they want one.
  *
- * Subject and body (GAP-10) come off the delivery job (`input.message`) —
+ * Subject and body come off the delivery job (`input.message`) —
  * rendered at enqueue from the lifecycle-governed message template the
  * resolution named (src/message/message-template.ts). There is NO default
  * subject here: a job with no message is refused (the queue's retry ->

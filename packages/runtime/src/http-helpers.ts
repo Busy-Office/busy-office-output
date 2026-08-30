@@ -1,5 +1,5 @@
 /**
- * Small shared HTTP response helpers (ROADMAP Stage 3). Split out of
+ * Small shared HTTP response helpers. Split out of
  * server.ts (where they originated as private functions for the `/event`
  * route) so console.ts — the read-only `/output/*` console routes added by
  * "Minimal console, read-only" — can send the same RFC 9457 problem+json

@@ -1,5 +1,5 @@
 /**
- * `npm run diff -- <a> <b>` — the ROADMAP Stage 2 structural diff CLI. Same
+ * `npm run diff -- <a> <b>` — the structural diff CLI. Same
  * tool doubles as the ADR-005 AI-template-verifier (no verifier, no
  * generation): a template change is only trustworthy once this diff has
  * been read.

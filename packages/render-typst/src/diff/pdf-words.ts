@@ -1,7 +1,7 @@
 /**
  * Word-level text + position extraction from rendered PDF bytes, for
- * structural-diff.ts (ROADMAP Stage 2: "Structural diff CLI ... page count
- * + box/text deltas, not pixels").
+ * structural-diff.ts's page-count + box/text delta comparison (never
+ * pixels).
  *
  * Deliberately NOT a from-scratch PDF content-stream parser: Typst's PDF
  * output uses compressed content streams, and writing a Flate-aware
@@ -14,10 +14,8 @@
  * per detected word, grouped by `<page>` — exactly the box+text shape this
  * diff needs, already in reading order.
  *
- * NOTE for whoever wires this into CI: `pdftotext` (poppler-utils) is a new
- * system dependency for this repo, not yet pinned anywhere (no Dockerfile
- * exists yet). Flagged in the Stage 2 session report — needs the same
- * pinning treatment `typst` will eventually get.
+ * `pdftotext` (poppler-utils) is pinned alongside `typst`/`verapdf` in the
+ * `Dockerfile` and `.github/ci/install-tools.sh`.
  */
 import { spawn } from 'node:child_process';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';

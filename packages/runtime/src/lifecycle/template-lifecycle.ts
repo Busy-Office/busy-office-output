@@ -1,6 +1,5 @@
 /**
- * Template lifecycle service (ROADMAP Stage 5 task 1; arb-chair ruling
- * 2026-08-29). State lives in the registry store's append-only
+ * Template lifecycle service (arb-chair ruling). State lives in the registry store's append-only
  * `template_lifecycle_log` (migrations/0012); the registered
  * `TemplateMeta.lifecycle` is only the DECLARED INITIAL state, seeded once.
  *

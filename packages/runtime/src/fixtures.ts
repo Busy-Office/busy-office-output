@@ -1,6 +1,6 @@
 /**
  * Hand-built payloads for tests, valid against packages/schema/contracts.
- * Not corpus data (the generators under test/corpus own that, Stage 2) —
+ * Not corpus data (the generators under test/corpus own that) —
  * just enough to exercise ingress + contract validation.
  */
 import type { BusinessEventKey, InvoiceData, PayslipData, PurchaseOrderData } from '@busy-office/output-schema';

@@ -1,9 +1,9 @@
 /**
  * `parentId` content-merge (docs/VARIANT-RESOLUTION.md "parentId
- * inheritance"; scoped by the GAP-27 ruling, docs/GAP-REGISTER.md). Pure
- * functions only — no I/O, matching resolve.ts's style. This is the
- * function that was specified at Stage 1 and never built anywhere
- * through four stage closures (GAP-27); it now runs from
+ * inheritance"; scoped by an arb-chair ruling, docs/GAP-REGISTER.md). Pure
+ * functions only — no I/O, matching resolve.ts's style. This function was
+ * specified early on but sat unbuilt through several stage closures
+ * before this landed; it now runs from
  * `DocumentTypeRegistry.templateContent` (packages/runtime), not just
  * here as a standalone utility.
  *
@@ -20,7 +20,7 @@
  * candidates was meant); a layer whose content is any other kind
  * (`document`/`section`/`header`/`footer`/`text`/`pageNumber`) is a
  * whole-subtree override — it replaces everything merged so far, no
- * partial splice, exactly as docs/GAP-REGISTER.md's GAP-27 ruling states.
+ * partial splice, exactly as the ruling in docs/GAP-REGISTER.md states.
  *
  * This is also what makes "zero template forking" real: an override
  * layer's registered `content` is a tiny, standalone fragment — literally
@@ -128,7 +128,7 @@ export function mergeTemplateContent(chain: readonly DocNode[]): DocNode {
       }
       merged = tree;
     } else {
-      // Whole-subtree override (docs/GAP-REGISTER.md GAP-27 ruling): this
+      // Whole-subtree override (docs/GAP-REGISTER.md ruling): this
       // layer's own kind ('document' | 'section' | 'header' | 'footer' |
       // 'text' | 'pageNumber') carries no addressable per-item identity —
       // it fully replaces everything merged so far, no partial splice.

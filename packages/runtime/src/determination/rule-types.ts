@@ -37,7 +37,7 @@ export interface OutputRuleConditions {
 export interface OutputRuleResolution {
   channel: string;
   /**
-   * OPTIONAL since the Stage 4 clause-2 arb-chair ruling: recipients are
+   * OPTIONAL, per arb-chair ruling: recipients are
    * caller-supplied master data (`DeterminationContext.recipients`); a rule
    * overrides them when present. Precedence in determine.ts is exactly the
    * shape `locale` already uses — `rule.resolution.recipients ??
@@ -58,7 +58,7 @@ export interface OutputRule {
   /** Explicit tiebreaker when two matching rules have equal specificity. Higher wins. Default 0. */
   priority?: number;
   /**
-   * Fan-out opt-in (ROADMAP Stage 3 "Fan-out: one event → N resolutions").
+   * Fan-out opt-in: one event → N resolutions.
    *
    * Design decision (recorded here, not just in the report, since this is
    * the field a rule author actually reads): co-firing is OPT-IN, default
@@ -115,8 +115,8 @@ export interface DeterminationContext {
   partnerId?: string;
   locale?: string;
   /**
-   * Caller-supplied master data (arb-chair ruling, Stage 4 exit-gate
-   * clause 2; HLD §1 puts "holding master data" OUTSIDE the boundary — an
+   * Caller-supplied master data (arb-chair ruling;
+   * HLD §1 puts "holding master data" OUTSIDE the boundary — an
    * employee's mailbox is master data about the recipient, not content of
    * the payslip, so it never lives on a data contract). A rule overrides
    * when its resolution names recipients (`rule.resolution.recipients ??

@@ -1,7 +1,7 @@
 /**
  * Most-specific-match variant resolution (docs/VARIANT-RESOLUTION.md).
  * Pure functions only — no I/O, no registry access. Content merging over the
- * parentId chain is a Stage 2 concern (this package holds no template bodies).
+ * parentId chain is `merge.ts` in this same directory, not this file.
  */
 import type { VariantKey, TemplateMeta } from '../document/template.js';
 
@@ -36,7 +36,7 @@ export function specificityScore(candidate: VariantKey): number {
  * an exact-score tie, i.e. resolution is stable on `candidates`' input order.
  *
  * Generic over anything that carries a `variant: VariantKey` (default —
- * and the only caller until GAP-10 — `TemplateMeta`): a message template
+ * `TemplateMeta`): a message template
  * (email subject/body, resolved per document type + locale under the SAME
  * most-specific-match rule, docs/VARIANT-RESOLUTION.md) is keyed by the
  * same `VariantKey` but is not a renderer-bearing `TemplateMeta`. One

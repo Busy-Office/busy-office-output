@@ -1,6 +1,5 @@
 /**
- * S3ArchiveStore: the S3-compatible `ArchiveStore` implementation
- * (ROADMAP Stage 3, "Archive store (FS + S3-compatible)"). Uses
+ * S3ArchiveStore: the S3-compatible `ArchiveStore` implementation. Uses
  * `@aws-sdk/client-s3` — a `packages/runtime`-only dependency (CLAUDE.md:
  * `@busy-office/output-schema` stays zero-runtime-dependency; this package
  * is not that one). Works against real AWS S3 or any S3-compatible

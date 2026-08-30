@@ -1,7 +1,7 @@
 /**
  * The evaluator packages/schema/src/expression/parse.ts deliberately stops
- * short of (its docstring: "Stage 1 only parsed syntax, didn't evaluate").
- * Grammar is exactly docs/EXPRESSION-GRAMMAR.md — dot-paths only, no
+ * short of: parse.ts only validates syntax against the grammar, it never
+ * evaluates against real data. Grammar is exactly docs/EXPRESSION-GRAMMAR.md — dot-paths only, no
  * operators/functions/indexing — so evaluation is exactly dot-path
  * traversal. This file must never grow beyond that; a real template need
  * that doesn't fit is a grammar gap to report, not a reason to extend this.

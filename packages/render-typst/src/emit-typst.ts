@@ -5,7 +5,7 @@
  * — the ONE exception is a `table.carryForward` running total, which can
  * only be known once Typst has decided where page breaks land, so that one
  * value is computed Typst-side using the `state()` pattern proven in the
- * Stage 0 spike (git show 526b038:spike/typst/po.typ). Every other value is
+ * original spike (git show 526b038:spike/typst/po.typ). Every other value is
  * already-resolved data, embedded as escaped literal text — no `json()`
  * load, no `--root` needed.
  *
@@ -118,8 +118,8 @@ export function emitDocument(root: DocNode, data: DataContractEnvelope, locale?:
     })`,
   );
   lines.push('#set text(size: 9pt)');
-  // Stage 6: `#set text(lang: ...)` drives Typst's per-language hyphenation
-  // and number-context choices for the four exit-gate locales' scripts —
+  // `#set text(lang: ...)` drives Typst's per-language hyphenation
+  // and number-context choices for the supported locales' scripts —
   // Typst's font *fallback* (the actual CJK/RTL glyph coverage) is already
   // proven independent of this (docs/RESULTS.md's RTL/CJK smoke test, ADR-001)
   // and needs no explicit font request. Bidi reordering/shaping for Arabic
@@ -127,8 +127,8 @@ export function emitDocument(root: DocNode, data: DataContractEnvelope, locale?:
   // finding), so `dir` is deliberately left at Typst's default rather than
   // forced globally — forcing it would mirror the whole page layout
   // (margins, table column order), which is layout/typography polish this
-  // Stage 0-2 rule ("never optimize typography") and this task's scope
-  // (correctness of the text content, not page mirroring) don't call for.
+  // renderer's "never optimize typography" rule and its scope (correctness
+  // of the text content, not page mirroring) don't call for.
   const langTag = localeLangTag(locale);
   if (langTag) lines.push(`#set text(lang: "${langTag}")`);
   if (usesCarryForward) {
@@ -241,7 +241,7 @@ function emitFieldGrid(node: Extract<DocNode, { kind: 'fieldGrid' }>, data: Data
     const value = evaluateExpression(f.value, data);
     const label = escapeTypstMarkup(f.label);
     if (isAddressLike(value)) {
-      // Multi-line form (Stage 6 locale-aware address ordering,
+      // Multi-line form (locale-aware address ordering,
       // format.ts's `formatAddressLines`) — the single-line
       // `formatDisplayValue` fallback (comma-joined) is for contexts that
       // can't break lines, not this one.

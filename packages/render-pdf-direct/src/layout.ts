@@ -4,7 +4,7 @@
  * renderer consumes and turns it into positioned draw ops on ONE page.
  * This is the one job pdf-lib does not do for you — measuring text with
  * the embedded font's real metrics, greedy word-wrap, stacking boxes —
- * and it is exactly what the Stage 0 spike prototyped (docs/RESULTS.md;
+ * and it is exactly what the original spike prototyped (docs/RESULTS.md;
  * `git show 526b038:spike/pdf-direct/run.js`). Deliberately limited to
  * what a single-page, simple document needs (ADR-002 routing rule): there
  * is no pagination here at all, by design, not by omission.
@@ -178,7 +178,7 @@ function checkText(ctx: Ctx, raw: string, bold: boolean): string {
   return text;
 }
 
-/** Greedy word wrap over real font metrics — the Stage 0 spike's `wrap`, unchanged in spirit. A single word wider than `width` is broken by character so nothing ever escapes its cell. */
+/** Greedy word wrap over real font metrics — mirrors the original spike's `wrap`, unchanged in spirit. A single word wider than `width` is broken by character so nothing ever escapes its cell. */
 function wrap(ctx: Ctx, text: string, width: number, size: number, bold: boolean): string[] {
   const fits = (s: string) => ctx.fonts.widthOf(s, size, bold) <= width;
   const lines: string[] = [];

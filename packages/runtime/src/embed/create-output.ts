@@ -1,11 +1,9 @@
 /**
- * `createOutput()` — the embeddable, topology-blind module API (ROADMAP
- * Stage 3 "Embeddable module (ADR-007)"; ADR-007's T1 "embedded module"),
- * now carrying **OutputPort v1.1** — the six-verb consumer contract the
- * GAP-07/GAP-08 arb-chair ruling (2026-08-29, docs/GAP-REGISTER.md; ADR-007
- * addendum, Accepted 2026-08-29) fixed, amended the same day for Stage 5
- * task 2's reprint verbs (ADR-007 "Amendment 2026-08-29 — v1.1", also
- * Accepted 2026-08-29):
+ * `createOutput()` — the embeddable, topology-blind module API (ADR-007's
+ * T1 "embedded module"), carrying **OutputPort v1.1** — the six-verb
+ * consumer contract an arb-chair ruling fixed (docs/GAP-REGISTER.md;
+ * ADR-007 addendum, Accepted) and later amended for the reprint verbs
+ * (ADR-007 "Amendment — v1.1", also Accepted):
  *
  *   emit                   validate → determine → mint → compose → archive → enqueue
  *                          (+ optional `reissues` audit link: reissue IS emit with a new key)
@@ -18,7 +16,7 @@
  *                          PASSIVE read: no reason, no reprint_log stamp. For a caller
  *                          that is merely displaying archived bytes, not performing a
  *                          reprint action.
- *   registerDocumentType   synchronous, process-local, in-order, no unregister (GAP-08)
+ *   registerDocumentType   synchronous, process-local, in-order, no unregister
  *   resumeStrandedCompositions   operational — unchanged
  *
  * Reprint trichotomy (CLAUDE.md / docs/POLICY.md — unchanged): reproduce =
@@ -30,7 +28,8 @@
  * module is that port's first real caller. The "state stamp" is METADATA:
  * an append-only `reprint_log` row (migration 0013), never a byte of the
  * archived artifact (immutable once archived) and never a watermark
- * (closed by the frozen expression grammar — GAP-23).
+ * (closed by the frozen expression grammar — see docs/GAP-REGISTER.md
+ * for the open question on a visible one).
  *
  * A host process (or this repo's own `serve()` — index.ts, the ONE
  * consumer that round-trips every verb over HTTP) mounts the SAME
@@ -41,15 +40,15 @@
  * builds none of them; `createRuntimeDeps` (index.ts) wires the
  * zero-external-services defaults `serve()` uses.
  *
- * The port knows NO document type of its own (GAP-08): contracts,
+ * The port knows NO document type of its own: contracts,
  * templates, and rules arrive through `registerDocumentType` and live in
  * the `DocumentTypeRegistry` this port reads. The composition root
  * registers the built-ins; a host registers its own. Nothing here scans a
  * directory or imports a document type.
  *
  * `emit` reuses `determine()` (determination/) and the shared
- * per-resolution mint -> compose -> clear-outbox step (submit-resolution.ts,
- * GAP-11) verbatim — this module does not reimplement rule evaluation,
+ * per-resolution mint -> compose -> clear-outbox step (submit-resolution.ts)
+ * verbatim — this module does not reimplement rule evaluation,
  * template resolution, rendering, archiving, or the transactional-outbox
  * mint (registry/registry-store.ts's `mintWithOutbox`, composition.ts's
  * `resumeStrandedCompositions`): see those files' header comments.
@@ -139,9 +138,9 @@ export interface CreateOutputDeps {
    * `createRuntimeDeps` does).
    */
   documentTypes?: DocumentTypeRegistry;
-  /** Document-level authorization (ROADMAP Stage 4). Consulted by
-   * `reproduce`, `regenerate`, and `emit`'s `reissues` link (Stage 5 task
-   * 2) — always against the ORIGINAL document's registry row, before any
+  /** Document-level authorization. Consulted by
+   * `reproduce`, `regenerate`, and `emit`'s `reissues` link — always
+   * against the ORIGINAL document's registry row, before any
    * other work. Defaults to `createDefaultAuthorizationPort` over this
    * port's document-type registry. */
   authorization?: AuthorizationPort;
@@ -160,7 +159,7 @@ export interface EmitInput {
   /** Optional routing hints beyond documentType/businessEvent — see
    * server.ts's `extractDeterminationContext` for the same fields on the
    * HTTP path. `recipients` is caller-supplied master data (arb-chair
-   * ruling, Stage 4 clause 2) that a rule may override; shape-validated
+   * ruling) that a rule may override; shape-validated
    * here exactly as on the HTTP path (array of non-empty strings) and
    * nothing more. */
   determination?: CallerDeterminationContext;
@@ -205,7 +204,7 @@ export interface EmitResolutionResult {
   locale?: string;
   /** Which renderer the winning template declared (ADR-002 routing). */
   renderer?: string;
-  /** GAP-10: the message template (email subject/body) this resolution's
+  /** The message template (email subject/body) this resolution's
    * channel resolved, by ID — never the rendered text. */
   messageTemplateId?: string;
   composition?: CompositionOutcome | { outcome: 'replayed' };
@@ -280,7 +279,7 @@ export interface DocumentStatus {
 
 // ----------------------------------------------------------- reproduce
 
-/** reproduce = fetch archive. Bytes ONLY — no delivery (GAP-22: there is
+/** reproduce = fetch archive. Bytes ONLY — no delivery (there is
  * no `channel` here by design). */
 export type ReproduceInput = ReprintAuditInput;
 
@@ -403,7 +402,7 @@ export interface OutputPort {
    * FIRST (`forbidden` before the archive is touched), requires an actor
    * subjectId and a reason, then returns the archived bytes BYTE-IDENTICAL
    * and stamps one `reprint_log` row. The original row is untouched (state
-   * stays ORIGINAL, updatedAt unchanged). No delivery (GAP-22).
+   * stays ORIGINAL, updatedAt unchanged). No delivery.
    */
   reproduce(input: ReproduceInput): Promise<ReproduceResult>;
 
@@ -429,7 +428,7 @@ export interface OutputPort {
   peekArchive(input: PeekInput): Promise<PeekResult>;
 
   /**
-   * Register one document type (GAP-08): its contract (compiled here),
+   * Register one document type: its contract (compiled here),
    * templates (meta + content), and rules. Synchronous, process-local,
    * in registration order, append-only — no unregister, no re-register,
    * no hot-reload. A duplicate `documentType` is `{ status: 'duplicate' }`;
@@ -486,7 +485,7 @@ function toDocumentStatus(row: DocumentRegistryRow, trace: DeterminationTrace | 
 export function createOutput(deps: CreateOutputDeps): OutputPort {
   const documentTypes = deps.documentTypes ?? createDocumentTypeRegistry();
   const authorization: AuthorizationPort = deps.authorization ?? createDefaultAuthorizationPort(documentTypes);
-  // Stage 5 task 1: template lifecycle state lives in the registry store's
+  // Template lifecycle state lives in the registry store's
   // append-only log, NOT in the DocumentTypeRegistry (whose maps are
   // declaration only and are never mutated by a transition). Seeded on
   // registration, overlaid on emit's candidates, absent from preview.
@@ -520,7 +519,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
       resolution,
       data,
       documentType,
-      // GAP-17: the owner is wherever the type's OWNER said it is (registry).
+      // The owner is wherever the type's OWNER said it is (registry).
       extractOwnerId(documentTypes.ownerIdPath(documentType), data),
     );
 
@@ -610,8 +609,8 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         event: input.businessEvent.event,
         ...sanitizeCallerDeterminationContext(input.determination),
       };
-      // Candidates carry their CURRENT persisted lifecycle (Stage 5 task
-      // 1): determine() admits only `published` ones and traces the rest.
+      // Candidates carry their CURRENT persisted lifecycle:
+      // determine() admits only `published` ones and traces the rest.
       const determination = determine(
         ctx,
         documentTypes.rules(),
@@ -635,7 +634,7 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         return { status: 'unresolved-recipients', trace: determination.trace };
       }
       if (determination.outcome === 'unresolved-message-template') {
-        // GAP-10: nothing minted, nothing enqueued — an email with no
+        // Nothing minted, nothing enqueued — an email with no
         // governed subject/body is a determination failure, not a
         // bare-attachment send.
         deps.registryStore.appendTraceLog(randomUUID(), determination.trace);

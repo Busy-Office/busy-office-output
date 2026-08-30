@@ -128,7 +128,7 @@ export function noTemplateMatchProblem(trace: DeterminationTrace): ProblemDetail
 /**
  * Rule(s) fired and every template resolved, but at least one firing rule
  * ended up with NO recipient — the rule's resolution names none and the
- * caller supplied no `determination.recipients` (Stage 4 clause 2 arb-chair
+ * caller supplied no `determination.recipients` (arb-chair
  * ruling: recipients are caller-supplied master data a rule may override).
  * Third distinct determination failure, same 422 + TRACE discipline; the
  * trace carries `recipientsSource: 'none'` on the offending resolution —
@@ -146,7 +146,7 @@ export function unresolvedRecipientsProblem(trace: DeterminationTrace): ProblemD
 }
 
 /**
- * GAP-10: rule(s) fired, templates and recipients resolved, but a firing
+ * Rule(s) fired, templates and recipients resolved, but a firing
  * rule's channel carries a message (email) and no registered message
  * template (subject/body — a lifecycle-governed template, not channel
  * config) matches its variant query. Fourth distinct determination
@@ -195,7 +195,7 @@ export function methodNotAllowedProblem(method: string | undefined): ProblemDeta
   };
 }
 
-/** Review screen POST (Stage 5 task 4): no `X-Actor-Subject` / no
+/** Review screen POST: no `X-Actor-Subject` / no
  * `resolveActor` identity on the request — nothing is appended. */
 export function actorRequiredProblem(): ProblemDetails {
   return {

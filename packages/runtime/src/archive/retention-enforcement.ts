@@ -1,10 +1,9 @@
 /**
- * Retention enforcement (ROADMAP Stage 4, "Retention per doc type
- * enforced end-to-end" — DoD: "expiry test purges artifact, registry row
- * survives"). This is the piece nothing built before this task actually
- * did: `retentionUntil` was captured and validated
+ * Retention enforcement: an expiry sweep purges the artifact bytes while
+ * the registry row survives. `retentionUntil` is captured and validated
  * (archive/archive-store.ts's `assertValidRetentionUntil`) and stored
- * (the registry's `retention_until` column) but never ACTED on.
+ * (the registry's `retention_until` column) — this module is what acts on
+ * it.
  *
  * `enforceRetention` is a single, directly-callable function — not a new
  * always-running background loop — mirroring `resumeStrandedCompositions`

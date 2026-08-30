@@ -1,10 +1,10 @@
 /**
- * Message templates (GAP-10, maintainer decision 2026-08-29, docs/
- * GAP-REGISTER.md): the email subject + body a delivery carries are
+ * Message templates (maintainer decision, docs/GAP-REGISTER.md): the
+ * email subject + body a delivery carries are
  * lifecycle-governed TEMPLATES, not operator-edited channel config. They
  * are per-document-type content, so their OWNER supplies them — a
  * `DocumentTypeDefinition.messageTemplates` entry next to `templates`
- * (GAP-08's registration inversion, unchanged) — and they are resolved by
+ * (the engine's registration-inversion boundary, unchanged) — and they are resolved by
  * the same `VariantKey` + most-specific-match rule as document templates
  * (`resolveTemplate`, packages/schema, docs/VARIANT-RESOLUTION.md).
  *
@@ -12,7 +12,7 @@
  *  - `MessageTemplateMeta` is `TemplateMeta` minus `renderer`/`parentId`:
  *    a message has no renderer to target and (today) no inheritance
  *    chain. Same `id`/`variant`/`version`/`lifecycle`/`provenance`
- *    surface, so the Stage 5 lifecycle machinery governs both alike.
+ *    surface, so the same lifecycle machinery governs both alike.
  *  - Subject and body are SEGMENT ARRAYS — each segment a literal string
  *    or `{ expr }` — evaluated with render-typst's `evaluateExpression`
  *    under the frozen docs/EXPRESSION-GRAMMAR.md. No `{{...}}` placeholder

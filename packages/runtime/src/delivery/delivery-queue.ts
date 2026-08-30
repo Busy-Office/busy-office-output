@@ -1,6 +1,6 @@
 /**
- * DeliveryQueue port (ROADMAP Stage 3, "Delivery queue: retry w/ backoff ->
- * terminal poison + alert; never re-render on delivery failure").
+ * DeliveryQueue port: retry w/ backoff -> terminal poison + alert; never
+ * re-render on delivery failure.
  * Backend-agnostic on purpose — same pattern as `RegistryStore` and
  * `ArchiveStore` (ADR-004: SQLite-backed embedded implementation now, an
  * external-backend adapter reserved for later, gated behind this same
@@ -53,7 +53,7 @@ export interface DeliveryJob {
    * payloads in logs applies here too: this column is queried and
    * potentially surfaced in the console, not a dumping ground). */
   lastError: string | null;
-  /** GAP-10: the rendered channel message (email subject/body), evaluated
+  /** The rendered channel message (email subject/body), evaluated
    * ONCE at enqueue from the resolved message template. `null` for a
    * channel that carries none (object-store) and for rows enqueued before
    * migrations/0011. PII, like `recipients`: on the job, never logged. */
@@ -139,8 +139,7 @@ export interface DeliveryQueue {
   listDue(now?: string): DeliveryJob[];
 
   /**
-   * The Operations console screen's read model (ROADMAP Stage 4
-   * "Operations console page"). Search + status filter + pagination over
+   * The Operations console screen's read model. Search + status filter + pagination over
    * every job, mirroring how `RegistryStore.listDocuments` already does
    * search+pagination for the Registry screen.
    *

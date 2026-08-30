@@ -1,10 +1,9 @@
 /**
- * Per-document-type retention policy (ROADMAP Stage 4, "Retention per doc
- * type enforced end-to-end"). Replaces composition.ts's old
+ * Per-document-type retention policy. Replaces composition.ts's old
  * `defaultRetentionUntil` — a single fixed 10-year default for every
- * document type, explicitly documented there as a Stage 3 stand-in.
+ * document type, explicitly documented there as an early stand-in.
  *
- * GAP-17: the per-type numbers are NOT in this file. Each document type's
+ * The per-type numbers are NOT in this file. Each document type's
  * OWNER supplies `retentionYears` on its `DocumentTypeDefinition`
  * (packages/runtime/document-types/{invoice,payslip,purchase-order}.ts for
  * the built-ins) and this policy reads them from the `DocumentTypeRegistry`;
@@ -12,7 +11,7 @@
  * built-in periods is kept here as the record of why those definitions
  * carry the numbers they do.
  *
- * NOT a real legal/regulatory decision (same caveat the Stage 3 stand-in
+ * NOT a real legal/regulatory decision (same caveat the earlier stand-in
  * carried): these are plausible, commonly-cited orders of magnitude for
  * each document type, not a jurisdiction-specific compliance ruling. A
  * real deployment needs its own legal/tax sign-off per country before
@@ -41,8 +40,8 @@
 
 import type { DocumentTypeRegistry } from '../registration/document-type-registry.js';
 
-/** What the policy reads: the registry's owner-supplied retention years
- * (GAP-17). `Pick` so tests and hosts can hand in the narrowest thing. */
+/** What the policy reads: the registry's owner-supplied retention years.
+ * `Pick` so tests and hosts can hand in the narrowest thing. */
 export type RetentionSource = Pick<DocumentTypeRegistry, 'retentionYears'>;
 
 /** Fallback for any `documentType` whose definition supplies no

@@ -1,10 +1,9 @@
 /**
- * PDF page-merge utility (ROADMAP Stage 4, "PDF attachment concatenation").
+ * PDF page-merge utility ("PDF attachment concatenation").
  *
- * Scope note (this task's DoD text — "merged artifact archived as one
- * document, page counts asserted" — not the task title): this is PAGE-LEVEL
- * concatenation (cover sheet + rendered document + T&C, combined into one
- * PDF whose pages are the union of its sources', in order), NOT ISO 19005-3
+ * Scope note: this is PAGE-LEVEL concatenation (cover sheet + rendered
+ * document + T&C, combined into one PDF whose pages are the union of its
+ * sources', in order), NOT ISO 19005-3
  * embedded-file attachment (PDF/A-3, Factur-X's "one PDF containing a
  * separate embedded XML/PDF file" — docs/STANDARDS.md Tier 3, deferred).
  * Do not extend this file toward embedded-file attachments; that is a

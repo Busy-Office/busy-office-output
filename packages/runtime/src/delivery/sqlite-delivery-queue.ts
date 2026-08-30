@@ -1,6 +1,6 @@
 /**
  * SqliteDeliveryQueue: the default embedded `DeliveryQueue` implementation
- * (ROADMAP Stage 3, ADR-004 Option 1 — SQLite-backed embedded queue).
+ * (ADR-004 Option 1 — SQLite-backed embedded queue).
  * Mirrors `SqliteRegistryStore`'s shape: `node:sqlite` (`DatabaseSync`) via
  * `createRequire` (see that file's comment for why not a static import),
  * migrations run on every construction so a fresh file or `:memory:`

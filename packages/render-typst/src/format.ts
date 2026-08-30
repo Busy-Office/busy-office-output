@@ -1,7 +1,7 @@
 /**
  * Money is integer minor units (cents) end to end (CLAUDE.md); formatting to
  * a display string is the renderer's job. Locale/currency-symbol formatting
- * is explicitly NOT attempted here — Stage 0-2 rule is "never optimize
+ * is explicitly NOT attempted here — this renderer's rule is "never optimize
  * typography", and docs/RESULTS.md's Typst spike used a plain
  * grouped-decimal format (see the ported `#money()` Typst helper in
  * emit-typst.ts). This is the same format, done in JS for values we already
@@ -42,11 +42,11 @@ export function isMoneyAmountPath(path: string): boolean {
 }
 
 /**
- * Stage 6: locale-aware money display, wired through `Renderer.render()`'s
+ * Locale-aware money display, wired through `Renderer.render()`'s
  * `opts.locale` (packages/schema/src/renderer.ts). `Intl.NumberFormat` is a
  * core-JS API — no new dependency, no external binary. With no locale this
- * falls back to `formatMoneyCents` unchanged, so every pre-Stage-6 corpus
- * case (rendered without a locale) keeps its exact prior byte output.
+ * falls back to `formatMoneyCents` unchanged, so a corpus case rendered
+ * without a locale keeps its exact prior byte output.
  *
  * Money stays integer cents end to end (CLAUDE.md) — `cents / 100` is only
  * ever used to feed a *display* formatter that rounds to exactly 2 fraction
@@ -123,7 +123,7 @@ interface AddressLocaleRule {
 }
 
 /**
- * Small, explicit lookup — just the four Stage 6 exit-gate locales, not a
+ * Small, explicit lookup — just the four supported locales, not a
  * universal address-formatting library (CLAUDE.md: never gold-plate).
  *
  * Conventions (verified against real practice, not guessed):
