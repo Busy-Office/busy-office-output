@@ -22,7 +22,7 @@ const vendor = {
 export function sampleBusinessEventKey(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   return {
     businessObject: 'PurchaseOrderHeader',
-    businessObjectId: '4500001234',
+    businessObjectId: 'PO-0001234',
     event: 'po.released',
     templateVersion: '1.0.0',
     ...overrides,

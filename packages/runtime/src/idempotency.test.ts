@@ -57,10 +57,10 @@ describe('POST /event idempotency on BusinessEventKey', () => {
 
   it('a different businessObjectId is a distinct event: its own fresh docId', async () => {
     const first = await post(
-      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000001' })),
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: 'PO-0000001' })),
     );
     const other = await post(
-      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000002' })),
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: 'PO-0000002' })),
     );
 
     expect(first.status).toBe(202);
@@ -70,10 +70,10 @@ describe('POST /event idempotency on BusinessEventKey', () => {
 
   it('templateVersion is part of the key: same object/event, different template version, different docId', async () => {
     const first = await post(
-      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000003', templateVersion: '1.0.0' })),
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: 'PO-0000003', templateVersion: '1.0.0' })),
     );
     const reprocessedOnNewTemplate = await post(
-      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500000003', templateVersion: '2.0.0' })),
+      withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: 'PO-0000003', templateVersion: '2.0.0' })),
     );
 
     expect(first.status).toBe(202);

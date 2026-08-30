@@ -172,7 +172,7 @@ describe('POST /event ingress + contract validation', () => {
   });
 
   it('accepts a raw purchase-order payload wrapped in a CloudEvents 1.0 envelope, identically to the raw shape', async () => {
-    const inner = withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: '4500009999' }));
+    const inner = withBusinessEvent(validPurchaseOrder(), sampleBusinessEventKey({ businessObjectId: 'PO-0009999' }));
     const { status, json } = await post(wrapCloudEvent(inner));
 
     expect(status).toBeGreaterThanOrEqual(200);
@@ -222,7 +222,7 @@ describe('POST /event ingress + contract validation', () => {
   });
 
   it('a no-rule-match event never mints a registry docId (determination runs before idempotency)', async () => {
-    const key = unmatchedBusinessEventKey({ businessObjectId: '4500055555' });
+    const key = unmatchedBusinessEventKey({ businessObjectId: 'PO-0055555' });
     const first = await post(withBusinessEvent(validPurchaseOrder(), key));
     const second = await post(withBusinessEvent(validPurchaseOrder(), key));
     expect(first.status).toBe(422);

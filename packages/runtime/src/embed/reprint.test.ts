@@ -420,7 +420,7 @@ describe('reprint authorization — evaluated against the DOCUMENT, on all three
       const po = await f.output.emit({
         documentType: 'purchase-order',
         payload: validPurchaseOrder(),
-        businessEvent: { businessObject: 'PurchaseOrderHeader', businessObjectId: '4500009999', event: 'po.released', templateVersion: '1.0.0' },
+        businessEvent: { businessObject: 'PurchaseOrderHeader', businessObjectId: 'PO-0009999', event: 'po.released', templateVersion: '1.0.0' },
       });
       expect(po.status).toBe('accepted');
       if (po.status !== 'accepted') throw new Error('unreachable');

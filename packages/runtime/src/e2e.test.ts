@@ -182,7 +182,7 @@ describe('single-process serve: event -> rule trace -> render -> archive -> deli
   it('outbox file for a delivered purchase-order is byte-identical to the archived artifact', async () => {
     const payload = withBusinessEvent(
       validPurchaseOrder(),
-      sampleBusinessEventKey({ businessObjectId: '4500009999' }),
+      sampleBusinessEventKey({ businessObjectId: 'PO-0009999' }),
     );
     const { json } = await post(payload);
     const [resolution] = json.resolutions;

@@ -22,7 +22,7 @@ import { createSqliteDeliveryQueue, SqliteDeliveryQueue } from './sqlite-deliver
 function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   return {
     businessObject: 'PurchaseOrderHeader',
-    businessObjectId: '4500009999',
+    businessObjectId: 'PO-0009999',
     event: 'po.released',
     templateVersion: '1.0.0',
     ...overrides,

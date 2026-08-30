@@ -14,7 +14,7 @@ export interface DataContractEnvelope<T = unknown> {
 /** Idempotency identity (HLD §9): a replayed event must return the existing docId. */
 export interface BusinessEventKey {
   businessObject: string;       // e.g. "PurchaseOrderHeader"
-  businessObjectId: string;     // e.g. "4500001234"
+  businessObjectId: string;     // e.g. "PO-0001234"
   event: string;                // e.g. "po.released"
   templateVersion: string;
 }

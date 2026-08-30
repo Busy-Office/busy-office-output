@@ -68,7 +68,7 @@ describe('PDF attachment concatenation (ROADMAP Stage 4)', () => {
       expect(termsAndConditionsPageCount).toBeGreaterThanOrEqual(2); // fixture is a checked-in 2-page placeholder
 
       const data = validPurchaseOrder();
-      const eventKey = sampleBusinessEventKey({ businessObjectId: '4500055555' });
+      const eventKey = sampleBusinessEventKey({ businessObjectId: 'PO-0055555' });
       const { row: mintedRow } = deps.registryStore.getOrCreateByEventKey(eventKey, 'purchase-order');
       const docId = mintedRow.docId;
 

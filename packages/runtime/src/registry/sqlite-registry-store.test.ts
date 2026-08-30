@@ -17,7 +17,7 @@ import { createSqliteRegistryStore } from './sqlite-registry-store.js';
 function key(overrides: Partial<BusinessEventKey> = {}): BusinessEventKey {
   return {
     businessObject: 'PurchaseOrderHeader',
-    businessObjectId: '4500001234',
+    businessObjectId: 'PO-0001234',
     event: 'po.released',
     templateVersion: '1.0.0',
     ...overrides,
@@ -49,7 +49,7 @@ describe('SqliteRegistryStore (:memory:)', () => {
     expect(created).toBe(true);
     expect(row.state).toBe('DRAFT');
     expect(row.businessObject).toBe('PurchaseOrderHeader');
-    expect(row.businessObjectId).toBe('4500001234');
+    expect(row.businessObjectId).toBe('PO-0001234');
     expect(row.templateVersion).toBe('1.0.0');
     expect(row.archiveRef).toBeNull();
     expect(row.rendererVersion).toBeNull();
