@@ -19,7 +19,7 @@ file is the rationale and the work queue.
 /loop 20m /build-loop --tick        # start (user-invoked)
 ```
 Each tick = one session per CLAUDE.md protocol: orient → one task → verify →
-log. Tick counter in `.claude/loop-state.json`. On `tick % 4 == 0` the
+log. Tick counter in `docs/loop-state.json`. On `tick % 4 == 0` the
 **dispatcher** runs first (see SKILL.md §Dispatcher): reads `docs/INBOX.md`,
 gate answers, RESULTS.md changes; `arb-chair` rules on roadmap edits; the
 roadmap is updated *before* any build work. Checkboxes are only ticked when
