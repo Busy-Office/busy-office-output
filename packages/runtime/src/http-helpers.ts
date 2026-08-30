@@ -36,3 +36,17 @@ export function sendHtml(res: ServerResponse, status: number, html: string): voi
   });
   res.end(body);
 }
+
+/** Plain `text/plain` body — for a route whose caller is an inline
+ * `<embed>`/`<iframe>` load rather than a browser navigation or an API
+ * client: neither an HTML error page nor a problem+json blob renders
+ * usefully inside those, so this is the one non-HTML, non-JSON response
+ * shape in the console's vocabulary. */
+export function sendText(res: ServerResponse, status: number, text: string): void {
+  const body = Buffer.from(text, 'utf8');
+  res.writeHead(status, {
+    'Content-Type': 'text/plain; charset=utf-8',
+    'Content-Length': body.length,
+  });
+  res.end(body);
+}

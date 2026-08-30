@@ -63,7 +63,7 @@ import {
   unresolvedMessageTemplateProblem,
 } from './problem.js';
 import { sendJson, sendProblem } from './http-helpers.js';
-import { handleConsoleRequest, handleReproduceRequest, handleReviewPost, isConsolePath, parseReproducePath, parseReviewPath, type ConsoleFacts } from './console.js';
+import { handleConsoleRequest, handlePreviewRequest, handleReproduceRequest, handleReviewPost, isConsolePath, parsePreviewPath, parseReproducePath, parseReviewPath, type ConsoleFacts } from './console.js';
 import type { BackoffPolicy, DeliveryQueue } from './delivery/delivery-queue.js';
 import type { Actor } from './authorization/authorization-port.js';
 import { createTemplateLifecycle } from './lifecycle/template-lifecycle.js';
@@ -583,6 +583,14 @@ export function createIngressServer(options: IngressServerOptions = {}) {
         const reproduceDocId = parseReproducePath(path);
         if (reproduceDocId !== undefined) {
           await handleReproduceRequest(res, reproduceDocId, query.get('reason'), port, resolveActor(req));
+          return;
+        }
+        // The passive preview route — same async/port-calling shape as
+        // reproduce above, dispatched before `handleConsoleRequest`
+        // (synchronous, registry-store reads only) for the same reason.
+        const previewDocId = parsePreviewPath(path);
+        if (previewDocId !== undefined) {
+          await handlePreviewRequest(res, previewDocId, port, resolveActor(req));
           return;
         }
         handleConsoleRequest(res, path, query, registryStore, deliveryQueue, backoffPolicy, documentTypes, lifecycle, resolveActor(req), {

@@ -11,6 +11,55 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GAP-29: unaudited inline PDF preview + A4 frame on Document detail
+- Did: Document detail could previously only fetch archived bytes via
+  `reproduce`, which unconditionally stamps a `reprint_log` audit row and
+  requires a `reason` — wrong for a passive inline preview (a browser
+  `<embed>` load or prefetch must never silently mint an audit row).
+  Added a new `OutputPort` verb, `peekArchive` (`packages/runtime/src/
+  embed/create-output.ts`): the SAME `AuthorizationPort.canAccess(actor,
+  row, 'reproduce')` check `reproduce` uses, then `ArchiveStore.retrieve`
+  directly — no `admitReprint`, no `stampReprint`, no reason required.
+  Wired a new route, `GET /output/documents/:docId/preview`
+  (`handlePreviewRequest`/`parsePreviewPath` in `packages/runtime/src/
+  console.ts`, dispatched from `server.ts` the same way
+  `handleReproduceRequest` already is), returning bytes with
+  `Content-Disposition: inline` on success or a small `text/plain` body
+  (new `sendText` helper in `http-helpers.ts`) on not-archived/purged/
+  forbidden/unknown — never HTML or problem+json, since the caller is an
+  inline `<embed>`, not a navigation. `renderDocumentDetailPage` gets a
+  CSS-only `div.a4-frame` (aspect-ratio 1/1.4142) wrapping either the
+  `<embed type="application/pdf">` (archived docs) or a plain-text
+  placeholder (not-archived/purged docs) — never an `<embed src>`
+  pointing at a route statically known to have nothing to serve. Zero
+  client JS added; Reproduce remains the screen's only primary action.
+  Logged GAP-29 (closed), GAP-30, GAP-31 in `docs/GAP-REGISTER.md`
+  (GAP-30/31 were flagged in the prior session's audit but not yet
+  formally logged); one-line amendment to Document detail's screen spec
+  in `docs/UI-DESIGN.md`. Evidence: new test file
+  `packages/runtime/src/document-detail-preview.test.ts` (10 tests) —
+  archived-doc 200 with an explicit zero-new-`reprint_log`-rows
+  assertion (before/after count equal), a no-actor-header case (still
+  200, still zero audit rows), not-archived (409 plain text),
+  purged (410 plain text), wrong-owner-on-payslip (403 plain text,
+  archive store's `retrieve` never called), unknown docId (404 plain
+  text), Document-detail HTML assertions for the `<embed>` case, the
+  DRAFT-placeholder case, the purged-placeholder case, and a
+  no-`<script>` check; plus a matrix test asserting the planted PII
+  marker never leaks into any refusal body. `npm run verify`: 81 test
+  files / 519 tests passed (was 80/509 at session start; +1 file,
+  +10 tests). Commit: see `git log` (this session's HEAD).
+- Open: GAP-30 (94 files with `GAP-\d+|Stage \d+` in source comments —
+  mechanical sweep, not started) and GAP-31 (`inputHash`/`outputHash`
+  permanently null — needs a maintainer ruling: fix vs. accept) both
+  remain OPEN, logged but not fixed.
+- Next: pick up GAP-30 (mechanical, Claude-doable, no maintainer decision
+  needed) or GAP-31 (needs a ruling first — flag for the maintainer, or
+  draft the ruling options as an ADR-style note). Otherwise still nothing
+  else Claude-doable on the roadmap: Stage 7 remains trigger-gated with
+  no track fired, GAP-18 (authoring-assist ratify/reject) is the one
+  remaining human-only item.
+
 ## 2026-08-30 — GATE-S3-THESIS-CHECK voided
 - Did: maintainer ruled directly in chat: void `GATE-S3-THESIS-CHECK`
   (GAP-13) as a formal gate. Reasoning recorded: the mechanism was wrong,

@@ -7,13 +7,20 @@
  *   - GET /output                      — Overview (failures-first home; `/output/` → 301)
  *   - GET /output/settings             — Settings (four flat read-only groups)
  *   - GET /output/documents            — Registry
- *   - GET /output/documents/:docId     — Document detail
+ *   - GET /output/documents/:docId     — Document detail (rendered inline via
+ *                      an A4-styled frame, below)
  *   - GET /output/documents/:docId/reproduce — Reproduce (GAP-26): streams the
  *                      archived bytes through `OutputPort.reproduce`, stamping
  *                      one `reprint_log` row. The ONLY reprint verb with a
  *                      console control — `regenerate`/`reissue` need
  *                      caller-supplied data the console has nowhere to collect
  *                      (HLD §1) and stay ERP-caller-only, permanently.
+ *   - GET /output/documents/:docId/preview — a PASSIVE inline view: streams
+ *                      the archived bytes through `OutputPort.peekArchive`
+ *                      (same document-level authorization as reproduce, no
+ *                      `reprint_log` stamp). Document detail's `<embed>`
+ *                      loads this route; it is not a reprint action and has
+ *                      no control of its own.
  *   - GET /output/trace/:id            — Rule trace
  *   - GET /output/operations           — Operations (delivery queue)
  *   - GET /output/templates            — Templates list (variants + log-truth lifecycle)
@@ -61,8 +68,8 @@ import type { TemplateLifecycleKey, TemplateLifecycleService } from './lifecycle
 import { standingApproval, type TransitionRefusal } from './lifecycle/transitions.js';
 import { formatDiffRow, structuralDiff, type DiffRow } from './lifecycle/structural-diff.js';
 import { actorRequiredProblem, crossSiteRequestProblem, notFoundProblem, unknownReviewActionProblem } from './problem.js';
-import { sendHtml, sendProblem } from './http-helpers.js';
-import type { ReproduceInput, ReproduceResult } from './embed/create-output.js';
+import { sendHtml, sendProblem, sendText } from './http-helpers.js';
+import type { PeekInput, PeekResult, ReproduceInput, ReproduceResult } from './embed/create-output.js';
 
 /**
  * The read-only slice of `DocumentTypeRegistry` the console sees (Stage 5
@@ -331,6 +338,22 @@ function reproduceHref(docId: string): string {
   return `/output/documents/${encodeURIComponent(docId)}/reproduce?reason=${encodeURIComponent(REPRODUCE_REASON)}`;
 }
 
+/** The A4-styled preview frame (CSS-only, no client JS): an `<embed>` of
+ * the passive preview route when there are bytes to show, otherwise a
+ * plain-text placeholder inside the same frame — never an `<embed src>`
+ * pointing at a route statically known to have nothing to serve. */
+function renderPreviewFrame(row: DocumentRegistryRow): string {
+  const inner =
+    row.archiveRef !== null
+      ? `<embed type="application/pdf" src="/output/documents/${encodeURIComponent(row.docId)}/preview" style="width: 100%; height: 100%;">`
+      : row.purgedAt !== null
+        ? `<p style="padding: 1rem; font-size: 0.85rem;">archived bytes purged (retention expired) on ${escapeHtml(row.purgedAt)}</p>`
+        : `<p style="padding: 1rem; font-size: 0.85rem;">not archived yet — nothing to preview</p>`;
+  return `<div class="a4-frame" style="aspect-ratio: 1 / 1.4142; max-width: 52rem; margin: 0 auto 1.5rem; border: 1px solid #ccc; box-shadow: 0 2px 8px rgba(0,0,0,0.15);">
+  ${inner}
+</div>`;
+}
+
 function renderDocumentDetailPage(row: DocumentRegistryRow, hasTrace: boolean): string {
   const hasPoisonedDelivery = row.deliveryHistory.some((e) => e.status === 'poisoned');
   const deliveryHtml =
@@ -352,6 +375,7 @@ ${row.deliveryHistory
   return renderPage(
     `Document ${row.docId}`,
     `<h1>Document detail</h1>
+${renderPreviewFrame(row)}
 <dl class="facts">
   <dt>docId</dt><dd>${escapeHtml(row.docId)}</dd>
   <dt>state</dt><dd>${escapeHtml(row.state)}</dd>
@@ -902,6 +926,69 @@ export async function handleReproduceRequest(
         'Content-Type': result.mediaType ?? 'application/octet-stream',
         'Content-Length': result.bytes.byteLength,
         'Content-Disposition': `attachment; filename="${downloadFilename(docId, result.mediaType)}"`,
+      });
+      res.end(Buffer.from(result.bytes));
+      return;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Preview: GET /output/documents/:docId/preview — a passive inline view
+// ---------------------------------------------------------------------------
+
+const PREVIEW_PATH = /^\/output\/documents\/([^/]+)\/preview$/;
+
+/** The preview route's docId, or `undefined` when `path` is not that route. */
+export function parsePreviewPath(path: string): string | undefined {
+  const match = PREVIEW_PATH.exec(path);
+  if (match === null) return undefined;
+  try {
+    return decodeURIComponent(match[1]);
+  } catch {
+    return undefined;
+  }
+}
+
+/** The narrow slice of `OutputPort` this route needs — mirrors
+ * `ReproducePort`, but for the passive verb: no reason, no stamp. */
+export interface PreviewPort {
+  peekArchive(input: PeekInput): Promise<PeekResult>;
+}
+
+/**
+ * `GET /output/documents/:docId/preview`. Same document-level
+ * authorization `reproduce` gives every caller, via `port.peekArchive` —
+ * but this handler never touches `reprint_log`: a browser `<embed>` load
+ * (or prefetch) of this route must never silently mint an audit row. A
+ * refused/absent outcome is a small `text/plain` body (never HTML, never
+ * problem+json) so the A4 frame that loads this route inline can show it
+ * as plain text rather than a broken embed.
+ */
+export async function handlePreviewRequest(
+  res: ServerResponse,
+  docId: string,
+  port: PreviewPort,
+  actor: Actor | undefined,
+): Promise<void> {
+  const result = await port.peekArchive({ docId, actor: actor ?? { role: 'console' } });
+  switch (result.status) {
+    case 'unknown-document':
+      sendText(res, 404, `No document ${docId} in the registry.`);
+      return;
+    case 'forbidden':
+      sendText(res, 403, 'This actor is not authorized to view this document.');
+      return;
+    case 'not-archived':
+      sendText(res, 409, 'This document has not been archived yet — there is nothing to preview.');
+      return;
+    case 'purged':
+      sendText(res, 410, `This document's archived bytes were purged (retention expired) on ${result.purgedAt}.`);
+      return;
+    case 'available':
+      res.writeHead(200, {
+        'Content-Type': result.mediaType ?? 'application/octet-stream',
+        'Content-Length': result.bytes.byteLength,
+        'Content-Disposition': 'inline',
       });
       res.end(Buffer.from(result.bytes));
       return;

@@ -580,6 +580,54 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   forced. Evidence either way:
   `packages/render-typst/src/format.test.ts`'s "GAP-28" test.
 
+### GAP-29 — Document detail has no unaudited inline PDF preview — **CLOSED 2026-08-30**
+- Type: SEAM + console UI
+- Was: Document detail could only fetch archived bytes via `reproduce`,
+  which stamps an unconditional `reprint_log` row and requires `reason` —
+  wrong for a passive inline view.
+- Closed: `GET /output/documents/:docId/preview` — same
+  `AuthorizationPort.canAccess(actor, row, 'reproduce')` check as
+  reproduce, then `ArchiveStore.retrieve(row.archiveRef)` directly (no
+  `admitReprint`, no `stampReprint`), `Content-Disposition: inline`.
+  Document detail gets a CSS-only `div.a4-frame` (aspect-ratio
+  1/1.4142) wrapping `<embed type="application/pdf">`. Zero client JS.
+  Reproduce stays the only primary action. Implemented as a new
+  `OutputPort.peekArchive` verb (`packages/runtime/src/embed/create-output.ts`)
+  reusing the exact authorization check `reproduce` uses, and a new
+  `handlePreviewRequest`/`parsePreviewPath` pair in
+  `packages/runtime/src/console.ts`, dispatched from `server.ts` the same
+  way `handleReproduceRequest` is. Evidence:
+  `packages/runtime/src/document-detail-preview.test.ts` (10 tests) —
+  including an explicit zero-new-`reprint_log`-rows assertion on the
+  archived-doc path, a not-archived/purged plain-text-placeholder check,
+  a wrong-owner 403 with the archive store never touched, and a
+  no-`<script>` check on the served Document detail HTML. `npm run
+  verify`: 81 test files / 519 tests passed.
+
+### GAP-30 — GAP-NN/Stage-N references embedded in source comments
+- Type: Doc hygiene / CLAUDE.md rule violation
+- Status: OPEN
+- 94 files in packages/*/src match `GAP-\d+|Stage \d+` in comments —
+  violates CLAUDE.md's "don't reference the current task/fix in code
+  comments" rule; these rot as GAPs close. Needs a mechanical sweep:
+  strip or rephrase task-referencing comments into durable "why"
+  comments, file by file. Not fixed here — separate task.
+- Closes when: grep for `GAP-\d+|Stage \d+` across packages/*/src
+  returns zero matches (or only in test files, if the maintainer rules
+  those exempt).
+
+### GAP-31 — inputHash/outputHash never computed, permanently null
+- Type: Silent capability gap
+- Status: OPEN — needs maintainer ruling (fix vs. accept, GAP-28 pattern)
+- `composition.ts` never computes `inputHash`/`outputHash`; registry rows
+  carry them as permanently null. Undermines the audit trail's
+  tamper-evidence claim. Needs a ruling: compute now (hash algorithm,
+  timing — pre/post-render?) or formally accept as out of scope with a
+  documented reason. Not fixed here.
+- Closes when: either hashes populate on every composed document, or
+  maintainer explicitly accepts null as final with rationale recorded
+  here.
+
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators

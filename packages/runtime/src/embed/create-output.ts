@@ -14,6 +14,10 @@
  *   reproduce              archive fetch — bytes only, original row untouched, reprint_log stamp
  *   regenerate             NEW DocumentInstance (state REPRINT) from CALLER-SUPPLIED data
  *                          against the current published template, reprint_log stamp
+ *   peekArchive            same authorization check as reproduce, archive fetch — but a
+ *                          PASSIVE read: no reason, no reprint_log stamp. For a caller
+ *                          that is merely displaying archived bytes, not performing a
+ *                          reprint action.
  *   registerDocumentType   synchronous, process-local, in-order, no unregister (GAP-08)
  *   resumeStrandedCompositions   operational — unchanged
  *
@@ -301,6 +305,36 @@ export type ReproduceResult =
       reprintLogId: number;
     };
 
+// ---------------------------------------------------------- peekArchive
+
+/** peekArchive = the same document-level authorization check `reproduce`
+ * uses, then an archive fetch — but PASSIVE: no reason is required and no
+ * `reprint_log` row is stamped. For a caller displaying archived bytes
+ * (an inline preview), not performing a reprint action. */
+export interface PeekInput {
+  docId: string;
+  actor: Actor;
+}
+
+export type PeekResult =
+  | { status: 'unknown-document'; docId: string }
+  | { status: 'forbidden'; docId: string }
+  /** `archiveRef` null and never purged: a DRAFT / stranded row that has
+   * no archived artifact to fetch. */
+  | { status: 'not-archived'; docId: string }
+  /** Retention enforcement purged the bytes — the row (and its
+   * `retentionUntil`) remain as history; there is nothing to fetch. */
+  | { status: 'purged'; docId: string; purgedAt: string }
+  | {
+      status: 'available';
+      docId: string;
+      /** BYTE-IDENTICAL to what was archived. Never modified. */
+      bytes: Uint8Array;
+      /** Present only when the archive store could read it back
+       * (`ArchiveStore.retrieveMediaType`); never assumed. */
+      mediaType?: string;
+    };
+
 // ---------------------------------------------------------- regenerate
 
 /**
@@ -383,6 +417,16 @@ export interface OutputPort {
    * original row and its bytes are untouched.
    */
   regenerate(input: RegenerateInput): Promise<RegenerateResult>;
+
+  /**
+   * peekArchive = a passive archive read: the same
+   * `AuthorizationPort.canAccess(actor, row, 'reproduce')` check `reproduce`
+   * uses, then the archived bytes BYTE-IDENTICAL — but no reason is
+   * required and NOTHING is appended to `reprint_log`. For a caller
+   * displaying archived bytes (an inline preview) rather than performing a
+   * reprint action; never call this where a `reprint_log` row is expected.
+   */
+  peekArchive(input: PeekInput): Promise<PeekResult>;
 
   /**
    * Register one document type (GAP-08): its contract (compiled here),
@@ -702,6 +746,35 @@ export function createOutput(deps: CreateOutputDeps): OutputPort {
         bytes,
         ...(mediaType !== undefined ? { mediaType } : {}),
         reprintLogId,
+      };
+    },
+
+    async peekArchive(input: PeekInput): Promise<PeekResult> {
+      const row = deps.registryStore.getByDocId(input.docId);
+      if (row === undefined) return { status: 'unknown-document', docId: input.docId };
+      // Same document-level check `reproduce` uses — but this is where the
+      // similarity ends: no `hasSubjectId`/reason requirement, no
+      // `stampReprint`. A passive view is not a reprint action.
+      if (!authorization.canAccess(input.actor, row, 'reproduce')) {
+        return { status: 'forbidden', docId: input.docId };
+      }
+
+      if (row.archiveRef === null) {
+        if (row.purgedAt !== null) return { status: 'purged', docId: row.docId, purgedAt: row.purgedAt };
+        return { status: 'not-archived', docId: row.docId };
+      }
+      if (deps.archiveStore === undefined) {
+        throw new Error('OutputPort.peekArchive requires an archiveStore on this port; none was supplied.');
+      }
+
+      const bytes = await deps.archiveStore.retrieve(row.archiveRef);
+      const mediaType = await deps.archiveStore.retrieveMediaType?.(row.archiveRef);
+
+      return {
+        status: 'available',
+        docId: row.docId,
+        bytes,
+        ...(mediaType !== undefined ? { mediaType } : {}),
       };
     },
 

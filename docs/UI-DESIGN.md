@@ -38,7 +38,8 @@ workspace converging · review publish → templates.
 - **Document detail**: the artifact's identity (PDF/A badge = veraPDF in CI,
   hashes, retention date) and the reprint trichotomy — Reproduce (archive
   bytes, stamped) / Regenerate (current template+data, new doc) / Reissue
-  (new event) — any action records who, why, stamp.
+  (new event) — any action records who, why, stamp (rendered inline via an
+  A4-styled frame, an unaudited passive view distinct from Reproduce).
 - **Rule trace**: skipped rules with the failing condition shown, the matched
   rule with evaluated values, the resolution; the same trace is the
   problem+json body on no-match.
