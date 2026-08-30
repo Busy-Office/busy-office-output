@@ -11,6 +11,45 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GAP-28 closed: fail loudly on a malformed totals-row expression
+- Did: per the maintainer's "fail loudly" ruling, made a totals row whose
+  expression resolves to a plain object (a template author writing
+  `totals.grandTotal` instead of `totals.grandTotal.amount`) throw a new
+  `UnformattableValueError` instead of silently stringifying to
+  "[object Object]". Fixed in `formatDisplayValue`
+  (`packages/render-typst/src/format.ts`) — the single fallback shared by
+  every emit site, so `emitTotals` (emit-typst.ts) needed no separate
+  check. Follows the `TypstOverflowError`/`TypstCompileError` naming
+  convention and propagates the same way: thrown synchronously inside
+  `emitDocument`, called before `TypstRenderer.render()` spawns the
+  `typst` subprocess, so it surfaces as a normal rejected render promise.
+  Updated `packages/render-typst/src/format.test.ts`'s existing "GAP-28"
+  test to assert the throw (with the `.amount` hint in the message)
+  instead of the old, now-wrong `'[object Object]'` assertion. Added
+  `test/corpus/purchase-order/015-malformed-totals-expression.test.ts`,
+  proving the failure end-to-end: clones `purchaseOrderTemplate`, rewrites
+  the "Grand total" row to the exact typo this gap describes, and asserts
+  `TypstRenderer.render()` rejects with `UnformattableValueError` —
+  mirroring `006-overflow-must-fail.test.ts`'s pattern for
+  `TypstOverflowError`. Also noted while closing: a concurrent session was
+  mid-flight on GAP-31 (`inputHash`/`outputHash`) touching
+  `packages/runtime/*` at the same time; left that work untouched and
+  uncommitted (not this session's scope), waited for its tests to settle
+  green before running this session's own `npm run verify` gate.
+  Evidence: `packages/render-typst/src/format.test.ts` — "GAP-28: a totals
+  row pointing at the Money OBJECT (missing \".amount\") throws
+  UnformattableValueError instead of silently stringifying";
+  `test/corpus/purchase-order/015-malformed-totals-expression.test.ts` —
+  "FAILS the render — GAP-28: a totals row expression missing \".amount\"
+  ... must fail loudly, never silently print \"[object Object]\"".
+  `npm run verify`: 84 files / 524 tests passed.
+- Open: nothing on GAP-28. GAP-31 (inputHash/outputHash) was left to the
+  session already working it — not committed by this session.
+- Next: whatever the roadmap/gap register points to next; GAP-31 may
+  already be finished by its own session by the time this is read.
+
+---
+
 ## 2026-08-30 — GAP-22 closed: reproduce gains optional redelivery
 - Did: widened `ReproduceInput` in `packages/runtime/src/embed/
   create-output.ts` with an optional `deliverTo?: { channel:

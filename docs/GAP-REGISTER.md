@@ -595,7 +595,7 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   extracted PDF text, everything else identical to the base render).
   `npm run verify`: 80 files / 508 tests (was 77/481).
 
-### GAP-28 — A totals row missing `.amount` silently prints "[object Object]" — **RULED 2026-08-30 (fail loudly)**
+### GAP-28 — A totals row missing `.amount` silently prints "[object Object]" — **CLOSED 2026-08-30 (fail loudly)**
 - Type: TASK (flagged by corpus-qa's gate-check
   of Stage 6 task 1, 2026-08-29; regression test added same day so the
   behavior is documented and guarded, not silently latent)
@@ -634,6 +634,31 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   Object] assertion, since that behavior is now wrong, not documented).
 - Closes when: the throwing behavior lands with a passing test and
   `npm run verify` green.
+- **Closed:** the fix landed in `formatDisplayValue` itself
+  (packages/render-typst/src/format.ts) — it's the single fallback shared
+  by every emit site (fieldGrid, table cells, totals rows), so fixing it
+  there covers `emitTotals` without duplicating the check. Added
+  `UnformattableValueError` (same "specific named error, not a generic
+  `Error`" convention as `TypstOverflowError`/`TypstCompileError`,
+  renderer.ts), exported from the package's `index.ts`. When a resolved
+  value is a plain object/array that isn't a recognized string/number/
+  date/address/money-amount shape, `formatDisplayValue` now throws
+  instead of falling through to `String()`. It runs synchronously inside
+  `emitDocument`, which `TypstRenderer.render()` calls before spawning the
+  `typst` subprocess, so the throw propagates as a normal rejected
+  render promise — the same propagation path `TypstOverflowError` uses,
+  no new plumbing needed. The existing `format.test.ts` "GAP-28" test was
+  updated (not left describing the bug) to assert the throw and its
+  `.amount` hint message instead of the old `'[object Object]'`
+  assertion. New end-to-end proof:
+  `test/corpus/purchase-order/015-malformed-totals-expression.test.ts` —
+  clones the real `purchaseOrderTemplate`, rewrites the "Grand total" row
+  to the exact typo this gap describes (`totals.grandTotal` instead of
+  `totals.grandTotal.amount`), and asserts `TypstRenderer.render()`
+  rejects with `UnformattableValueError` mentioning the `.amount` fix —
+  mirroring how `006-overflow-must-fail.test.ts` proves
+  `TypstOverflowError` surfaces as a real render failure, not just a
+  unit-level throw. `npm run verify`: 84 files / 524 tests, fully green.
 
 ### GAP-29 — Document detail has no unaudited inline PDF preview — **CLOSED 2026-08-30**
 - Type: SEAM + console UI
