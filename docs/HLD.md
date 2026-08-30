@@ -118,6 +118,10 @@ plain server-rendered HTML (no framework, no build step —
 is a separate sibling product whose visual idiom this console follows in
 spirit but deliberately does not import or depend on (CLAUDE.md:
 "divergence from busy-office-ui — accepted: two products, one brand").
+The developer template-authoring surface (Stage 7, GAP-18) is not a
+console screen: it's the developer's own editor plus the AI pipeline
+(`docs/proposals/authoring-assist.md`), never an in-console tree/outline/
+inspector editor (UI-DESIGN.md's absent list).
 
 ## 13. Decisions
 

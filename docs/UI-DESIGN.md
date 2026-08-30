@@ -64,7 +64,10 @@ workspace converging · review publish → templates.
 No rule editor (files own rules, ADR-003). No drag-drop canvas builder
 (ADR-005 replaces it). No dashboard-of-dashboards. No shortcut tutorial
 chrome. No permanent history rail. No renderer pickers in session chrome
-(renderer is a template property).
+(renderer is a template property). No tree/outline/inspector editor
+(GAP-04's builder, reaffirmed by GAP-18's rejection of the "DocNode
+projection editor" proposal 2026-08-30 — violates principle 5, source
+editing stays in the user's own editor).
 
 ## Fidelity trail
 

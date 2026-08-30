@@ -75,8 +75,8 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   via the operator's own OS/print infrastructure. No site named; the
   Deferred wall entry stands as-is.
 
-### GAP-18 — Authoring-assist proposal: ratify or reject (the split)
-- Type: DECISION — **OPEN, human-only** (proposal drafted by the
+### GAP-18 — Authoring-assist proposal: ratify or reject (the split) — **RATIFIED 2026-08-30 (WITH the split)**
+- Type: DECISION (proposal drafted by the
   maintainer 2026-08-29; roundtable-ruled the same day)
 - The maintainer's "DocNode projection editor" draft is filed verbatim at
   `docs/proposals/authoring-assist.md` with the roundtable ruling as its
@@ -96,12 +96,14 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 - Three claims did not survive the code (no DocNode JSON Schema exists;
   codegen would clobber hand-authored document-types/*.ts; `provenance`
   already exists) — listed in the proposal header.
-- Closes when: the maintainer ratifies WITH the split (then: Stage 7
-  tracks 1+2 gain "spec: docs/proposals/authoring-assist.md", UI-DESIGN's
-  absent-list gains "no tree/outline/inspector editor (GAP-04)", HLD §12
-  notes the developer authoring surface is not a console screen) — or
-  rejects it (file stays as history). Either way, no build until a Stage
-  7 trigger fires. The loop changes nothing in its queue on this gap.
+- **Ratified WITH the split (maintainer, in chat, 2026-08-30).** Closed:
+  ROADMAP.md's Stage 7 tracks 1 and 2 now cite
+  `docs/proposals/authoring-assist.md` as their spec; UI-DESIGN.md's
+  absent list gained "no tree/outline/inspector editor"; HLD §12 notes
+  the developer authoring surface is not a console screen. No build
+  starts from this ratification alone — both tracks stay trigger-gated
+  exactly as before (track 1: 0/3 templates; track 2: 0/5 named asks),
+  and neither trigger has fired.
 
 ## Seams
 
@@ -441,8 +443,8 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   `document-detail-reproduce.test.ts` uses) — `OutputPort.reproduce` and
   `DeliveryQueue.enqueue` both run for real, nothing faked.
 
-### GAP-23 — Visible REPRINT watermark needs a grammar root
-- Type: DECISION — **OPEN, human-only** (named by the Stage 5 task-2 ruling)
+### GAP-23 — Visible REPRINT watermark needs a grammar root — **CLOSED 2026-08-30 (no)**
+- Type: DECISION (named by the Stage 5 task-2 ruling)
 - ROADMAP task 2 says "state stamps as metadata + optional watermark". The
   metadata stamp is built (reprint_log). A VISIBLE watermark on a
   regenerated document is closed by the frozen expression grammar:
@@ -455,8 +457,11 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   (gold-plating a renderer, CLAUDE.md). The ruling prefers the grammar
   route if the maintainer wants it at all. Never a modification of
   archived bytes (POLICY.md).
-- Closes when: the maintainer decides yes/no; if yes, a grammar-doc change
-  precedes the parser change (docs/EXPRESSION-GRAMMAR.md's own rule).
+- **Ruled NO (maintainer, in chat, 2026-08-30).** No visible watermark;
+  the existing metadata-only stamp (`reprint_log`) is the final state,
+  not an interim one. No grammar change, no parser change, no renderer
+  overlay. ROADMAP task 2's "optional watermark" phrase is now resolved
+  as "optional, and not exercised" rather than a standing gap.
 
 ### GAP-24 — Console actor identity is proxy-asserted; authn has no home
 - Type: SEAM — **OPEN, low priority** (named by the Stage 5 task-4 arb-chair
@@ -475,6 +480,12 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   task 5 or later, and `resolveActor`'s default becomes the authenticated
   principal — or the maintainer rules the proxy contract IS the product's
   authn boundary and documents it in HLD.
+- **Ruled (maintainer, in chat, 2026-08-30): temporary, not permanent.**
+  The proxy-header trust is a stopgap, not the intended final design —
+  real authentication belongs in the product eventually. Stays open, low
+  priority; no code change from this ruling alone. Revisit under
+  Settings > Access (UI-DESIGN §Settings) when there's a real need, not
+  speculatively.
 
 ### GAP-25 — `submit` (draft → review) has no operator surface
 - Type: DECISION — **CLOSED 2026-08-29** (maintainer ruled directly in
@@ -584,8 +595,8 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   extracted PDF text, everything else identical to the base render).
   `npm run verify`: 80 files / 508 tests (was 77/481).
 
-### GAP-28 — A totals row missing `.amount` silently prints "[object Object]"
-- Type: TASK — **OPEN, low priority** (flagged by corpus-qa's gate-check
+### GAP-28 — A totals row missing `.amount` silently prints "[object Object]" — **RULED 2026-08-30 (fail loudly)**
+- Type: TASK (flagged by corpus-qa's gate-check
   of Stage 6 task 1, 2026-08-29; regression test added same day so the
   behavior is documented and guarded, not silently latent)
 - `emitTotals` (packages/render-typst/src/emit-typst.ts) gates money
@@ -610,10 +621,19 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   the template author to write the correct path and leave it as a
   template-authoring footgun?), not a default extension of the flagging
   session's scope.
-- Closes when: the maintainer decides fix-vs-accept, or a corpus case
-  demonstrates it firing in a real template and the decision becomes
-  forced. Evidence either way:
-  `packages/render-typst/src/format.test.ts`'s "GAP-28" test.
+- **Ruled (maintainer, in chat, 2026-08-30): fail loudly.** A numeric-
+  shaped totals-row path that isn't a genuine `.amount` money path must
+  throw at render time, not silently stringify to "[object Object]". No
+  auto-extraction of `.amount` from a bare Money object — a wrong
+  expression is a template-authoring error to surface, not paper over.
+  Not yet built — next step: `emitTotals`/`formatDisplayValue`
+  (packages/render-typst/src/emit-typst.ts, format.ts) throw a named
+  error when a totals-row value resolves to a plain object that isn't a
+  recognized string/date/address/money shape, with a corpus/unit test
+  proving the throw (replacing the existing "GAP-28" test's [object
+  Object] assertion, since that behavior is now wrong, not documented).
+- Closes when: the throwing behavior lands with a passing test and
+  `npm run verify` green.
 
 ### GAP-29 — Document detail has no unaudited inline PDF preview — **CLOSED 2026-08-30**
 - Type: SEAM + console UI
@@ -727,6 +747,29 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 - Closes when: either hashes populate on every composed document per a
   ruling on the four questions above, or maintainer explicitly accepts
   null as final with rationale recorded here.
+- **Ruled (maintainer, in chat, 2026-08-30): as recommended, all four
+  questions:**
+  1. **Input** = SHA-256 of the raw `DataContractEnvelope` payload as
+     received at `POST /event` (not the merged template content — that's
+     already derivable from `templateVersion` + the variant chain, which
+     is separately audit-trailed via registration; hashing it too would
+     be a second, redundant hash for a value already reconstructable).
+  2. **Output** = SHA-256 of the archived bytes as stored, unmodified —
+     a tamper-evidence check on that one artifact, not a
+     reproducibility check (which the corpus tests already cover via
+     normalized comparison).
+  3. **Algorithm** = SHA-256 for both.
+  4. **Failure mode** = both hashes stay null on a failed composition,
+     computed only alongside `archiveArtifact`'s existing
+     `archiveRef`/`rendererVersion` write — consistent with today's
+     "nothing fabricated on failure" behavior, no new invariant.
+  Not yet built — next step: `composition.ts` computes both hashes at
+  the `archiveArtifact` call site and passes them through to the
+  registry write, with a test proving a composed document's row carries
+  non-null `inputHash`/`outputHash` and a failed composition still
+  leaves both null.
+- Closes when: the above lands with a passing test and `npm run verify`
+  green.
 
 ## Gate
 

@@ -279,8 +279,8 @@ are done by the AI loop instead (ADR-005), verified by the Stage 2 diff
 infrastructure, governed by the Stage 5 lifecycle.
 
 ### Tracks (each with its own entry trigger)
-- [ ] **Template-from-sample, productized** — upload sample → generate → converge → land as `draft`. Trigger: the Stage 2/4 skill has authored ≥3 real templates successfully.
-- [ ] **Adjust-assist workspace** — per the grilled spec in `docs/UI-DESIGN.md`: document, proposed tint, one impact line, one prompt, Accept as draft; source/history stay in the user's editor. Trigger: previewer exists and ≥5 external requests by name.
+- [ ] **Template-from-sample, productized** — upload sample → generate → converge → land as `draft`. Trigger: the Stage 2/4 skill has authored ≥3 real templates successfully. Spec: `docs/proposals/authoring-assist.md` (GAP-18, ratified WITH the roundtable split 2026-08-30 — the AI-pipeline half only: sample/copy/blank → AI draft → RFC 6902 patch adjust with a diff oracle → export, accept as `draft`/`ai-assisted`, redaction gate, bounded retries).
+- [ ] **Adjust-assist workspace** — per the grilled spec in `docs/UI-DESIGN.md`: document, proposed tint, one impact line, one prompt, Accept as draft; source/history stay in the user's editor. Trigger: previewer exists and ≥5 external requests by name. Spec: `docs/proposals/authoring-assist.md` (GAP-18, same ratification — the projection-editor half of that proposal, outline/inspector/prompt UI, is REJECTED, not part of this track's spec; see UI-DESIGN.md's absent list).
 - [ ] **Shadow parity mode** — run the pipeline alongside a legacy output system, structural-diff every live document pair, parity dashboard as cutover evidence. Trigger: a named migration target (an estate on a commercial ERP suite's legacy form tooling).
 
 ### Hard constraints (from ADR-005, non-negotiable)
