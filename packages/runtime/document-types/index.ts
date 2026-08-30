@@ -5,6 +5,15 @@
  * them in this order at startup. No other `src/**` file may import this
  * directory (`src/registration/engine-boundary.test.ts`).
  *
+ * This directory is a reference/example consumer of the engine's public
+ * registration seam, not the engine itself: the engine (`src/**`) is
+ * document-type-blind by construction, enforced by the same boundary
+ * test. A real ERP registers its own document types through the
+ * identical public verb, exactly as `test/document-types/sample-memo/`
+ * does from outside this tree. The package-boundary question (should
+ * this move to its own npm package) is deferred, not undecided — see
+ * ADR-007's Must-not-build list.
+ *
  * Order matters and is deliberate: invoice, payslip, purchase-order is
  * the alphabetical filename order the old module-level rule cache
  * evaluated `rules/output-rules/*.json` in, so `determine()`'s trace lists

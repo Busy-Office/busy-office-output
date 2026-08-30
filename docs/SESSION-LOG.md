@@ -11,6 +11,29 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — AI-slop cleanup + GAP-08 boundary clarification
+- Did: maintainer-driven audit found real defects: (1) 51/~80 source files
+  embedded `GAP-NN`/`Stage N` comments in violation of CLAUDE.md's own
+  no-task-reference rule (flagged, not yet fixed — separate task); (2) two
+  vendor-specific ERP-vendor identifiers and a vendor-specific document-
+  number convention had leaked into fixtures/tests/schema comments across
+  11 files — removed, replaced with neutral names/formats (2 commits,
+  `b5d628d`, `56e47a7`; `npm run verify` 509/509 both times). Also raised:
+  maintainer's concern that the platform shouldn't own business data
+  objects, only a fixed input contract + placeholders. arb-chair confirmed
+  this is already true (GAP-08's closed seam, `engine-boundary.test.ts`,
+  `sample-memo` precedent) — no code change needed, just documented it
+  explicitly in `packages/runtime/document-types/index.ts` and GAP-08's
+  entry in `docs/GAP-REGISTER.md` so the boundary isn't re-litigated from
+  scratch next time. `npm run verify` 509/509 (doc-only diff).
+- Open: the GAP-comment cleanup (51 files) and the null `inputHash`/
+  `outputHash` gap found in the same audit — neither logged as a formal
+  GAP entry yet, both Claude-doable, no maintainer decision needed.
+- Next: log GAP entries for the two items above, or pick one and fix it
+  directly. Otherwise still blocked on `GATE-S3-THESIS-CHECK` (human-only)
+  or a Stage 7 track trigger — nothing else Claude-doable on the roadmap
+  itself.
+
 ## 2026-08-29 — GAP-28 logged: totals-row Money-object stringify fragility
 - Did: loop tick 28 (dispatcher pass, 28%4=0: docs/INBOX.md Open empty,
   nothing to rule on). Rather than a bare noop, picked up one of the two

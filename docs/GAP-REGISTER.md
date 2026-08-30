@@ -191,6 +191,17 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
   exists and one document type registers from outside the engine tree,
   lint-enforced.
 - Blocks: GAP-07 verb five.
+- **2026-08-30 clarification (arb-chair, re-raised by the maintainer):**
+  confirmed the closed state already satisfies "the engine shouldn't own
+  business data objects, only a fixed input contract + placeholders" —
+  `packages/runtime/document-types/` lives outside `src/`, registers
+  through the same public verb any external caller uses, and
+  `test/document-types/sample-memo/` is standing proof an outside
+  registrant works. The remaining open question (a separate npm package
+  for the built-ins) is ADR-007's deferred package-map split, not a new
+  gap — reopening it needs a real external consumer, which doesn't exist
+  yet. No code change; `document-types/index.ts` now states this
+  explicitly.
 
 ### GAP-09 — Embedded topology leaks the typst binary into hosts — **CLOSED 2026-08-29**
 - Type: SEAM
