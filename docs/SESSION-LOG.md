@@ -41,7 +41,7 @@ Newest first. One entry per Claude Code session. Template:
   `FsArchiveStore`, bytes minted via `archiveArtifact` (no renderer, the
   `document-detail-reproduce.test.ts` shortcut) — `OutputPort.reproduce`
   and `DeliveryQueue.enqueue` both run for real. `npm run verify`: 82/82
-  files, 521/521 tests, fully green. Commit c3e2b7a (see `git log`).
+  files, 521/521 tests, fully green. Commit 2187ec1.
 - Open: nothing on this gap. GAP-22's own text noted an alternative
   closure path ("a decision on email re-delivery without a payload") —
   not taken; the `deliverTo` widening was the simpler, already-scoped
