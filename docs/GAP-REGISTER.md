@@ -637,14 +637,61 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 ### GAP-31 — inputHash/outputHash never computed, permanently null
 - Type: Silent capability gap
 - Status: OPEN — needs maintainer ruling (fix vs. accept, GAP-28 pattern)
-- `composition.ts` never computes `inputHash`/`outputHash`; registry rows
-  carry them as permanently null. Undermines the audit trail's
-  tamper-evidence claim. Needs a ruling: compute now (hash algorithm,
-  timing — pre/post-render?) or formally accept as out of scope with a
-  documented reason. Not fixed here.
-- Closes when: either hashes populate on every composed document, or
-  maintainer explicitly accepts null as final with rationale recorded
-  here.
+- `inputHash`/`outputHash` are real columns (`registry-store.ts:146-147`,
+  a real SQLite column each) — this isn't missing infra, just an
+  uncomputed field. `composition.ts` never writes them; registry rows
+  carry them as permanently null (confirmed: `sqlite-registry-store.ts:
+  548-549` just passes the null through, `console.ts:51-52` renders
+  "—" and documents the gap knowingly). Undermines the audit trail's
+  tamper-evidence claim. Not fixed here — needs a ruling on each of the
+  following, each a real fork with no obviously-correct default:
+
+  1. **What "input" means.** The raw `DataContractEnvelope` payload as
+     received at `POST /event`, or the resolved/merged template content
+     it renders against? These diverge once GAP-27's variant-inheritance
+     merge is in play — a country/company/customer override changes what
+     actually rendered without changing the payload. If the goal is
+     "prove what data produced this artifact," it's the payload. If the
+     goal is "prove what template composition produced this artifact,"
+     it's the merged content, or both hashed separately.
+
+  2. **What "output" means, and this one has a real trap.** `normalizePdf`
+     (`packages/render-typst/src/normalize-pdf.ts`) is exported and used
+     ONLY in test comparisons — it is never called in the production
+     archive path (confirmed: no reference to it outside
+     `render-typst/src/index.ts`'s export and test files). That means the
+     real archived PDF carries Typst's actual embedded timestamps
+     (CreationDate/ModDate/XMP), so hashing raw archived bytes as
+     `outputHash` will differ between two otherwise-identical renders —
+     by construction, every time. For a **tamper-evidence** claim ("has
+     this specific stored artifact been altered since archive") that's
+     actually correct: hash exactly what's stored, timestamps included,
+     so the hash proves integrity of that one artifact. For a
+     **reproducibility** claim ("would re-rendering produce the same
+     bytes") it's wrong — that property is what the corpus tests already
+     check separately, via normalized comparison, and conflating the two
+     would make `outputHash` fail on every legitimate re-render. Ruling
+     needed: `outputHash` is a tamper check on the stored artifact
+     (hash raw bytes, recommended), not a determinism check.
+
+  3. **Algorithm.** No existing content-hash convention in this repo to
+     match — SHA-256 is the obvious default but is a genuinely open
+     choice, not a foregone one.
+
+  4. **Timing and failure mode.** Compute inline in `composition.ts`
+     around `archiveArtifact` (`packages/runtime/src/archive/index.ts`) —
+     the same call site that already writes `rendererVersion`
+     (GAP-15's precedent: `archiveArtifact` sets `archiveRef` +
+     `rendererVersion` together, state DRAFT→ORIGINAL, in one place —
+     the natural model for adding two more fields to that same write).
+     Open question: does a failed composition leave both hashes null
+     (today's behavior, consistent with `archiveRef` also staying null
+     on failure), or must both hashes exist before a row can reach
+     ORIGINAL (a new invariant, would need its own test)?
+
+- Closes when: either hashes populate on every composed document per a
+  ruling on the four questions above, or maintainer explicitly accepts
+  null as final with rationale recorded here.
 
 ## Gate
 
