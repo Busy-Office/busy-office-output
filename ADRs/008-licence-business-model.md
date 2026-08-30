@@ -100,6 +100,12 @@ or needs to be.
   triggers, no silent banking. (Under ADR-009 the erp edge is an
   architectural precaution, not the current validation path — this
   consequence is recorded for completeness, not as a live priority.)
+  **Amended 2026-08-30:** `GATE-S3-THESIS-CHECK` is voided as a formal
+  gate (docs/GAP-REGISTER.md GAP-13) — the mechanism was wrong, not the
+  goal. The production-green condition on this edge is unaffected in
+  substance: it still requires real-operator validation, which now
+  happens informally/continuously rather than through this specific
+  pre-registered gate. No silent banking still holds.
 - npm publication becomes legal → trusted publishing + automatic
   provenance become available → this becomes the second family repo on
   trust tier B at zero cost.

@@ -583,7 +583,22 @@ TASK (Claude-doable now) · GATE (external validation) · HYGIENE (doc truth).
 ## Gate
 
 ### GAP-13 — Thesis validated with N=0 operators
-- Type: GATE — **OPEN, human-only; Stage-5 EXCEPTION RATIFIED 2026-08-29**
+- Type: GATE — **VOIDED 2026-08-30** (was: OPEN, human-only; Stage-5
+  EXCEPTION RATIFIED 2026-08-29)
+- **Voided (maintainer, in chat, 2026-08-30):** `GATE-S3-THESIS-CHECK`
+  removed as a formal gate. Reasoning: the mechanism was wrong, not the
+  goal — a pre-registered 5-operator scoring ceremony with a frozen
+  `docs/PREMORTEM.md` is over-engineered process theater for a solo
+  maintainer, surfaced in the same session as a broader AI-slop audit
+  (docs/SESSION-LOG.md 2026-08-30) that found the project's fast,
+  self-certified stage closures (Stages 0–6 in ~4 days) had already
+  produced real defects caught only by human review (GAP-27). Real-
+  operator validation still matters and is not abandoned — it continues
+  informally/continuously as operators are encountered, rather than as a
+  blocking pre-registered gate with its own scoring apparatus.
+  `docs/PREMORTEM.md` marked voided, not deleted (its "Demo readiness"
+  technical section stays accurate history). ADR-008 and ADR-009 carry
+  amendment notes; this does not reopen either ADR's core decision.
 - ~2 stages built past an open thesis check. Under GAP-01 = standalone
   product, the operator demo IS the validation (not "first consumer
   wired") — this gap is unambiguously `GATE-S3-THESIS-CHECK`.
@@ -623,7 +638,7 @@ GAP-01 ✓ ──┬─▶ GAP-07 contract shape ──▶ GAP-08 registration
 GAP-02 ✓ ──┘
 GAP-04 ✓ ──▶ template-tool scope (settled: developer-as-code)
 GAP-03 ──▶ Stage-4 exit gate
-GAP-13 ──▶ Stage-5 start AND close, Stage-6 start (exception ratified 2026-08-29, read broadly) — Stage 5 CLOSED, GATE-S3-THESIS-CHECK itself still open
+GAP-13 ──▶ Stage-5 start AND close, Stage-6 start (exception ratified 2026-08-29, read broadly) — Stage 5 CLOSED; GATE-S3-THESIS-CHECK VOIDED 2026-08-30, blocks nothing
 GAP-11, GAP-12, GAP-14 ──▶ independent, Claude-doable now
 GAP-05, GAP-06 ──▶ independent, human-only
 ```

@@ -172,8 +172,9 @@ where a developer writes; nothing else moves.
 ## 7. Open questions (parked, human-only)
 
 - **OQ-A — Stage-7 trigger condition.** Candidates surfaced in grilling:
-  (a) a named non-maintainer template author appears (e.g. at the
-  GATE-S3-THESIS-CHECK operator demo); (b) template count reaches the
+  (a) a named non-maintainer template author appears (e.g. during informal
+  operator contact — `GATE-S3-THESIS-CHECK`'s formal version was voided
+  2026-08-30, docs/GAP-REGISTER.md GAP-13); (b) template count reaches the
   point where authoring cost measurably dominates a milestone; (c) a
   shadow-parity migration engagement (ADR-005's adoption funnel) is real.
   Owner: maintainer. Blocks: every build task below.

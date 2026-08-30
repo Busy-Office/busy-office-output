@@ -38,6 +38,16 @@ ratified exception may let Stage 5 proceed unvalidated), but it does settle
 what "validated" means going forward: real standalone-product usage, not
 integration-contract adoption.
 
+**Amended 2026-08-30:** `GATE-S3-THESIS-CHECK`'s formal pre-registered
+5-operator scoring mechanism is voided (docs/GAP-REGISTER.md GAP-13) — it
+was judged the wrong mechanism for a solo maintainer, not a wrong goal.
+What "validated" means going forward is unchanged from the paragraph
+above (real standalone-product usage, by real operators, not integration-
+contract adoption); only the formal gate-and-scoring apparatus around
+proving it is gone. Validation now happens informally/continuously as
+real operators are encountered, with no pre-registered scoring sheet or
+blocking gate.
+
 ## Consequences
 
 - ADR-007's "consumer #1" framing is retained as an ARCHITECTURAL

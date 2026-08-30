@@ -128,7 +128,7 @@ to exist.
 - [x] Single-process `serve`: API + worker + embedded queue + FS archive — DoD: fresh clone → `serve` → end-to-end works with zero external services *(2026-08-28: packages/runtime/src/composition.ts (render+archive+enqueue per resolution, never throws, 10y default retentionUntil as a documented stand-in for Stage 4's real policy), render/template-content.ts (single hardcoded po-global-v1 -> DocNode lookup per arb-chair ruling — invoice/payslip stay determination-only, surfaced as an honest `no-template-content` outcome, never a 500/fabricated artifact), delivery/fs-channel-sender.ts (FsChannelSender — zero-external-services ChannelSender default, writes ./data/outbox/<channel>/<docId>-<uuid>.bin + JSON sidecar), worker.ts (drainOnce — deterministic, timer-free drain used by tests; startWorker — thin overlap-safe setInterval wrapper `serve()` uses for real runs), index.ts (createRuntimeDeps assembles SQLite registry + FsArchiveStore + SqliteDeliveryQueue + TypstRenderer + FsChannelSender; serve() wires it all into createIngressServer + startWorker in one function). e2e.test.ts: real HTTP POST through createIngressServer with real `typst compile` (no mocks on render/archive/delivery) proves rule trace -> archived PDF (countPdfPages >= 1) -> FsChannelSender outbox file byte-identical to the archived artifact -> registry DRAFT->ORIGINAL with delivery_history recording the attempt; invoice case proves the honest no-content path never fabricates a row. npm run verify: 159/159 tests, 6.18s wall-clock)*
 - [x] Embeddable module (ADR-007): `createOutput()` mounts in a host process sharing its Postgres; **transactional outbox** — DoD: rollback test shows no orphaned artifact or registry row *(2026-08-28: arb-chair ruling — no PostgresRegistryStore (no live Postgres available, same reasoning as S3/email mock-testing), no package restructuring. packages/runtime/src/embed/create-output.ts — topology-blind OutputPort over injected ports. migrations/0005_add_composition_outbox.sql + RegistryStore.mintWithOutbox: docId mint + outbox row in one SQLite transaction, closing the crash-mid-composition gap flagged in the prior session entry. Rollback tests prove exactly one archived artifact + registry row reaches ORIGINAL after a simulated crash+resume, no duplicate on a second resume. Known gap, flagged not fixed: server.ts's HTTP path still uses the pre-outbox mint — follow-up, not this task's scope)*
 - [x] Minimal console, read-only (UI-DESIGN): registry, document detail, rule trace as busy-office-ui pages — DoD: each passes the five UI principles; the Stage 3 demo runs through it *(2026-08-28: console-designer design brief (binding) -> plain server-rendered HTML under /output, no framework. packages/runtime/src/console.ts — Registry (search + bordered rows), Document detail (identity facts, static PDF/A badge, reprint trichotomy as inert text — no stub actions), Rule trace (every rule's reasons[] inline, same-page anchors only). Two small backend additions the screens needed: documentType column (migrations/0006), persisted trace log (migrations/0007). Live-verified: ran serve(), drove a real event through it, screenshotted all three pages rendering real data via Chrome)*
-- [ ] **[HUMAN]** Thesis check: show the two-minute demo to 5 real operators — DoD: notes in `docs/PREMORTEM.md`; feeds C2 — **cannot be completed by Claude; needs the maintainer**
+- [x] **[HUMAN — GATE VOIDED 2026-08-30]** ~~Thesis check: show the two-minute demo to 5 real operators — DoD: notes in `docs/PREMORTEM.md`; feeds C2~~ — voided by maintainer ruling: the formal pre-registered 5-operator scoring gate was the wrong mechanism for a solo maintainer, not a wrong goal. Real-operator validation still matters; it continues informally/continuously rather than as a blocking pre-registered gate. See `docs/GAP-REGISTER.md` GAP-13.
 - [x] ADR-003 (rule storage) + ADR-004 (queue) closed — DoD: Status: Accepted *(2026-08-28: ADR-003 Option 1 files-first, ADR-004 Option 1 SQLite-backed embedded queue — both decided directly by the maintainer in chat)*
 
 ### Exit gate — `/gate-check 3`  — **PASS, 2026-08-28 (machine-checkable criteria)**
@@ -142,12 +142,10 @@ on disk; delivery byte-identical (`cmp`) to the archived artifact,
 `status = delivered`; all three console routes return real HTML for the
 docId. 177/177 tests, typecheck clean.
 
-Stage 3 is **not fully closed**: the one remaining task,
-`[HUMAN] Thesis check` (docs/HUMAN-GATES-LOG.md, `GATE-S3-THESIS-CHECK`,
-open), genuinely cannot be done by Claude — it requires the maintainer to
-show the demo to 5 real operators and write up `docs/PREMORTEM.md`. Every
-other Stage 3 task and this exit gate's own machine-checkable criteria
-are done.
+**Stage 3 CLOSED 2026-08-30.** The one remaining task, `[HUMAN] Thesis
+check` (`GATE-S3-THESIS-CHECK`), is voided per maintainer ruling
+(docs/GAP-REGISTER.md GAP-13) — every other Stage 3 task and this exit
+gate's own machine-checkable criteria were already done.
 
 ---
 
@@ -213,8 +211,8 @@ channel and one shared recipient, locale never set or persisted. Second
 
 Stage 4 exit gate met. Remaining Stage 4 items (GAP-07/08 consumer contract,
 GAP-10 email templating, template-from-sample on redacted samples) are
-Stage 4-owned build tasks, not exit-gate conditions; GAP-13 (thesis check)
-remains the human-only gate carried from Stage 3.
+Stage 4-owned build tasks, not exit-gate conditions. GAP-13 (thesis check),
+carried from Stage 3, was voided 2026-08-30 (docs/GAP-REGISTER.md).
 
 ---
 

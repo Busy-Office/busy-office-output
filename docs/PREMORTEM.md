@@ -1,3 +1,13 @@
+**VOIDED 2026-08-30** — `GATE-S3-THESIS-CHECK` was removed as a formal
+gate (docs/GAP-REGISTER.md GAP-13, docs/HUMAN-GATES-LOG.md). The
+pre-registered 5-operator scoring ceremony below was judged the wrong
+mechanism for a solo maintainer — real-operator validation still matters
+and continues informally/continuously, just not as a blocking gate with
+this scoring apparatus. The scoring sections below were never filled in
+and are kept only as historical record of the abandoned mechanism. The
+"Demo readiness (technical only)" section at the bottom remains accurate
+and is not voided — it recorded a real, verified fact about the demo.
+
 # Premortem — GATE-S3-THESIS-CHECK (DRAFT: maintainer owns the numbers)
 
 **Discipline:** this file is frozen (committed) before operator demo #1

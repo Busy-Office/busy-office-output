@@ -11,6 +11,30 @@ Newest first. One entry per Claude Code session. Template:
 
 ---
 
+## 2026-08-30 — GATE-S3-THESIS-CHECK voided
+- Did: maintainer ruled directly in chat: void `GATE-S3-THESIS-CHECK`
+  (GAP-13) as a formal gate. Reasoning recorded: the mechanism was wrong,
+  not the goal — a pre-registered 5-operator scoring ceremony with a
+  frozen `docs/PREMORTEM.md` is process theater for a solo maintainer;
+  real-operator validation still matters and continues informally/
+  continuously instead. Updated across the doc set: `docs/GAP-REGISTER.md`
+  (GAP-13 marked VOIDED with rationale, blocking graph updated),
+  `docs/HUMAN-GATES-LOG.md` (row marked voided), `ROADMAP.md` (Stage 3
+  task struck + marked closed 2026-08-30, Stage 4 exit-gate note updated),
+  `CLAUDE.md` (status line updated, removed from human-only-items list),
+  `docs/PREMORTEM.md` (header marks the scoring sections voided, keeps
+  the "Demo readiness" technical section as accurate history),
+  `docs/proposals/authoring-assist.md` (OQ-A's trigger-source mention
+  reworded). ADR-008 and ADR-009 (both Accepted) amended with dated notes
+  rather than rewritten — their core decisions untouched, only the
+  operator-validation mechanism they each referenced. `npm run verify`
+  509/509 (doc-only diff).
+- Open: nothing from this task. Stage 3 is now fully closed alongside
+  Stages 0–6.
+- Next: still nothing else Claude-doable on the roadmap — Stage 7 remains
+  trigger-gated with no track fired, and GAP-18 (authoring-assist
+  ratify/reject) is the one remaining human-only item.
+
 ## 2026-08-30 — AI-slop cleanup + GAP-08 boundary clarification
 - Did: maintainer-driven audit found real defects: (1) 51/~80 source files
   embedded `GAP-NN`/`Stage N` comments in violation of CLAUDE.md's own

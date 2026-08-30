@@ -13,10 +13,12 @@ formatting for en-SG/ja-JP/th-TH/ar-SA on the same PO template, zero
 forking; a real `parentId` content-merge landed for country/company/
 customer variant overrides, closing GAP-27 — a Stage 1-specified merge
 algorithm that had silently never been wired into the composition path
-through four prior stage closures), under the still-open
-`GATE-S3-THESIS-CHECK` (gap register GAP-13) — its ratified exception is
-read broadly, covering every stage close and start through here, not
-just the Stage-5 building it was first ratified for. **Stage 7
+through four prior stage closures). `GATE-S3-THESIS-CHECK` (gap register
+GAP-13) is **voided** (2026-08-30, maintainer ruling): the formal
+pre-registered 5-operator scoring ceremony was the wrong mechanism for a
+solo maintainer, not a wrong goal — real-operator validation still
+matters and stays informal/continuous rather than a blocking gate;
+Stage 3 closes fully as a result. **Stage 7
 (Authoring assist, AI-native) is next but unscheduled** — every track is
 trigger-gated (ADR-005, still Proposed until then) and no track's
 trigger has fired (track 1 stands at 0/3 templates); nothing there is
@@ -26,8 +28,8 @@ buildable until a trigger does. Every ADR through 009 is Accepted except
 `@busy-office/render-pdf-direct` (single-page/Latin/no-carry-forward, both
 PDF/A-2b, veraPDF in the corpus gate). Document types are owner-supplied
 via `registerDocumentType` (GAP-08) — the engine names none. Licence
-Apache-2.0 (ADR-008). Human-only items open: GATE-S3-THESIS-CHECK (5-
-operator demo), GAP-18 (authoring-assist proposal ratify/reject). Path B
+Apache-2.0 (ADR-008). Human-only items open: GAP-18 (authoring-assist
+proposal ratify/reject). Path B
 (Carbone) stayed out of scope per ADR-000 throughout. One part-time
 maintainer; sessions are short — leave everything in a resumable state.
 `docs/GAP-REGISTER.md` is the live worklist alongside ROADMAP.md.
