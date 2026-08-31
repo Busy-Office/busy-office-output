@@ -1384,6 +1384,19 @@ Newest first. One entry per Claude Code session. Template:
 
 ## Loop ticks (noop entries — nothing runnable, logged without a full session entry)
 
+- tick 38, 2026-08-31: noop — re-derived from scratch (fresh cloud session,
+  no local memory): read ROADMAP.md/ADRs/README.md/docs/GAP-REGISTER.md
+  end to end. Every GAP entry is CLOSED/RATIFIED except GAP-24 (console
+  authn — maintainer explicitly ruled 2026-08-30 "temporary, not
+  permanent... revisit under Settings > Access when there's a real need,
+  not speculatively" — building it now would violate that ruling) and
+  Stage 7's three tracks (all trigger-gated, none fired — track 1 still
+  0/3 templates). The one remaining unchecked Stage 4 task (author
+  invoice+payslip templates via template-from-sample on redacted real
+  samples) stays blocked on the maintainer supplying real samples, same
+  as every prior tick back to ~tick 20 (docs/SESSION-LOG.md history).
+  `docs/INBOX.md` Open section is empty. No code changes, no commit.
+  Not a dispatcher tick (38%4≠0).
 - tick 37, 2026-08-30: noop — waiting on the maintainer to provide real
   operator-demo results for docs/PREMORTEM.md's scoring sheet (asked for
   directly in chat, not yet supplied). A demo-readiness note (technical
